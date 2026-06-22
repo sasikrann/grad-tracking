@@ -4,6 +4,7 @@ import type { CurrentUser } from '@/types/user'
 
 defineOptions({ name: 'AppNavbar' })
 
+// ชนิดข้อมูลที่ใช้สร้างเมนูของแต่ละ role
 type MenuRole = 'admin' | 'lecturer' | 'student'
 type MenuIcon = 'dashboard' | 'student' | 'milestone' | 'notification'
 
@@ -13,10 +14,12 @@ interface MenuItem {
   icon: MenuIcon
 }
 
+// รับข้อมูลผู้ใช้ที่เข้าสู่ระบบมาจาก component แม่ เช่น App.vue
 const props = defineProps<{
   user: CurrentUser
 }>()
 
+// รายการเมนูที่จะแสดงแยกตาม role
 const menus: Record<MenuRole, MenuItem[]> = {
   admin: [
     { label: 'Student Dashboard', to: '/', icon: 'dashboard' },
@@ -35,12 +38,15 @@ const menus: Record<MenuRole, MenuItem[]> = {
   ],
 }
 
+// Backend ใช้ชื่อ advisor แต่หน้าเว็บเรียกว่า lecturer จึงให้ใช้เมนูชุดเดียวกัน
 const menuRole = computed<MenuRole>(() =>
   props.user.role === 'advisor' ? 'lecturer' : props.user.role,
 )
 
+// เลือกรายการเมนูให้ตรงกับ role ของผู้ใช้
 const menuItems = computed(() => menus[menuRole.value])
 
+// ใช้ initials ที่ส่งมา หรือสร้างจากชื่อผู้ใช้ให้อัตโนมัติ เช่น John Doe เป็น JD
 const userInitials = computed(() => {
   if (props.user.initials) return props.user.initials
 
@@ -56,14 +62,14 @@ const userInitials = computed(() => {
 })
 </script>
 
-
 <template>
   <aside
-    class="fixed top-0 left-0 flex h-screen w-64 flex-col justify-between bg-[#7D2923] px-3 py-3 text-white"
+    class="fixed flex h-screen w-64 flex-col justify-between bg-[#7D2923] px-3 py-3 text-white"
   >
     <div>
+      <!-- ส่วนโลโก้และชื่อระบบ -->
       <div class="flex items-center gap-3">
-        <div class="flex size-14 shrink-0 items-center justify-center rounded-xl bg-[#750008]">
+        <div class="flex size-14 items-center justify-center rounded-xl bg-[#750008]">
           <img src="@/assets/logomfu.png" alt="MFU Logo" class="size-12 object-contain" />
         </div>
 
@@ -73,6 +79,7 @@ const userInitials = computed(() => {
         </div>
       </div>
 
+      <!-- ส่วนเมนู: สร้างรายการตาม role ด้วย v-for -->
       <nav class="mt-6">
         <p class="mb-3 px-1 py-3 text-sm text-white/60">Overview</p>
 
@@ -83,6 +90,7 @@ const userInitials = computed(() => {
           class="flex items-center gap-3 px-2 py-3 text-sm transition-colors hover:bg-[#720008]"
           exact-active-class="bg-[#720008]"
         >
+          <!-- เลือกไอคอนให้ตรงกับประเภทของเมนู -->
           <svg
             class="size-4 shrink-0"
             viewBox="0 0 24 24"
@@ -117,6 +125,7 @@ const userInitials = computed(() => {
       </nav>
     </div>
 
+    <!-- ส่วนข้อมูลผู้ใช้ที่แสดงด้านล่างสุดของ Navbar -->
     <div class="mb-3 flex items-center gap-2">
       <div
         class="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#720008] text-sm"
