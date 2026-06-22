@@ -87,7 +87,7 @@ const userInitials = computed(() => {
           v-for="item in menuItems"
           :key="item.to"
           :to="item.to"
-          class="flex items-center gap-3 px-2 py-3 text-sm transition-colors hover:bg-[#720008]"
+          class="flex items-center gap-3 rounded-[5px] px-2 py-3 text-sm transition-colors hover:bg-[#720008]"
           exact-active-class="bg-[#720008]"
         >
           <!-- เลือกไอคอนให้ตรงกับประเภทของเมนู -->
@@ -128,7 +128,7 @@ const userInitials = computed(() => {
     <!-- ส่วนข้อมูลผู้ใช้ที่แสดงด้านล่างสุดของ Navbar -->
     <div class="mb-3 flex items-center gap-2">
       <div
-        class="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#720008] text-sm"
+        class="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#720008] text-xs"
       >
         {{ userInitials }}
       </div>
