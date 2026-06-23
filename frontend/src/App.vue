@@ -7,7 +7,7 @@ import { RouterView } from 'vue-router'
 const currentUser: CurrentUser = {
   fullName: 'Mr.John Smith',
   email: 'johndoe@lamduan.mfu.ac.th',
-  role: 'admin',
+  role: 'advisor', // เปลี่ยนเป็น 'admin', 'lecturer', หรือ 'student' เพื่อทดสอบเมนูต่างๆ
   initials: 'JM',
 }
 </script>
