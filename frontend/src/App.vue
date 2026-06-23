@@ -7,14 +7,14 @@ import { RouterView } from 'vue-router'
 const currentUser: CurrentUser = {
   fullName: 'Mr.John Smith',
   email: 'johndoe@lamduan.mfu.ac.th',
-  role: 'admin',
+  role: 'advisor', // เปลี่ยนเป็น 'admin', 'lecturer', หรือ 'student' เพื่อทดสอบเมนูต่างๆ
   initials: 'JM',
 }
 </script>
 
 <template>
   <Navbar :user="currentUser" />
-  <main class="ml-64 min-h-screen">
+  <main class="ml-64 min-h-screen w-[calc(100%-16rem)] min-w-0 overflow-x-hidden">
     <RouterView />
   </main>
 </template>
