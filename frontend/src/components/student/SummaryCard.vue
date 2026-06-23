@@ -3,17 +3,12 @@ defineProps<{
   title: string
   value: number
   icon: 'students' | 'on-track' | 'overdue'
-  position?: 'start' | 'center' | 'end'
 }>()
 </script>
 
 <template>
   <article
-    class="flex h-[88px] w-full max-w-[300px] items-center rounded-xl border border-[#e6e6e6] bg-white px-4 shadow-[0_2px_3px_rgba(0,0,0,0.18)]"
-    :class="{
-      'md:justify-self-center': position === 'center',
-      'md:justify-self-end': position === 'end',
-    }"
+    class="flex h-[88px] w-full items-center rounded-xl border border-[#e6e6e6] bg-white px-4 shadow-[0_2px_3px_rgba(0,0,0,0.18)]"
   >
     <div class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[#f8ebeb]">
       <svg
