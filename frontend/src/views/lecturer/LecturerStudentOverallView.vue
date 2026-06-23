@@ -14,10 +14,10 @@ const { filteredStudents, filters, isLoading, loadError, search, statistics } = 
 
 <template>
   <div class="lecturer-student-overall-page">
-    <header class="mb-4">
-      <h1 class="text-3xl font-semibold tracking-[-0.02em]">Student Dashboard</h1>
-      <p class="mt-1 text-sm font-medium text-[#7d7d7d]">
-        Monitor advised students, track their progress, and review thesis status
+    <header>
+      <h1 class="text-3xl font-bold tracking-tight">Student Dashboard</h1>
+      <p class="mt-1 text-sm text-slate-500">
+         Monitor advised students, track their progress, and review thesis status
       </p>
     </header>
 
