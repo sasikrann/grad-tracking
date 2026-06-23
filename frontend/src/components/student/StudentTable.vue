@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { LecturerStudent } from '@/types/lecturer'
+import type { StudentTableItem } from '@/types/student'
 
 defineProps<{
-  students: LecturerStudent[]
+  students: StudentTableItem[]
   isLoading: boolean
   error: string
 }>()
@@ -97,7 +97,7 @@ defineEmits<{
           <td>
             <button
               type="button"
-              class="inline-flex items-center gap-2 rounded-md px-1 py-2 text-sm font-semibold hover:text-[#8a2b25] focus:outline-none focus:ring-2 focus:ring-[#8a2b25]/30"
+              class="inline-flex items-center gap-2 rounded-md px-1 py-2 text-sm font-semibold text-sky-500 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-300"
               :aria-label="`View ${student.name}`"
               @click="$emit('view', student.studentId)"
             >

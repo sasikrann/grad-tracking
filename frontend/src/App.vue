@@ -1,15 +1,31 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import Navbar from '@/components/navbar.vue'
 import type { CurrentUser } from '@/types/user'
-import { RouterView } from 'vue-router'
+import { RouterView, useRoute } from 'vue-router'
 
-// ข้อมูลตัวอย่าง เมื่อมีระบบ login ให้เปลี่ยนเป็น user จาก auth store หรือ API
-const currentUser: CurrentUser = {
-  fullName: 'Mr.John Smith',
-  email: 'johndoe@lamduan.mfu.ac.th',
-  role: 'advisor', // เปลี่ยนเป็น 'admin', 'lecturer', หรือ 'student' เพื่อทดสอบเมนูต่างๆ
-  initials: 'JM',
+const route = useRoute()
+
+// ข้อมูลทดสอบชั่วคราว เมื่อมีระบบ Login ให้เปลี่ยนเป็น user จาก Auth Store หรือ API
+const demoUsers: Record<'admin' | 'advisor', CurrentUser> = {
+  admin: {
+    fullName: 'Mr.John Smith',
+    email: 'johndoe@lamduan.mfu.ac.th',
+    role: 'admin',
+    initials: 'JM',
+  },
+  advisor: {
+    fullName: 'Dr. John Doe',
+    email: 'johndoe@lamduan.mfu.ac.th',
+    role: 'advisor',
+    initials: 'JD',
+  },
 }
+
+// เลือก Navbar ตาม role ที่กำหนดไว้ใน route meta
+const currentUser = computed(() =>
+  route.meta.role === 'advisor' ? demoUsers.advisor : demoUsers.admin,
+)
 </script>
 
 <template>

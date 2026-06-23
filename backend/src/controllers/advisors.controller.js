@@ -1,4 +1,4 @@
-import { findStudentsByAdvisorId } from '../services/advisors.service.js'
+import { findStudentsByAdvisorId } from '../services/students.service.js'
 
 export async function getAdvisorStudents(request, response) {
   const students = await findStudentsByAdvisorId(request.params.advisorId)
