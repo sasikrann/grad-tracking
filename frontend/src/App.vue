@@ -13,8 +13,11 @@ const currentUser: CurrentUser = {
 </script>
 
 <template>
-  <Navbar :user="currentUser" />
-  <main class="ml-64 min-h-screen w-[calc(100%-16rem)] min-w-0 overflow-x-hidden">
-    <RouterView />
-  </main>
+  <div class="flex min-h-screen">
+    <Navbar :user="currentUser" />
+
+    <main class="min-w-0 flex-1">
+      <RouterView />
+    </main>
+  </div>
 </template>

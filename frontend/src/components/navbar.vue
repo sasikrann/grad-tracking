@@ -64,7 +64,7 @@ const userInitials = computed(() => {
 
 <template>
   <aside
-    class="fixed flex h-screen w-64 flex-col justify-between bg-[#7D2923] px-3 py-3 text-white"
+    class="sticky top-0 flex h-screen w-64 shrink-0 flex-col justify-between bg-[#7D2923] px-3 py-3 text-white"
   >
     <div>
       <!-- ส่วนโลโก้และชื่อระบบ -->
