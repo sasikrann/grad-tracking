@@ -10,11 +10,6 @@ const router = createRouter({
       component: StudentDashboardView,
     },
     {
-      path: '/admin/students/:studentId/milestones',
-      name: 'admin-student-milestones',
-      component: () => import('@/views/admin/StudentMilestoneView.vue'),
-    },
-    {
       path: '/about',
       name: 'about',
       // route level code-splitting

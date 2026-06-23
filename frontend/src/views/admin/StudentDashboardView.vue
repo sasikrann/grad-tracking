@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { students } from '@/data/admin/students'
-import type { Student } from '@/types/student'
 
-const router = useRouter()
 const search = ref('')
 const semester = ref('all')
 const program = ref('all')
@@ -32,14 +29,10 @@ const filteredStudents = computed(() => {
     return matchesSearch && matchesSemester && matchesProgram && matchesStatus
   })
 })
-
-function openMilestones(student: Student) {
-  router.push({ name: 'admin-student-milestones', params: { studentId: student.id } })
-}
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f7f7] px-8 py-6 text-slate-900">
+  <div class="min-h-screen bg-[#f7f7f7] px-8 py-6 font-sans text-slate-900">
     <!-- ส่วนหัวของหน้า -->
     <header>
       <h1 class="text-3xl font-bold tracking-tight">Student Dashboard</h1>
@@ -49,7 +42,7 @@ function openMilestones(student: Student) {
     </header>
 
     <!-- การ์ด Import และ Export เป็น Frontend UI เท่านั้น -->
-    <section class="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2" aria-label="Import and export">
+    <section class="translate-y-3 mt-6 grid grid-cols-1 gap-5 md:grid-cols-2" aria-label="Import and export">
       <button
         type="button"
         class="flex cursor-default flex-col items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-7 text-center shadow-sm"
@@ -96,7 +89,7 @@ function openMilestones(student: Student) {
     </section>
 
     <!-- การ์ดสถิติ -->
-    <section class="mt-6 grid grid-cols-1 gap-5 md:grid-cols-3" aria-label="Student statistics">
+    <section class="translate-y-6 mt-6 grid grid-cols-1 gap-5 md:grid-cols-3" aria-label="Student statistics">
       <article
         class="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
       >
@@ -169,7 +162,7 @@ function openMilestones(student: Student) {
     </section>
 
     <!-- ตารางข้อมูลนักศึกษา -->
-    <section class="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section class="translate-y-10 mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div>
         <h2 class="text-lg font-semibold">Student Overview</h2>
         <p class="mt-1 text-xs text-slate-500">Filter and view student progress details</p>
@@ -225,7 +218,7 @@ function openMilestones(student: Student) {
       </div>
 
       <div class="mt-6 overflow-x-auto">
-        <table class="w-full min-w-[760px] border-collapse text-left text-sm">
+        <table class="w-full min-w-190 border-collapse text-left text-sm">
           <thead>
             <tr class="border-b border-slate-200 text-xs text-slate-500">
               <th class="px-2 py-3 font-medium">Student</th>
@@ -241,10 +234,7 @@ function openMilestones(student: Student) {
             <tr
               v-for="student in filteredStudents"
               :key="student.id"
-              tabindex="0"
-              class="cursor-pointer border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
-              @click="openMilestones(student)"
-              @keydown.enter="openMilestones(student)"
+              class="border-b border-slate-100 last:border-0"
             >
               <td class="px-2 py-3">
                 <div class="flex items-center gap-3">
@@ -295,7 +285,9 @@ function openMilestones(student: Student) {
                 </span>
               </td>
               <td class="px-2 py-3 text-right">
-                <span class="font-medium text-slate-700 hover:text-[#7D2923]">View</span>
+                <button type="button" class="font-medium text-sky-500 hover:text-sky-600">
+                  View
+                </button>
               </td>
             </tr>
 
