@@ -4,6 +4,7 @@ import express from 'express'
 import pool from './config/database.js'
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js'
 import advisorsRouter from './routes/advisors.routes.js'
+import studentsRouter from './routes/students.routes.js'
 import usersRouter from './routes/users.routes.js'
 
 const app = express()
@@ -11,6 +12,7 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 app.use('/api/advisors', advisorsRouter)
+app.use('/api/students', studentsRouter)
 
 app.get('/health', async (_request, response, next) => {
   try {

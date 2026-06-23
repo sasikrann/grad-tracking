@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { StudentFilterKey, StudentFiltersState } from '@/types/lecturer'
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import type { StudentFilterKey, StudentFiltersState } from '@/types/student'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 interface FilterOption {
   label: string
@@ -13,10 +13,16 @@ interface FilterDefinition {
   options: FilterOption[]
 }
 
-const props = defineProps<{
-  search: string
-  modelValue: StudentFiltersState
-}>()
+const props = withDefaults(
+  defineProps<{
+    search: string
+    modelValue: StudentFiltersState
+    advisorMode?: 'default' | 'all-only'
+  }>(),
+  {
+    advisorMode: 'default',
+  },
+)
 
 const emit = defineEmits<{
   'update:search': [value: string]
@@ -25,7 +31,7 @@ const emit = defineEmits<{
 
 const openFilter = ref<StudentFilterKey | null>(null)
 
-const filterDefinitions: FilterDefinition[] = [
+const baseFilterDefinitions: FilterDefinition[] = [
   {
     key: 'semester',
     defaultLabel: 'All Semester',
@@ -64,15 +70,22 @@ const filterDefinitions: FilterDefinition[] = [
       { label: 'Overdue', value: 'Overdue' },
     ],
   },
+]
+
+const filterDefinitions = computed<FilterDefinition[]>(() => [
+  ...baseFilterDefinitions,
   {
     key: 'advisor',
-    defaultLabel: 'Advisor (Default)',
-    options: [
-      { label: 'Advisor (Default)', value: 'default' },
-      { label: 'All View', value: 'all' },
-    ],
+    defaultLabel: props.advisorMode === 'all-only' ? 'All View' : 'Advisor (Default)',
+    options:
+      props.advisorMode === 'all-only'
+        ? [{ label: 'All View', value: 'all' }]
+        : [
+            { label: 'Advisor (Default)', value: 'default' },
+            { label: 'All View', value: 'all' },
+          ],
   },
-]
+])
 
 function selectedFilterLabel(filter: FilterDefinition) {
   return (
