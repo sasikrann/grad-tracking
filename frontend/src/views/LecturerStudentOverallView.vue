@@ -118,6 +118,13 @@ onMounted(loadAdvisorStudents)
 
 <template>
   <div class="lecturer-student-overall-page">
+    <header class="mb-4">
+      <h1 class="text-3xl font-semibold tracking-[-0.02em]">Student Dashboard</h1>
+      <p class="mt-1 text-sm font-medium text-[#7d7d7d]">
+        Monitor advised students, track their progress, and review thesis status
+      </p>
+    </header>
+
     <section class="grid grid-cols-1 gap-5 md:grid-cols-3 md:gap-6 xl:gap-10">
       <SummaryCard
         title="Advised Students"
