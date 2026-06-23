@@ -11,7 +11,7 @@ const router = createRouter({
       meta: { role: 'admin' },
     },
     {
-      path: '/advisor',
+      path: '/advisor/student-overall',
       name: 'advisor-student-overall',
       component: () => import('../views/lecturer/LecturerStudentOverallView.vue'),
       meta: { role: 'advisor' },
