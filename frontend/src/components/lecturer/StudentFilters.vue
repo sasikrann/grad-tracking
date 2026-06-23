@@ -1,0 +1,178 @@
+<script setup lang="ts">
+import type { StudentFilterKey, StudentFiltersState } from '@/types/lecturer'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+
+interface FilterOption {
+  label: string
+  value: string
+}
+
+interface FilterDefinition {
+  key: StudentFilterKey
+  defaultLabel: string
+  options: FilterOption[]
+}
+
+const props = defineProps<{
+  search: string
+  modelValue: StudentFiltersState
+}>()
+
+const emit = defineEmits<{
+  'update:search': [value: string]
+  'update:modelValue': [value: StudentFiltersState]
+}>()
+
+const openFilter = ref<StudentFilterKey | null>(null)
+
+const filterDefinitions: FilterDefinition[] = [
+  {
+    key: 'semester',
+    defaultLabel: 'All Semester',
+    options: [
+      { label: 'All Semester', value: 'all' },
+      { label: '1', value: '1' },
+      { label: '2', value: '2' },
+    ],
+  },
+  {
+    key: 'year',
+    defaultLabel: 'All Year',
+    options: [
+      { label: 'All Year', value: 'all' },
+      { label: '2023', value: '2023' },
+      { label: '2024', value: '2024' },
+      { label: '2025', value: '2025' },
+      { label: '2026', value: '2026' },
+    ],
+  },
+  {
+    key: 'degree',
+    defaultLabel: 'All Program',
+    options: [
+      { label: 'All Program', value: 'all' },
+      { label: 'Master', value: 'Master' },
+      { label: 'Ph. D.', value: 'Ph. D.' },
+    ],
+  },
+  {
+    key: 'status',
+    defaultLabel: 'All Status',
+    options: [
+      { label: 'All Status', value: 'all' },
+      { label: 'On-track', value: 'On-track' },
+      { label: 'Overdue', value: 'Overdue' },
+    ],
+  },
+  {
+    key: 'advisor',
+    defaultLabel: 'Advisor (Default)',
+    options: [
+      { label: 'Advisor (Default)', value: 'default' },
+      { label: 'All View', value: 'all' },
+    ],
+  },
+]
+
+function selectedFilterLabel(filter: FilterDefinition) {
+  return (
+    filter.options.find((option) => option.value === props.modelValue[filter.key])?.label ??
+    filter.defaultLabel
+  )
+}
+
+function selectFilter(key: StudentFilterKey, value: string) {
+  emit('update:modelValue', { ...props.modelValue, [key]: value })
+  openFilter.value = null
+}
+
+function updateSearch(event: Event) {
+  emit('update:search', (event.target as HTMLInputElement).value)
+}
+
+function closeDropdown() {
+  openFilter.value = null
+}
+
+onMounted(() => document.addEventListener('click', closeDropdown))
+onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
+</script>
+
+<template>
+  <div class="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-12">
+    <label class="relative lg:col-span-5">
+      <span class="sr-only">Search by name or ID</span>
+      <svg
+        class="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-[#cfcfcf]"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        aria-hidden="true"
+      >
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-4-4" />
+      </svg>
+      <input
+        :value="search"
+        type="search"
+        placeholder="Search by name or ID..."
+        class="h-10 w-full rounded-xl border border-[#eeeeee] bg-white pl-12 pr-4 text-sm font-medium text-[#333] shadow-[0_2px_4px_rgba(0,0,0,0.08)] outline-none placeholder:text-[#888] focus:border-[#8a2b25]"
+        @input="updateSearch"
+      />
+    </label>
+
+    <div
+      class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:col-span-7 lg:grid-cols-[0.9fr_0.9fr_1.1fr_1fr_1.35fr]"
+    >
+      <div v-for="filter in filterDefinitions" :key="filter.key" class="relative" @click.stop>
+        <button
+          type="button"
+          class="flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-[#eeeeee] bg-white px-3 text-left text-xs shadow-[0_2px_4px_rgba(0,0,0,0.08)] outline-none hover:border-[#dfcccc] focus:border-[#8a2b25]"
+          :aria-expanded="openFilter === filter.key"
+          @click="openFilter = openFilter === filter.key ? null : filter.key"
+        >
+          <span class="truncate">{{ selectedFilterLabel(filter) }}</span>
+          <svg
+            class="size-4 shrink-0 text-[#777] transition-transform"
+            :class="{ 'rotate-180': openFilter === filter.key }"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            aria-hidden="true"
+          >
+            <path d="m7 10 5 5 5-5" />
+          </svg>
+        </button>
+
+        <div
+          v-if="openFilter === filter.key"
+          class="absolute left-0 top-[calc(100%+8px)] z-30 min-w-full overflow-hidden rounded-lg border border-[#eeeeee] bg-white p-1.5 shadow-[0_5px_12px_rgba(0,0,0,0.12)]"
+        >
+          <button
+            v-for="option in filter.options"
+            :key="option.value"
+            type="button"
+            class="flex w-full items-center justify-between gap-3 rounded-md px-2.5 py-2 text-left text-xs whitespace-nowrap hover:bg-[#f8eeee]"
+            :class="{ 'bg-[#f8eeee]': modelValue[filter.key] === option.value }"
+            @click="selectFilter(filter.key, option.value)"
+          >
+            {{ option.label }}
+            <svg
+              v-if="modelValue[filter.key] === option.value"
+              class="size-4 text-[#777]"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="m5 12 4 4L19 6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>

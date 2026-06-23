@@ -28,8 +28,8 @@ const menus: Record<MenuRole, MenuItem[]> = {
     { label: 'Notification Management', to: '/notifications', icon: 'notification' },
   ],
   lecturer: [
-    { label: 'Student Dashboard', to: '/', icon: 'dashboard' },
-    { label: 'Milestone Summary', to: '/milestone-summary', icon: 'milestone' },
+    {label: 'Student Overall',to: '/lecturer/student-overall',icon: 'dashboard',},
+    {label: 'Milestone Summary',to: '/milestone-summary',icon: 'milestone',},
   ],
   student: [
     { label: 'Student Information', to: '/', icon: 'student' },
@@ -75,13 +75,13 @@ const userInitials = computed(() => {
 
         <div>
           <h1 class="text-xl font-semibold leading-tight">Thesis Tracker</h1>
-          <p class="mt-1 text-sm text-white/80">Progress System</p>
+          <p class="mt-0.5 text-sm text-white/80">Progress System</p>
         </div>
       </div>
 
       <!-- ส่วนเมนู: สร้างรายการตาม role ด้วย v-for -->
-      <nav class="mt-6">
-        <p class="mb-3 px-1 py-3 text-sm text-white/60">Overview</p>
+      <nav class="mt-3">
+        <p class="mb-1 px-1 py-1 text-sm text-white/60">Overview</p>
 
         <RouterLink
           v-for="item in menuItems"
