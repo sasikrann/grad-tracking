@@ -13,9 +13,9 @@ const { filteredStudents, filters, isLoading, loadError, search, statistics } = 
 </script>
 
 <template>
-  <div class="lecturer-student-overall-page">
-    <header>
-      <h1 class="text-3xl font-bold tracking-tight">Student Dashboard</h1>
+  <div class="min-h-screen bg-[#f7f7f7] px-8 py-6 font-sans text-slate-900">
+    <header class="mb-6">
+      <h1 class="text-3xl font-bold tracking-tight">Student Overall</h1>
       <p class="mt-1 text-sm text-slate-500">
          Monitor advised students, track their progress, and review thesis status
       </p>
@@ -37,20 +37,4 @@ const { filteredStudents, filters, isLoading, loadError, search, statistics } = 
   </div>
 </template>
 
-<style scoped>
-.lecturer-student-overall-page {
-  width: 100%;
-  min-width: 0;
-  min-height: 100vh;
-  padding: 2rem 1.5rem;
-  color: #111111;
-  background-color: #f8f8f8;
-}
 
-@media (min-width: 1280px) {
-  .lecturer-student-overall-page {
-    padding-right: 2.5rem;
-    padding-left: 2.5rem;
-  }
-}
-</style>
