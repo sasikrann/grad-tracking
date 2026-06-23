@@ -22,14 +22,14 @@ const props = defineProps<{
 // รายการเมนูที่จะแสดงแยกตาม role
 const menus: Record<MenuRole, MenuItem[]> = {
   admin: [
-    { label: 'Student Dashboard', to: '/', icon: 'dashboard' },
+    { label: 'Student Dashboard', to: '/admin/student-dashboard', icon: 'dashboard' },
     { label: 'Advisor Dashboard', to: '/advisor-dashboard', icon: 'dashboard' },
     { label: 'Milestone Management', to: '/milestones', icon: 'milestone' },
     { label: 'Notification Management', to: '/notifications', icon: 'notification' },
   ],
   lecturer: [
-    {label: 'Student Overall',to: '/lecturer/student-overall',icon: 'dashboard',},
-    {label: 'Milestone Summary',to: '/milestone-summary',icon: 'milestone',},
+    { label: 'Student Overall', to: '/advisor', icon: 'dashboard' },
+    { label: 'Milestone Summary', to: '/milestone-summary', icon: 'milestone' },
   ],
   student: [
     { label: 'Student Information', to: '/', icon: 'student' },

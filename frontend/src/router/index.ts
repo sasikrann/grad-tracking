@@ -5,14 +5,14 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      path: '/',
+      path: '/admin/student-dashboard',
       name: 'admin-student-dashboard',
       component: StudentDashboardView,
       meta: { role: 'admin' },
     },
     {
-      path: '/lecturer/student-overall',
-      name: 'lecturer-student-overall',
+      path: '/advisor',
+      name: 'advisor-student-overall',
       component: () => import('../views/lecturer/LecturerStudentOverallView.vue'),
       meta: { role: 'advisor' },
     },
