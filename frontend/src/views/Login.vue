@@ -20,9 +20,13 @@ function loadGoogleScript() {
 
     if (existingScript) {
       existingScript.addEventListener('load', () => resolve(), { once: true })
-      existingScript.addEventListener('error', () => reject(new Error('Unable to load Google Sign-In')), {
-        once: true,
-      })
+      existingScript.addEventListener(
+        'error',
+        () => reject(new Error('Unable to load Google Sign-In')),
+        {
+          once: true,
+        },
+      )
       return
     }
 
@@ -90,17 +94,15 @@ onMounted(async () => {
 <template>
   <div class="flex min-h-screen items-center justify-center bg-[#fafafa] px-5 py-10">
     <section
-      class="w-full max-w-[390px] rounded-[30px] bg-[#872c26] px-11 pb-12 pt-5 text-white shadow-[0_10px_22px_rgba(0,0,0,0.34)] sm:px-12"
+      class="w-full max-w-100 rounded-2xl bg-[#872c26] pb-12 pt-5 text-white shadow-[0_10px_22px_rgba(0,0,0,0.34)]"
     >
       <div class="flex flex-col items-center">
         <img
           src="@/assets/logomfu.png"
           alt="Mae Fah Luang University logo"
-          class="h-[150px] w-auto object-contain"
+          class="h-50 w-auto object-contain"
         />
-        <h1 class="pb-5 text-center text-[21px] font-semibold tracking-tight">
-          ACADEMIC TRACKING
-        </h1>
+        <h1 class="pb-5 text-center text-[21px] font-semibold tracking-tight">ACADEMIC TRACKING</h1>
         <p class="text-xs text-white/60 pb-1">Sign in to your account</p>
       </div>
 
@@ -108,19 +110,20 @@ onMounted(async () => {
         <div ref="googleButton" :class="{ 'pointer-events-none opacity-60': isLoading }"></div>
       </div>
 
-      <div v-if="isLoading" class="mt-3 flex items-center justify-center gap-2 text-sm text-white/80">
+      <div
+        v-if="isLoading"
+        class="mt-3 flex items-center justify-center gap-2 text-sm text-white/80"
+      >
         <span
           aria-hidden="true"
           class="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
         ></span>
         <span>Signing in...</span>
       </div>
-      <p v-if="errorMessage" role="alert" class="mt-3 text-center text-sm text-red-100">
+      <p v-if="errorMessage" role="alert">
         {{ errorMessage }}
       </p>
-      <p class="mt-4 text-center text-xs text-white/60">
-        Use your MFU Lamduan Mail account to sign in
-      </p>
+      <p class="text-center text-xs text-white/60">Use your MFU Lamduan Mail account to sign in</p>
     </section>
   </div>
 </template>
