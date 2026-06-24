@@ -8,16 +8,46 @@ const { filteredStudents, filters, isLoading, loadError, search, statistics } = 
   getStudents,
   'all',
 )
+
+// template สำหรับดาวน์โหลดไฟล์ CSV ตัวอย่างสำหรับการนำเข้าข้อมูลนักศึกษา 
+const downloadTemplate = () => {
+  const headers = ['Name', 'Student ID', 'Program', 'Semester']
+  const exampleRow = ['Example Name', '6600000000', 'Master of Computer Engineering', '1']
+
+  const csvContent = [headers, exampleRow]
+    .map((row) => row.map((cell) => `"${cell}"`).join(','))
+    .join('\n')
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'student_import_template.csv'
+  link.click()
+
+  URL.revokeObjectURL(url)
+}
 </script>
 
 <template>
   <div class="min-h-screen bg-[#f7f7f7] px-8 py-6 font-sans text-slate-900">
-    <header>
+    <header class="flex items-start justify-between">
+    <div>
       <h1 class="text-3xl font-bold tracking-tight">Student Dashboard</h1>
       <p class="mt-1 text-sm text-slate-500">
         Manage student data, track progress, and monitor thesis status
       </p>
-    </header>
+    </div>
+
+    <button
+      type="button"
+      @click="downloadTemplate"
+      class="rounded-lg bg-[#8b2a23] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#7a211c]"
+    >
+      Download Template
+    </button>
+</header>
 
     <!-- การ์ด Import และ Export เป็น Frontend UI เท่านั้น -->
     <section class="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2" aria-label="Import and export">
