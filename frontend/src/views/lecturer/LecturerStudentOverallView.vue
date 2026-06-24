@@ -26,7 +26,6 @@ const { filteredStudents, filters, isLoading, loadError, search, statistics } = 
       <SummaryCard title="On-track" :value="statistics.onTrack" icon="on-track" />
       <SummaryCard title="Overdue" :value="statistics.overdue" icon="overdue" />
     </section>
-
     <StudentOverview
       v-model:filters="filters"
       v-model:search="search"
