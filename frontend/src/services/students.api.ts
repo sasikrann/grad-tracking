@@ -1,4 +1,5 @@
 import type { Student, StudentStatus } from '@/types/student'
+import { authenticatedFetch } from '@/services/auth'
 
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
@@ -35,7 +36,7 @@ function toStudent(student: StudentApiResponse, currentAdvisorId?: string): Stud
 }
 
 async function requestStudents(path: string, currentAdvisorId?: string) {
-  const response = await fetch(`${apiBaseUrl}${path}`)
+  const response = await authenticatedFetch(`${apiBaseUrl}${path}`)
 
   if (response.status === 404 || response.status === 204) {
     return []

@@ -1,36 +1,24 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { RouterView, useRoute, useRouter } from 'vue-router'
+
 import Navbar from '@/components/navbar.vue'
-import type { CurrentUser } from '@/types/user'
-import { RouterView, useRoute } from 'vue-router'
+import { currentUser, logout } from '@/services/auth'
 
 const route = useRoute()
+const router = useRouter()
+const showNavbar = computed(() => Boolean(currentUser.value) && !route.meta.hideNavbar)
 
-// ข้อมูลทดสอบชั่วคราว เมื่อมีระบบ Login ให้เปลี่ยนเป็น user จาก Auth Store หรือ API
-const demoUsers: Record<'admin' | 'advisor', CurrentUser> = {
-  admin: {
-    fullName: 'Mr.John Smith',
-    email: 'johndoe@lamduan.mfu.ac.th',
-    role: 'admin',
-    initials: 'JM',
-  },
-  advisor: {
-    fullName: 'Dr. John Doe',
-    email: 'johndoe@lamduan.mfu.ac.th',
-    role: 'advisor',
-    initials: 'JD',
-  },
+async function handleLogout() {
+  window.google?.accounts.id.disableAutoSelect()
+  logout()
+  await router.push('/login')
 }
-
-// เลือก Navbar ตาม role ที่กำหนดไว้ใน route meta
-const currentUser = computed(() =>
-  route.meta.role === 'advisor' ? demoUsers.advisor : demoUsers.admin,
-)
 </script>
 
 <template>
   <div class="flex min-h-screen">
-    <Navbar :user="currentUser" />
+    <Navbar v-if="showNavbar && currentUser" :user="currentUser" @logout="handleLogout" />
 
     <main class="min-w-0 flex-1">
       <RouterView />

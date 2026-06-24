@@ -19,6 +19,10 @@ const props = defineProps<{
   user: CurrentUser
 }>()
 
+const emit = defineEmits<{
+  logout: []
+}>()
+
 // รายการเมนูที่จะแสดงแยกตาม role
 const menus: Record<MenuRole, MenuItem[]> = {
   admin: [
@@ -138,7 +142,12 @@ const userInitials = computed(() => {
         <p class="text-[10px] text-white/70">{{ user.email }}</p>
       </div>
 
-      <button type="button" aria-label="Sign out" class="rounded p-1.5 hover:bg-[#720008]">
+      <button
+        type="button"
+        aria-label="Sign out"
+        class="rounded p-1.5 hover:bg-[#720008]"
+        @click="emit('logout')"
+      >
         <svg
           class="size-5"
           viewBox="0 0 24 24"
