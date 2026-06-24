@@ -245,14 +245,18 @@ export async function removeStudent(studentId) {
   }
 }
 
-export async function findStudentsForExport() {
+export async function findStudentsForExport({ year } = {}) {
+  const values = year ? [year] : []
+  const yearFilter = year ? 'WHERE s.expected_graduation_year = $1' : ''
+
   const result = await pool.query(`
     SELECT ${studentDetailColumns}
     FROM students s
     LEFT JOIN users u ON u.user_id = s.user_id
     LEFT JOIN advisors a ON a.advisor_id = s.advisor_id
+    ${yearFilter}
     ORDER BY s.student_id
-  `)
+  `, values)
   return result.rows
 }
 

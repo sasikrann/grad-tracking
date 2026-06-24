@@ -158,15 +158,16 @@ function addHeaders(worksheet) {
   worksheet.getRow(1).font = { bold: true }
 }
 
-export async function exportStudents(_request, response) {
+export async function exportStudents(request, response) {
+  const year = String(request.query.year ?? '').trim()
   const workbook = new ExcelJS.Workbook()
   const worksheet = workbook.addWorksheet('Students')
   addHeaders(worksheet)
-  worksheet.addRows(await findStudentsForExport())
+  worksheet.addRows(await findStudentsForExport({ year: year || null }))
   const buffer = await workbook.xlsx.writeBuffer()
 
   response.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-  response.setHeader('Content-Disposition', 'attachment; filename="students.xlsx"')
+  response.setHeader('Content-Disposition', `attachment; filename="students${year ? `-${year}` : ''}.xlsx"`)
   response.send(Buffer.from(buffer))
 }
 
