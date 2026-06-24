@@ -17,9 +17,15 @@ async function handleLogout() {
 </script>
 
 <template>
-  <Navbar v-if="showNavbar && currentUser" :user="currentUser" @logout="handleLogout" />
+  <div class="flex min-h-screen">
+    <Navbar
+      v-if="showNavbar && currentUser"
+      :user="currentUser"
+      @logout="handleLogout"
+    />
 
-  <main :class="{ 'ml-64': showNavbar }">
-    <RouterView />
-  </main>
+    <main class="min-w-0 flex-1">
+      <RouterView />
+    </main>
+  </div>
 </template>

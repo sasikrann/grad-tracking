@@ -26,13 +26,13 @@ const emit = defineEmits<{
 // รายการเมนูที่จะแสดงแยกตาม role
 const menus: Record<MenuRole, MenuItem[]> = {
   admin: [
-    { label: 'Student Dashboard', to: '/', icon: 'dashboard' },
+    { label: 'Student Dashboard', to: '/admin/student-dashboard', icon: 'dashboard' },
     { label: 'Advisor Dashboard', to: '/advisor-dashboard', icon: 'dashboard' },
     { label: 'Milestone Management', to: '/milestones', icon: 'milestone' },
     { label: 'Notification Management', to: '/notifications', icon: 'notification' },
   ],
   lecturer: [
-    { label: 'Student Dashboard', to: '/', icon: 'dashboard' },
+    { label: 'Student Overall', to: '/advisor', icon: 'dashboard' },
     { label: 'Milestone Summary', to: '/milestone-summary', icon: 'milestone' },
   ],
   student: [
@@ -68,7 +68,7 @@ const userInitials = computed(() => {
 
 <template>
   <aside
-    class="fixed flex h-screen w-64 flex-col justify-between bg-[#7D2923] px-3 py-3 text-white"
+    class="sticky top-0 flex h-screen w-64 shrink-0 flex-col justify-between bg-[#7D2923] px-3 py-3 text-white"
   >
     <div>
       <!-- ส่วนโลโก้และชื่อระบบ -->
@@ -79,13 +79,13 @@ const userInitials = computed(() => {
 
         <div>
           <h1 class="text-xl font-semibold leading-tight">Thesis Tracker</h1>
-          <p class="mt-1 text-sm text-white/80">Progress System</p>
+          <p class="mt-0.5 text-sm text-white/80">Progress System</p>
         </div>
       </div>
 
       <!-- ส่วนเมนู: สร้างรายการตาม role ด้วย v-for -->
-      <nav class="mt-6">
-        <p class="mb-3 px-1 py-3 text-sm text-white/60">Overview</p>
+      <nav class="mt-3">
+        <p class="mb-1 px-1 py-1 text-sm text-white/60">Overview</p>
 
         <RouterLink
           v-for="item in menuItems"

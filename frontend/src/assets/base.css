@@ -1,5 +1,5 @@
 /* color palette from <https://github.com/vuejs/theme> */
-@import "tailwindcss";
+@import 'tailwindcss';
 :root {
   --vt-c-white: #ffffff;
   --vt-c-white-soft: #f8f8f8;
@@ -59,7 +59,9 @@
 }
 
 body {
+  margin: 0;
   min-height: 100vh;
+  font-weight: normal;
   color: var(--color-text);
   background: var(--color-background);
   transition:
