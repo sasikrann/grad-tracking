@@ -68,7 +68,7 @@ const userInitials = computed(() => {
 
 <template>
   <aside
-    class="sticky top-0 flex h-screen w-64 shrink-0 flex-col justify-between bg-[#7D2923] px-3 py-3 text-white"
+    class="sticky top-0 flex h-screen w-64 shrink-0 flex-col justify-between bg-[#7D2923] px-3 pt-3 pb-2 text-white"
   >
     <div>
       <!-- ส่วนโลโก้และชื่อระบบ -->
@@ -130,7 +130,7 @@ const userInitials = computed(() => {
     </div>
 
     <!-- ส่วนข้อมูลผู้ใช้ที่แสดงด้านล่างสุดของ Navbar -->
-    <div class="mb-3 flex items-center gap-2">
+    <div class="flex items-center gap-2">
       <div
         class="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#720008] text-xs"
       >

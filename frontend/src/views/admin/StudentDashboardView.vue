@@ -70,7 +70,7 @@ async function handleExport() {
       </button>
     </header>
 
-    <section class="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2" aria-label="Import and export">
+    <section class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2" aria-label="Import and export">
       <button
         type="button"
         :disabled="isImporting"
@@ -110,7 +110,7 @@ async function handleExport() {
       {{ operationMessage }}
     </p>
 
-    <section class="mt-6 grid grid-cols-1 gap-5 md:grid-cols-3">
+    <section class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-3">
       <SummaryCard title="Total Students" :value="statistics.total" icon="students" />
       <SummaryCard title="On-track" :value="statistics.onTrack" icon="on-track" />
       <SummaryCard title="Overdue" :value="statistics.overdue" icon="overdue" />

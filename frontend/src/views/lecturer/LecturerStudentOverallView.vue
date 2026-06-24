@@ -29,7 +29,7 @@ const { filteredStudents, filters, isLoading, loadError, search, statistics } = 
         Monitor advised students, track their progress, and review thesis status
       </p>
     </header>
-    <section class="grid grid-cols-1 gap-5 md:grid-cols-3">
+    <section class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-3">
       <SummaryCard title="Advised Students" :value="statistics.total" icon="students" />
       <SummaryCard title="On-track" :value="statistics.onTrack" icon="on-track" />
       <SummaryCard title="Overdue" :value="statistics.overdue" icon="overdue" />
