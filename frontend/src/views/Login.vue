@@ -4,12 +4,14 @@ defineOptions({ name: 'LoginView' })
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { loginWithGoogleCredential } from '@/services/auth'
+import { loginForDevelopment, loginWithGoogleCredential } from '@/services/auth'
 
 const router = useRouter()
 const googleButton = ref<HTMLElement | null>(null)
 const errorMessage = ref('')
 const isLoading = ref(false)
+const devEmail = ref('')
+const devLoginEnabled = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEV_LOGIN === 'true'
 
 function loadGoogleScript() {
   return new Promise<void>((resolve, reject) => {
@@ -59,11 +61,27 @@ async function handleGoogleCredential(response: GoogleCredentialResponse) {
   }
 }
 
+async function handleDevelopmentLogin() {
+  errorMessage.value = ''
+  isLoading.value = true
+
+  try {
+    await loginForDevelopment(devEmail.value)
+    await router.push('/')
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : 'Unable to sign in'
+  } finally {
+    isLoading.value = false
+  }
+}
+
 onMounted(async () => {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
   if (!clientId || clientId.startsWith('YOUR_')) {
-    errorMessage.value = 'Google SSO is not configured'
+    if (!devLoginEnabled) {
+      errorMessage.value = 'Google SSO is not configured'
+    }
     return
   }
 
@@ -111,6 +129,32 @@ onMounted(async () => {
       <div class="flex min-h-11 justify-center">
         <div ref="googleButton" :class="{ 'pointer-events-none opacity-60': isLoading }"></div>
       </div>
+
+      <form
+        v-if="devLoginEnabled"
+        class="mx-auto mt-5 w-full max-w-75 border-t border-white/20 pt-5"
+        @submit.prevent="handleDevelopmentLogin"
+      >
+        <p class="mb-2 text-center text-xs font-medium text-white/80">Development Login</p>
+        <label class="sr-only" for="dev-email">Registered user email</label>
+        <input
+          id="dev-email"
+          v-model.trim="devEmail"
+          type="email"
+          required
+          autocomplete="email"
+          placeholder="Registered user email"
+          class="w-full rounded-md border border-white/30 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-white/60"
+        />
+        <button
+          type="submit"
+          :disabled="isLoading || !devEmail"
+          class="mt-2 w-full rounded-md bg-[#650009] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#530007] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Continue for development
+        </button>
+        <p class="mt-2 text-center text-[10px] text-white/60">Available only in local development</p>
+      </form>
 
       <div
         v-if="isLoading"

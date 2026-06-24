@@ -55,6 +55,39 @@ export async function loginWithGoogle(request, response) {
   })
 }
 
+export async function loginForDevelopment(request, response) {
+  const isEnabled =
+    process.env.NODE_ENV !== 'production' && process.env.ENABLE_DEV_LOGIN === 'true'
+  const remoteAddress = request.socket.remoteAddress ?? ''
+  const isLocalRequest =
+    remoteAddress === '::1' ||
+    remoteAddress.startsWith('127.') ||
+    remoteAddress.startsWith('::ffff:127.')
+
+  if (!isEnabled || !isLocalRequest) {
+    throw new ApiError(404, 'Development login is disabled')
+  }
+
+  const email = typeof request.body.email === 'string' ? request.body.email.trim().toLowerCase() : ''
+
+  if (!email) {
+    throw new ApiError(400, 'Email is required')
+  }
+
+  const user = await findAuthorizedUserByEmail(email)
+
+  if (!user) {
+    throw new ApiError(403, 'This email is not registered in the system')
+  }
+
+  response.json({
+    data: {
+      token: createAccessToken(user),
+      user,
+    },
+  })
+}
+
 export async function getCurrentUser(request, response) {
   const user = await findAuthorizedUserByEmail(request.user.email)
 

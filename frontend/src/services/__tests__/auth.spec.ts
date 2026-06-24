@@ -35,6 +35,25 @@ describe('auth service', () => {
     expect(sessionStorage.getItem('accessToken')).toBe('signed-token')
   })
 
+  it('stores a server-issued development session', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { token: 'dev-token', user: adminUser } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { accessToken, loginForDevelopment } = await import('../auth')
+    await loginForDevelopment(adminUser.email)
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/auth/dev-login',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(accessToken.value).toBe('dev-token')
+  })
+
   it('clears an invalid stored session when the backend rejects it', async () => {
     sessionStorage.setItem('accessToken', 'invalid-token')
     sessionStorage.setItem('currentUser', JSON.stringify(adminUser))

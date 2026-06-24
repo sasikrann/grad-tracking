@@ -114,6 +114,27 @@ export async function loginWithGoogleCredential(credential: string) {
   return result.data.user
 }
 
+export async function loginForDevelopment(email: string) {
+  const response = await fetch(`${apiUrl}/api/auth/dev-login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  const result = (await response.json()) as {
+    data?: { token?: unknown; user?: unknown }
+    message?: string
+  }
+
+  if (!response.ok || typeof result.data?.token !== 'string' || !isCurrentUser(result.data.user)) {
+    throw new Error(result.message || 'Unable to sign in for development')
+  }
+
+  storeSession(result.data.token, result.data.user)
+  hasInitialized = true
+
+  return result.data.user
+}
+
 export async function authenticatedFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   await initializeAuth()
 

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node src/index.js",
+    "dev:users": "node src/scripts/create-dev-users.js",
     "start": "node src/index.js",
     "test": "node --test"
   },
