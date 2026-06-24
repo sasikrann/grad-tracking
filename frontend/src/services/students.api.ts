@@ -75,8 +75,9 @@ async function downloadStudentFile(path: string, fallbackName: string) {
   URL.revokeObjectURL(url)
 }
 
-export function exportStudents() {
-  return downloadStudentFile('/api/students/export', 'students.xlsx')
+export function exportStudents(year = 'all') {
+  const query = year === 'all' ? '' : `?year=${encodeURIComponent(year)}`
+  return downloadStudentFile(`/api/students/export${query}`, 'students.xlsx')
 }
 
 export function downloadStudentTemplate() {
