@@ -1,20 +1,25 @@
 <script setup lang="ts">
-import Navbar from '@/components/navbar.vue'
-import type { CurrentUser } from '@/types/user'
-import { RouterView } from 'vue-router'
+import { computed } from 'vue'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 
-// ข้อมูลตัวอย่าง เมื่อมีระบบ login ให้เปลี่ยนเป็น user จาก auth store หรือ API
-const currentUser: CurrentUser = {
-  fullName: 'Mr.John Smith',
-  email: 'johndoe@lamduan.mfu.ac.th',
-  role: 'admin',
-  initials: 'JM',
+import Navbar from '@/components/navbar.vue'
+import { currentUser, logout } from '@/services/auth'
+
+const route = useRoute()
+const router = useRouter()
+const showNavbar = computed(() => Boolean(currentUser.value) && !route.meta.hideNavbar)
+
+async function handleLogout() {
+  window.google?.accounts.id.disableAutoSelect()
+  logout()
+  await router.push('/login')
 }
 </script>
 
 <template>
-  <Navbar :user="currentUser" />
-  <main class="ml-64 min-h-screen">
+  <Navbar v-if="showNavbar && currentUser" :user="currentUser" @logout="handleLogout" />
+
+  <main :class="{ 'ml-64': showNavbar }">
     <RouterView />
   </main>
 </template>

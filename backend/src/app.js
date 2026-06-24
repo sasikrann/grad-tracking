@@ -3,6 +3,7 @@ import express from 'express'
 
 import pool from './config/database.js'
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js'
+import authRouter from './routes/auth.routes.js'
 import usersRouter from './routes/users.routes.js'
 
 const app = express()
@@ -25,6 +26,7 @@ app.get('/health', async (_request, response, next) => {
 })
 
 app.use('/api/users', usersRouter)
+app.use('/api/auth', authRouter)
 
 app.use(notFoundHandler)
 app.use(errorHandler)
