@@ -29,7 +29,7 @@ const currentUser = computed(() =>
 </script>
 
 <template>
-  <div class="flex min-h-screen">
+  <div class="flex min-h-screen flex-col md:flex-row">
     <Navbar :user="currentUser" />
 
     <main class="min-w-0 flex-1">

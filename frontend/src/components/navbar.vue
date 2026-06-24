@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { CurrentUser } from '@/types/user'
 
 defineOptions({ name: 'AppNavbar' })
@@ -19,6 +19,8 @@ const props = defineProps<{
   user: CurrentUser
 }>()
 
+const isMobileMenuOpen = ref(false)
+
 // รายการเมนูที่จะแสดงแยกตาม role
 const menus: Record<MenuRole, MenuItem[]> = {
   admin: [
@@ -28,8 +30,8 @@ const menus: Record<MenuRole, MenuItem[]> = {
     { label: 'Notification Management', to: '/notifications', icon: 'notification' },
   ],
   lecturer: [
-    { label: 'Student Overall', to: '/advisor', icon: 'dashboard' },
-    { label: 'Milestone Summary', to: '/milestone-summary', icon: 'milestone' },
+    { label: 'Student Overall', to: '/advisor/student-overall', icon: 'dashboard' },
+    { label: 'Milestone Summary', to: '/advisor/summary', icon: 'milestone' },
   ],
   student: [
     { label: 'Student Information', to: '/', icon: 'student' },
@@ -63,20 +65,82 @@ const userInitials = computed(() => {
 </script>
 
 <template>
+  <header
+    class="flex h-16 w-full items-center justify-between bg-[#7D2923] px-4 text-white md:hidden"
+  >
+    <div class="flex items-center gap-3">
+      <div class="flex size-10 items-center justify-center rounded-lg bg-[#750008]">
+        <img src="@/assets/logomfu.png" alt="MFU Logo" class="size-9 object-contain" />
+      </div>
+      <div>
+        <p class="text-base font-semibold leading-tight">Thesis Tracker</p>
+        <p class="text-xs text-white/75">Progress System</p>
+      </div>
+    </div>
+
+    <button
+      type="button"
+      class="flex size-10 items-center justify-center rounded-lg hover:bg-[#720008]"
+      aria-label="Open navigation menu"
+      :aria-expanded="isMobileMenuOpen"
+      @click="isMobileMenuOpen = true"
+    >
+      <svg
+        class="size-6"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        aria-hidden="true"
+      >
+        <path d="M4 7h16M4 12h16M4 17h16" />
+      </svg>
+    </button>
+  </header>
+
+  <button
+    v-if="isMobileMenuOpen"
+    type="button"
+    class="fixed inset-0 z-40 bg-black/40 md:hidden"
+    aria-label="Close navigation menu"
+    @click="isMobileMenuOpen = false"
+  ></button>
+
   <aside
-    class="sticky top-0 flex h-screen w-64 shrink-0 flex-col justify-between bg-[#7D2923] px-3 py-3 text-white"
+    class="fixed inset-y-0 left-0 z-50 flex h-screen w-64 shrink-0 -translate-x-full flex-col justify-between bg-[#7D2923] px-3 py-3 text-white shadow-xl transition-transform duration-200 md:sticky md:top-0 md:z-auto md:translate-x-0 md:shadow-none"
+    :class="{ 'translate-x-0': isMobileMenuOpen }"
   >
     <div>
       <!-- ส่วนโลโก้และชื่อระบบ -->
-      <div class="flex items-center gap-3">
-        <div class="flex size-14 items-center justify-center rounded-xl bg-[#750008]">
-          <img src="@/assets/logomfu.png" alt="MFU Logo" class="size-12 object-contain" />
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="flex size-14 items-center justify-center rounded-xl bg-[#750008]">
+            <img src="@/assets/logomfu.png" alt="MFU Logo" class="size-12 object-contain" />
+          </div>
+
+          <div>
+            <h1 class="text-xl font-semibold leading-tight">Thesis Tracker</h1>
+            <p class="mt-0.5 text-sm text-white/80">Progress System</p>
+          </div>
         </div>
 
-        <div>
-          <h1 class="text-xl font-semibold leading-tight">Thesis Tracker</h1>
-          <p class="mt-0.5 text-sm text-white/80">Progress System</p>
-        </div>
+        <button
+          type="button"
+          class="flex size-9 shrink-0 items-center justify-center rounded-lg hover:bg-[#720008] md:hidden"
+          aria-label="Close navigation menu"
+          @click="isMobileMenuOpen = false"
+        >
+          <svg
+            class="size-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            aria-hidden="true"
+          >
+            <path d="m6 6 12 12M18 6 6 18" />
+          </svg>
+        </button>
       </div>
 
       <!-- ส่วนเมนู: สร้างรายการตาม role ด้วย v-for -->
@@ -89,6 +153,7 @@ const userInitials = computed(() => {
           :to="item.to"
           class="flex items-center gap-3 rounded-[5px] px-2 py-3 text-sm transition-colors hover:bg-[#720008]"
           exact-active-class="bg-[#720008]"
+          @click="isMobileMenuOpen = false"
         >
           <!-- เลือกไอคอนให้ตรงกับประเภทของเมนู -->
           <svg

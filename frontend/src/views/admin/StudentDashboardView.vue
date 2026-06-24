@@ -9,7 +9,7 @@ const { filteredStudents, filters, isLoading, loadError, search, statistics } = 
   'all',
 )
 
-// template สำหรับดาวน์โหลดไฟล์ CSV ตัวอย่างสำหรับการนำเข้าข้อมูลนักศึกษา 
+// template สำหรับดาวน์โหลดไฟล์ CSV ตัวอย่างสำหรับการนำเข้าข้อมูลนักศึกษา
 const downloadTemplate = () => {
   const headers = ['Name', 'Student ID', 'Program', 'Semester']
   const exampleRow = ['Example Name', '6600000000', 'Master of Computer Engineering', '1']
@@ -31,23 +31,23 @@ const downloadTemplate = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f7f7] px-8 py-6 font-sans text-slate-900">
+  <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
     <header class="flex items-start justify-between">
-    <div>
-      <h1 class="text-3xl font-bold tracking-tight">Student Dashboard</h1>
-      <p class="mt-1 text-sm text-slate-500">
-        Manage student data, track progress, and monitor thesis status
-      </p>
-    </div>
+      <div>
+        <h1 class="text-3xl font-bold tracking-tight">Student Dashboard</h1>
+        <p class="mt-1 text-sm text-slate-500">
+          Manage student data, track progress, and monitor thesis status
+        </p>
+      </div>
 
-    <button
-      type="button"
-      @click="downloadTemplate"
-      class="rounded-lg bg-[#8b2a23] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#7a211c]"
-    >
-      Download Template
-    </button>
-</header>
+      <button
+        type="button"
+        @click="downloadTemplate"
+        class="rounded-lg bg-[#8b2a23] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#7a211c]"
+      >
+        Download Template
+      </button>
+    </header>
 
     <!-- การ์ด Import และ Export เป็น Frontend UI เท่านั้น -->
     <section class="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2" aria-label="Import and export">
