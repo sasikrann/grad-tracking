@@ -21,11 +21,11 @@ const filters = defineModel<StudentFiltersState>('filters', { required: true })
 
 <template>
   <section
-    class="mt-9 rounded-xl border border-[#ececec] bg-white px-8 pt-8 pb-5 shadow-[0_3px_4px_rgba(0,0,0,0.22)]"
+    class="mt-4 rounded-xl border border-[#ececec] bg-white px-7 pt-5 pb-4 shadow-[0_2px_4px_rgba(0,0,0,0.18)]"
   >
     <header>
-      <h2 class="text-[23px] font-semibold tracking-[-0.02em]">Student Overview</h2>
-      <p class="mt-2 text-base font-medium text-[#7d7d7d]">
+      <h2 class="text-xl font-semibold tracking-[-0.01em]">Student Overview</h2>
+      <p class="mt-1 text-sm font-medium text-[#7d7d7d]">
         Filter and view student progress details
       </p>
     </header>

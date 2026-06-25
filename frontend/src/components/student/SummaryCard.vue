@@ -8,11 +8,11 @@ defineProps<{
 
 <template>
   <article
-    class="flex h-[88px] w-full items-center rounded-xl border border-[#e6e6e6] bg-white px-4 shadow-[0_2px_3px_rgba(0,0,0,0.18)]"
+    class="flex h-[76px] w-full items-center rounded-xl border border-[#e6e6e6] bg-white px-5 shadow-[0_2px_3px_rgba(0,0,0,0.16)]"
   >
-    <div class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[#f8ebeb]">
+    <div class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#f8ebeb]">
       <svg
-        class="size-7 text-[#8a2b25]"
+        class="size-6 text-[#8a2b25]"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -36,8 +36,8 @@ defineProps<{
     </div>
 
     <div class="ml-4 leading-tight">
-      <p class="text-base text-[#7b7b7b]">{{ title }}</p>
-      <p class="mt-0.5 text-xl font-semibold">{{ value }}</p>
+      <p class="text-sm text-[#7b7b7b]">{{ title }}</p>
+      <p class="mt-0.5 text-lg font-semibold">{{ value }}</p>
     </div>
   </article>
 </template>

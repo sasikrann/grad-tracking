@@ -5,10 +5,17 @@ export function notFoundHandler(request, _response, next) {
 }
 
 export function errorHandler(error, _request, response, _next) {
+  if (error.code === 'LIMIT_FILE_SIZE') {
+    return response.status(413).json({
+      status: 'error',
+      message: 'The import file must not exceed 5 MB',
+    })
+  }
+
   if (error.code === '23505') {
     return response.status(409).json({
       status: 'error',
-      message: 'This email is already in use',
+      message: 'A record with this unique value already exists',
     })
   }
 

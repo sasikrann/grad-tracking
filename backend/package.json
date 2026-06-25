@@ -5,12 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "node src/index.js",
-    "start": "node src/index.js"
+    "dev:users": "node src/scripts/create-dev-users.js",
+    "start": "node src/index.js",
+    "test": "node --test"
   },
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
+    "google-auth-library": "^10.7.0",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.2.0",
     "pg": "^8.22.0"
   }
 }

@@ -13,10 +13,10 @@ defineEmits<{
 </script>
 
 <template>
-  <div class="mt-8 overflow-x-auto">
+  <div class="mt-6 overflow-x-auto">
     <table class="w-full min-w-[900px] table-fixed border-collapse text-left">
       <thead>
-        <tr class="border-b border-[#dddddd] text-sm">
+        <tr class="border-b border-[#dddddd] text-xs">
           <th class="w-[29%] pb-3 font-semibold">Student</th>
           <th class="w-[13%] pb-3 font-semibold">Program</th>
           <th class="w-[13%] pb-3 font-semibold">Semester</th>
@@ -29,15 +29,15 @@ defineEmits<{
         <tr
           v-for="student in students"
           :key="student.studentId"
-          class="h-[75px] border-b border-[#dddddd]"
+          class="h-[58px] border-b border-[#dddddd]"
         >
           <td>
-            <div class="flex items-center gap-5 pl-2">
+            <div class="flex items-center gap-3 pl-1">
               <div
-                class="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#f7eaea] text-[#a13a34]"
+                class="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f7eaea] text-[#a13a34]"
               >
                 <svg
-                  class="size-7"
+                  class="size-5"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -49,20 +49,20 @@ defineEmits<{
                 </svg>
               </div>
               <div class="leading-tight">
-                <p class="text-base font-semibold">{{ student.name }}</p>
-                <p class="mt-1 text-sm text-[#858585]">{{ student.studentId }}</p>
+                <p class="text-sm font-semibold">{{ student.name }}</p>
+                <p class="mt-1 text-xs text-[#858585]">{{ student.studentId }}</p>
               </div>
             </div>
           </td>
           <td>
             <div class="flex flex-col items-start gap-1">
               <span
-                class="rounded-md border border-[#dedede] px-2 py-0.5 text-sm font-semibold leading-none"
+                class="rounded-md border border-[#dedede] px-2 py-0.5 text-xs font-semibold leading-none"
               >
                 {{ student.degree }}
               </span>
               <span
-                class="min-w-14 rounded-md border border-[#dedede] px-2 py-0.5 text-center text-sm font-semibold leading-none"
+                class="min-w-12 rounded-md border border-[#dedede] px-2 py-0.5 text-center text-xs font-semibold leading-none"
               >
                 {{ student.program }}
               </span>
@@ -70,25 +70,25 @@ defineEmits<{
           </td>
           <td>
             <span
-              class="inline-flex min-w-14 justify-center rounded-md border border-[#dedede] px-3 py-0.5 text-sm leading-none"
+              class="inline-flex min-w-12 justify-center rounded-md border border-[#dedede] px-3 py-0.5 text-xs leading-none"
             >
               {{ student.semester }}
             </span>
           </td>
           <td>
             <div class="flex items-center gap-1">
-              <div class="h-2.5 w-32 overflow-hidden rounded-full bg-[#f7c9cf]">
+              <div class="h-2 w-28 overflow-hidden rounded-full bg-[#f7c9cf]">
                 <div
                   class="h-full rounded-full bg-[#d50012]"
                   :style="{ width: `${student.progress}%` }"
                 ></div>
               </div>
-              <span class="text-sm font-semibold">{{ student.progress }}%</span>
+              <span class="text-xs font-semibold">{{ student.progress }}%</span>
             </div>
           </td>
           <td>
             <span
-              class="inline-flex min-w-[105px] justify-center rounded-xl px-4 py-1 text-sm font-semibold text-white"
+              class="inline-flex min-w-[82px] justify-center rounded-xl px-3 py-1 text-xs font-semibold text-white"
               :class="student.status === 'Overdue' ? 'bg-[#d90012]' : 'bg-[#ffb51b]'"
             >
               {{ student.status }}
@@ -97,12 +97,12 @@ defineEmits<{
           <td>
             <button
               type="button"
-              class="inline-flex items-center gap-2 rounded-md px-1 py-2 text-sm font-semibold text-sky-500 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-300"
+              class="inline-flex items-center gap-1.5 rounded-md px-1 py-2 text-xs font-semibold text-sky-500 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-300"
               :aria-label="`View ${student.name}`"
               @click="$emit('view', student.studentId)"
             >
               <svg
-                class="size-5"
+                class="size-4"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"

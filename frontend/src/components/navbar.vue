@@ -20,6 +20,9 @@ const props = defineProps<{
 }>()
 
 const isMobileMenuOpen = ref(false)
+const emit = defineEmits<{
+  logout: []
+}>()
 
 // รายการเมนูที่จะแสดงแยกตาม role
 const menus: Record<MenuRole, MenuItem[]> = {
@@ -191,7 +194,7 @@ const userInitials = computed(() => {
     </div>
 
     <!-- ส่วนข้อมูลผู้ใช้ที่แสดงด้านล่างสุดของ Navbar -->
-    <div class="mb-3 flex items-center gap-2">
+    <div class="flex items-center gap-2">
       <div
         class="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#720008] text-xs"
       >
@@ -203,7 +206,12 @@ const userInitials = computed(() => {
         <p class="text-[10px] text-white/70">{{ user.email }}</p>
       </div>
 
-      <button type="button" aria-label="Sign out" class="rounded p-1.5 hover:bg-[#720008]">
+      <button
+        type="button"
+        aria-label="Sign out"
+        class="rounded p-1.5 hover:bg-[#720008]"
+        @click="emit('logout')"
+      >
         <svg
           class="size-5"
           viewBox="0 0 24 24"

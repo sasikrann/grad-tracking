@@ -1,4 +1,5 @@
 import type { Student, StudentStatus } from '@/types/student'
+import { authenticatedFetch } from '@/services/auth'
 
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
@@ -35,7 +36,7 @@ function toStudent(student: StudentApiResponse, currentAdvisorId?: string): Stud
 }
 
 async function requestStudents(path: string, currentAdvisorId?: string) {
-  const response = await fetch(`${apiBaseUrl}${path}`)
+  const response = await authenticatedFetch(`${apiBaseUrl}${path}`)
 
   if (response.status === 404 || response.status === 204) {
     return []
@@ -57,4 +58,47 @@ export function getStudents() {
 
 export function getAdvisorStudents(advisorId: string) {
   return requestStudents(`/api/advisors/${advisorId}/students`, advisorId)
+}
+
+async function downloadStudentFile(path: string, fallbackName: string) {
+  const response = await authenticatedFetch(`${apiBaseUrl}${path}`)
+  if (!response.ok) throw new Error(`Unable to download file (${response.status})`)
+
+  const blob = await response.blob()
+  const disposition = response.headers.get('content-disposition') ?? ''
+  const fileName = disposition.match(/filename="?([^";]+)"?/i)?.[1] ?? fallbackName
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+export function exportStudents(year = 'all') {
+  const query = year === 'all' ? '' : `?year=${encodeURIComponent(year)}`
+  return downloadStudentFile(`/api/students/export${query}`, 'students.xlsx')
+}
+
+export function downloadStudentTemplate() {
+  return downloadStudentFile('/api/students/template', 'student_import_template.xlsx')
+}
+
+export async function importStudents(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await authenticatedFetch(`${apiBaseUrl}/api/students/import`, {
+    method: 'POST',
+    body: formData,
+  })
+  const result = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new Error(result?.message ?? `Unable to import students (${response.status})`)
+  }
+  return result.data as {
+    totalRecords: number
+    successRecords: number
+    failedRecords: number
+    errors: string[]
+  }
 }

@@ -116,7 +116,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
     <label class="relative lg:col-span-5">
       <span class="sr-only">Search by name or ID</span>
       <svg
-        class="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-[#cfcfcf]"
+        class="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#cfcfcf]"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -130,7 +130,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
         :value="search"
         type="search"
         placeholder="Search by name or ID..."
-        class="h-10 w-full rounded-xl border border-[#eeeeee] bg-white pl-12 pr-4 text-sm font-medium text-[#333] shadow-[0_2px_4px_rgba(0,0,0,0.08)] outline-none placeholder:text-[#888] focus:border-[#8a2b25]"
+        class="h-8 w-full rounded-lg border border-[#eeeeee] bg-white pl-10 pr-4 text-xs font-medium text-[#333] shadow-[0_2px_4px_rgba(0,0,0,0.08)] outline-none placeholder:text-[#888] focus:border-[#8a2b25]"
         @input="updateSearch"
       />
     </label>
@@ -141,7 +141,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
       <div v-for="filter in filterDefinitions" :key="filter.key" class="relative" @click.stop>
         <button
           type="button"
-          class="flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-[#eeeeee] bg-white px-3 text-left text-xs shadow-[0_2px_4px_rgba(0,0,0,0.08)] outline-none hover:border-[#dfcccc] focus:border-[#8a2b25]"
+          class="flex h-8 w-full items-center justify-between gap-2 rounded-lg border border-[#eeeeee] bg-white px-3 text-left text-xs shadow-[0_2px_4px_rgba(0,0,0,0.08)] outline-none hover:border-[#dfcccc] focus:border-[#8a2b25]"
           :aria-expanded="openFilter === filter.key"
           @click="openFilter = openFilter === filter.key ? null : filter.key"
         >
