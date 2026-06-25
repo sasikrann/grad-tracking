@@ -6,14 +6,16 @@ export interface StudentTableItem {
   studentId: string
   degree: string
   program: string
+  enrollmentAcademicYear: string
+  expectedGraduationYear: string
   semester: number
+  year: string
   progress: number
   status: StudentStatus
 }
 
 // ข้อมูล Student ที่ใช้ในหน้า Dashboard
 export interface Student extends StudentTableItem {
-  year: string
   advisor: string
   isAdvised: boolean
 }

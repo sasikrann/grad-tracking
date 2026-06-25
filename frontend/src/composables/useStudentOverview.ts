@@ -51,6 +51,10 @@ export function useStudentOverview(
     })
   })
 
+  const yearOptions = computed(() =>
+    Array.from(new Set(students.value.map((student) => student.year))).sort(),
+  )
+
   async function loadStudents() {
     isLoading.value = true
     loadError.value = ''
@@ -75,5 +79,6 @@ export function useStudentOverview(
     loadStudents,
     search,
     statistics,
+    yearOptions,
   }
 }

@@ -12,6 +12,13 @@ export function errorHandler(error, _request, response, _next) {
     })
   }
 
+  if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+    return response.status(400).json({
+      status: 'error',
+      message: 'Upload exactly one file using the field name "file"',
+    })
+  }
+
   if (error.code === '23505') {
     return response.status(409).json({
       status: 'error',
@@ -28,8 +35,14 @@ export function errorHandler(error, _request, response, _next) {
 
   const statusCode = error.statusCode || 500
 
-  return response.status(statusCode).json({
+  const payload = {
     status: 'error',
     message: statusCode === 500 ? 'Internal server error' : error.message,
-  })
+  }
+
+  if (statusCode < 500 && Array.isArray(error.details)) {
+    payload.errors = error.details
+  }
+
+  return response.status(statusCode).json(payload)
 }

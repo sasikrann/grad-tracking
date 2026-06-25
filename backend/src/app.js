@@ -6,6 +6,7 @@ import { requireAuth, requireRole } from './middleware/auth.middleware.js'
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js'
 import authRouter from './routes/auth.routes.js'
 import advisorsRouter from './routes/advisors.routes.js'
+import milestonesRouter from './routes/milestones.routes.js'
 import studentsRouter from './routes/students.routes.js'
 import usersRouter from './routes/users.routes.js'
 
@@ -15,6 +16,7 @@ app.use(cors())
 app.use(express.json())
 app.use('/api/auth', authRouter)
 app.use('/api/advisors', requireAuth, requireRole('advisor', 'admin'), advisorsRouter)
+app.use('/api/milestones', requireAuth, requireRole('admin'), milestonesRouter)
 app.use('/api/students', requireAuth, requireRole('admin'), studentsRouter)
 
 app.get('/health', async (_request, response, next) => {
