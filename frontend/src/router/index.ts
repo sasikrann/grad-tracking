@@ -61,6 +61,12 @@ const router = createRouter({
       component: () => import('../views/lecturer/LecturerStudentOverallView.vue'),
       meta: { requiresAuth: true, role: 'advisor' },
     },
+    {
+      path: '/advisor/summary',
+      name: 'advisor-milestone-summary',
+      component: () => import('../views/lecturer/LecturerMilestoneSummaryView.vue'),
+      meta: { role: 'advisor' },
+    },
   ],
 })
 
