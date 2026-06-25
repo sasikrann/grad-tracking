@@ -1,3 +1,5 @@
+// ไฟล์นี้ใช้ตั้งค่าการเชื่อมต่อฐานข้อมูล PostgreSQL
+// ถ้าจะเปลี่ยน database หรือแก้ DATABASE_URL ให้ไปแก้ในไฟล์ backend/.env
 import 'dotenv/config'
 import pg from 'pg'
 

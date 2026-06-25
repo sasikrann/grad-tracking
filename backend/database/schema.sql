@@ -1,3 +1,5 @@
+-- ไฟล์นี้เป็น schema ข้อมูลเริ่มต้นของฐานข้อมูล PostgreSQL
+-- ใช้สร้างตารางและชนิดข้อมูลที่จำเป็นสำหรับระบบ Thesis Progress Tracking 
 CREATE TYPE user_role AS ENUM (
   'student',
   'advisor',

@@ -1,5 +1,9 @@
+// ไฟล์นี้เป็น controller สำหรับจัดการข้อมูลฝั่ง Advisor
+// ใช้รับ request จาก frontend แล้วส่งต่อไปเรียก service เช่น ดึงรายชื่ออาจารย์ ดึงรายชื่อนักศึกษาของ advisor
+// และดึง summary ความคืบหน้า milestone ของนักศึกษา
 import { ApiError } from '../errors/api-error.js'
 import { findAdvisorIdByUserId } from '../services/auth.service.js'
+import { findAllAdvisors } from '../services/advisors.service.js'
 import { findStudentsByAdvisorId } from '../services/students.service.js'
 import { findAdvisorMilestoneSummary } from '../services/milestone-summary.service.js'
 
@@ -27,8 +31,16 @@ export function parseMilestoneSummaryFilters(query = {}) {
   }
 }
 
+export async function getAdvisors(_request, response) {
+  response.json({ data: await findAllAdvisors() })
+}
+
 export async function getAdvisorStudents(request, response) {
   const requestedAdvisorId = request.params.advisorId
+
+  if (request.user.role === 'student') {
+    throw new ApiError(403, 'Students cannot access advisor student lists')
+  }
 
   if (request.user.role === 'advisor') {
     const advisorId = await findAdvisorIdByUserId(request.user.userId)
@@ -46,6 +58,10 @@ export async function getAdvisorStudents(request, response) {
 }
 
 export async function getAdvisorMilestoneSummary(request, response) {
+  if (request.user.role === 'student') {
+    throw new ApiError(403, 'Students cannot access advisor milestone summaries')
+  }
+
   const filters = parseMilestoneSummaryFilters(request.query)
   const summary = await findAdvisorMilestoneSummary({
     advisorId: request.params.advisorId,

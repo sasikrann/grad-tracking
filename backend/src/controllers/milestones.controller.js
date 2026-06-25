@@ -1,3 +1,5 @@
+// Controller สำหรับจัดการ Milestone
+// เอาไว้ให้ Admin สร้าง แก้ไข ลบ เปิด-ปิด เรียงลำดับ และคัดลอก milestone
 import { ApiError } from '../errors/api-error.js'
 import {
   copyMilestones,

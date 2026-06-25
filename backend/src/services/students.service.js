@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import pool from '../config/database.js'
+import { resolveAdvisorReference } from './advisors.service.js'
 
 const studentDetailColumns = `
   s.student_id AS "studentId",
@@ -14,6 +15,7 @@ const studentDetailColumns = `
   s.expected_graduation_year AS "expectedGraduationYear",
   s.advisor_id AS "advisorId",
   a.full_name AS "advisorName",
+  a.email AS "advisorEmail",
   s.advisor_evidence_url AS "advisorEvidenceUrl",
   s.created_at AS "createdAt",
   s.updated_at AS "updatedAt"
@@ -49,6 +51,15 @@ async function findStudents({ advisorId } = {}) {
             WHERE mt.deadline < CURRENT_DATE
               AND COALESCE(sm.status, 'Missing') NOT IN ('Completed', 'Approved')
           ) > 0 THEN 'Overdue'
+          WHEN EXTRACT(YEAR FROM CURRENT_DATE)::INT > s.expected_graduation_year
+            AND COALESCE(
+              ROUND(
+                100.0 * COUNT(sm.student_milestone_id)
+                  FILTER (WHERE sm.status IN ('Completed', 'Approved'))
+                / NULLIF(COUNT(mt.milestone_id), 0)
+              ),
+              0
+            )::INT < 100 THEN 'Overdue'
           ELSE 'On-track'
         END AS status
       FROM students s
@@ -101,18 +112,8 @@ export async function findStudentById(studentId) {
   return result.rows[0] || null
 }
 
-async function advisorExists(client, advisorId) {
-  if (!advisorId) return true
-  const result = await client.query('SELECT 1 FROM advisors WHERE advisor_id = $1', [advisorId])
-  return result.rowCount > 0
-}
-
 async function upsertStudentWithClient(client, input) {
-  if (!(await advisorExists(client, input.advisorId))) {
-    const error = new Error(`Advisor ${input.advisorId} does not exist`)
-    error.statusCode = 400
-    throw error
-  }
+  const advisorId = await resolveAdvisorReference(client, input)
 
   const existingStudent = await client.query(
     'SELECT user_id FROM students WHERE student_id = $1',
@@ -195,7 +196,7 @@ async function upsertStudentWithClient(client, input) {
         input.enrollmentAcademicYear,
         input.semester,
         input.expectedGraduationYear,
-        input.advisorId,
+        advisorId,
       ],
     )
   } catch (error) {
@@ -212,6 +213,68 @@ async function upsertStudentWithClient(client, input) {
   }
 
   return input.studentId
+}
+
+export async function findStudentByUserId(userId) {
+  const result = await pool.query(
+    `
+      SELECT ${studentDetailColumns}
+      FROM students s
+      LEFT JOIN users u ON u.user_id = s.user_id
+      LEFT JOIN advisors a ON a.advisor_id = s.advisor_id
+      WHERE s.user_id = $1
+    `,
+    [userId],
+  )
+
+  return result.rows[0] || null
+}
+
+export async function updateStudentAdvisorByUserId(
+  userId,
+  { advisorId, advisorEmail, advisorName, advisorEvidenceUrl },
+) {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const resolvedAdvisorId = await resolveAdvisorReference(client, {
+      advisorId,
+      advisorEmail,
+      advisorName,
+    })
+
+    if (!resolvedAdvisorId) {
+      const error = new Error('advisorId, advisorEmail, or advisorName is required')
+      error.statusCode = 400
+      throw error
+    }
+
+    const result = await client.query(
+      `
+        UPDATE students
+        SET
+          advisor_id = $2,
+          advisor_evidence_url = COALESCE($3, advisor_evidence_url),
+          updated_at = NOW()
+        WHERE user_id = $1
+        RETURNING student_id
+      `,
+      [userId, resolvedAdvisorId, advisorEvidenceUrl || null],
+    )
+
+    if (!result.rowCount) {
+      await client.query('ROLLBACK')
+      return null
+    }
+
+    await client.query('COMMIT')
+    return findStudentByUserId(userId)
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
 }
 
 export async function insertStudent(input) {

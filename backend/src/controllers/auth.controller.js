@@ -1,3 +1,5 @@
+// ใช้จัดการการเข้าสู่ระบบด้วย Google SSO ของ Lamduan Mail
+// ตรวจสอบว่า email เป็นของ lamduan.mfu.ac.th และมีอยู่ในระบบไหม
 import { OAuth2Client } from 'google-auth-library'
 
 import { ApiError } from '../errors/api-error.js'

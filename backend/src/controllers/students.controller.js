@@ -1,3 +1,5 @@
+// Controller สำหรับ Student Management
+// ใช้จัดการข้อมูลนักศึกษา และนำเข้า/ส่งออกไฟล์ Excel หรือ CSV
 import ExcelJS from 'exceljs'
 import { Readable } from 'node:stream'
 
@@ -57,6 +59,8 @@ function normalizeStudent(body, { studentId, requireEmail = true } = {}) {
       'expectedGraduationYear',
     ),
     advisorId: String(body.advisorId ?? '').trim() || null,
+    advisorEmail: optionalEmail(body.advisorEmail),
+    advisorName: String(body.advisorName ?? '').trim() || null,
   }
 }
 
@@ -99,6 +103,8 @@ async function readImportFile(file) {
         semester: cellValue(row, headerMap, ['semester']),
         expectedGraduationYear: cellValue(row, headerMap, ['expectedgraduationyear', 'expected graduation year', 'year']),
         advisorId: cellValue(row, headerMap, ['advisorid', 'advisor id']),
+        advisorEmail: cellValue(row, headerMap, ['advisoremail', 'advisor email']),
+        advisorName: cellValue(row, headerMap, ['advisorname', 'advisor name', 'advisor']),
       }, { requireEmail: false }))
     } catch (error) {
       validationErrors.push(`Row ${rowNumber}: ${error.message}`)
@@ -163,6 +169,7 @@ function addHeaders(worksheet) {
     { header: 'Semester', key: 'semester', width: 12 },
     { header: 'Year', key: 'expectedGraduationYear', width: 12 },
     { header: 'Advisor ID', key: 'advisorId', width: 16 },
+    { header: 'Advisor Email', key: 'advisorEmail', width: 32 },
     { header: 'Advisor Name', key: 'advisorName', width: 28 },
   ]
   worksheet.getRow(1).font = { bold: true }
@@ -197,7 +204,9 @@ export async function downloadStudentTemplate(_request, response) {
     enrollmentAcademicYear: 2023,
     semester: '2',
     expectedGraduationYear: 2026,
-    advisorId: 'ADV001',
+    advisorId: '',
+    advisorEmail: 'advisor.dev@lamduan.mfu.ac.th',
+    advisorName: 'Development Advisor',
   })
   const buffer = await workbook.xlsx.writeBuffer()
   response.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
