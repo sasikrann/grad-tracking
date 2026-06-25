@@ -15,7 +15,7 @@ function loadAdvisorStudents() {
   return getAdvisorStudents(advisorId)
 }
 
-const { filteredStudents, filters, isLoading, loadError, search, statistics } = useStudentOverview(
+const { filteredStudents, filters, isLoading, loadError, search, statistics, yearOptions } = useStudentOverview(
   loadAdvisorStudents,
   'default',
 )
@@ -41,6 +41,7 @@ const { filteredStudents, filters, isLoading, loadError, search, statistics } = 
       :students="filteredStudents"
       :is-loading="isLoading"
       :error="loadError"
+      :year-options="yearOptions"
     />
   </div>
 </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
+import ExportYearSelect from '@/components/student/ExportYearSelect.vue'
 import StudentOverview from '@/components/student/StudentOverview.vue'
 import SummaryCard from '@/components/student/SummaryCard.vue'
 import { useStudentOverview } from '@/composables/useStudentOverview'
@@ -11,8 +12,16 @@ import {
   importStudents,
 } from '@/services/students.api'
 
-const { filteredStudents, filters, isLoading, loadError, loadStudents, search, statistics } =
-  useStudentOverview(getStudents, 'all')
+const {
+  filteredStudents,
+  filters,
+  isLoading,
+  loadError,
+  loadStudents,
+  search,
+  statistics,
+  yearOptions,
+} = useStudentOverview(getStudents, 'all')
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const operationMessage = ref('')
@@ -21,18 +30,20 @@ const isExporting = ref(false)
 const isImportModalOpen = ref(false)
 const isExportModalOpen = ref(false)
 const selectedImportFile = ref<File | null>(null)
-const selectedExportYear = ref('all')
+const selectedExportEnrollmentYear = ref('all')
 let messageTimer: ReturnType<typeof setTimeout> | undefined
 
-const exportYearOptions = computed(() => {
-  const years = new Set(filteredStudents.value.map((student) => student.year))
+const exportEnrollmentYearOptions = computed(() => {
+  const years = new Set(filteredStudents.value.map((student) => student.enrollmentAcademicYear))
   return ['all', ...Array.from(years).sort()]
 })
 
 const exportStudentCount = computed(() =>
-  selectedExportYear.value === 'all'
+  selectedExportEnrollmentYear.value === 'all'
     ? filteredStudents.value.length
-    : filteredStudents.value.filter((student) => student.year === selectedExportYear.value).length,
+    : filteredStudents.value.filter(
+        (student) => student.enrollmentAcademicYear === selectedExportEnrollmentYear.value,
+      ).length,
 )
 
 function showOperationMessage(message: string) {
@@ -55,7 +66,7 @@ function closeImportModal() {
 }
 
 function openExportModal() {
-  selectedExportYear.value = 'all'
+  selectedExportEnrollmentYear.value = 'all'
   isExportModalOpen.value = true
 }
 
@@ -102,7 +113,7 @@ async function handleExport() {
   operationMessage.value = ''
   isExporting.value = true
   try {
-    await exportStudents(selectedExportYear.value)
+    await exportStudents(selectedExportEnrollmentYear.value)
     showOperationMessage('Exported students successfully')
     isExportModalOpen.value = false
   } catch (error) {
@@ -182,6 +193,7 @@ async function handleExport() {
       :students="filteredStudents"
       :is-loading="isLoading"
       :error="loadError"
+      :year-options="yearOptions"
       advisor-mode="all-only"
     />
 
@@ -249,17 +261,10 @@ async function handleExport() {
         <h2 id="export-modal-title" class="text-base font-semibold">Export Excel</h2>
         <p class="mt-1 text-xs text-slate-500">Download user data as an Excel or CSV file</p>
 
-        <label class="mt-4 block text-xs font-semibold">
-          Filter by Academic Year
-          <select
-            v-model="selectedExportYear"
-            class="mt-1 h-9 w-32 rounded-md border border-slate-200 bg-white px-2 text-xs outline-none focus:border-[#8b2a23]"
-          >
-            <option v-for="year in exportYearOptions" :key="year" :value="year">
-              {{ year === 'all' ? 'All Year' : year }}
-            </option>
-          </select>
-        </label>
+        <ExportYearSelect
+          v-model="selectedExportEnrollmentYear"
+          :options="exportEnrollmentYearOptions"
+        />
 
         <div class="mt-5 rounded-lg bg-slate-100 px-4 py-5 text-center">
           <svg class="mx-auto size-9 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">

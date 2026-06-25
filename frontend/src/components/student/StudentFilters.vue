@@ -17,10 +17,12 @@ const props = withDefaults(
   defineProps<{
     search: string
     modelValue: StudentFiltersState
+    yearOptions?: string[]
     advisorMode?: 'default' | 'all-only'
   }>(),
   {
     advisorMode: 'default',
+    yearOptions: () => [],
   },
 )
 
@@ -31,7 +33,7 @@ const emit = defineEmits<{
 
 const openFilter = ref<StudentFilterKey | null>(null)
 
-const baseFilterDefinitions: FilterDefinition[] = [
+const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
   {
     key: 'semester',
     defaultLabel: 'All Semester',
@@ -46,10 +48,7 @@ const baseFilterDefinitions: FilterDefinition[] = [
     defaultLabel: 'All Year',
     options: [
       { label: 'All Year', value: 'all' },
-      { label: '2023', value: '2023' },
-      { label: '2024', value: '2024' },
-      { label: '2025', value: '2025' },
-      { label: '2026', value: '2026' },
+      ...props.yearOptions.map((year) => ({ label: year, value: year })),
     ],
   },
   {
@@ -70,10 +69,10 @@ const baseFilterDefinitions: FilterDefinition[] = [
       { label: 'Overdue', value: 'Overdue' },
     ],
   },
-]
+])
 
 const filterDefinitions = computed<FilterDefinition[]>(() => [
-  ...baseFilterDefinitions,
+  ...baseFilterDefinitions.value,
   {
     key: 'advisor',
     defaultLabel: props.advisorMode === 'all-only' ? 'All View' : 'Advisor (Default)',

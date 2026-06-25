@@ -47,8 +47,8 @@ const columnDefinitions = [
   },
   {
     key: 'expectedGraduationYear',
-    label: 'Expected Graduation Year',
-    aliases: ['expectedgraduationyear', 'graduationyear', 'expectedyear'],
+    label: 'Year',
+    aliases: ['year', 'expectedgraduationyear', 'graduationyear', 'expectedyear'],
     required: true,
   },
   {

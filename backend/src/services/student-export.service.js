@@ -5,7 +5,7 @@ const headers = [
   'Degree Level',
   'Enrollment Academic Year',
   'Semester',
-  'Expected Graduation Year',
+  'Year',
   'Advisor ID',
   'Advisor Name',
   'Progress (%)',
