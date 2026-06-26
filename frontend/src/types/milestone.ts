@@ -3,6 +3,7 @@ export type DegreeLevel = 'Master' | 'Doctoral'
 export interface Milestone {
   milestoneId: string
   degreeLevel: DegreeLevel
+  semester: string
   title: string
   description: string | null
   sequenceOrder: number
@@ -15,6 +16,7 @@ export interface Milestone {
 
 export interface MilestoneInput {
   degreeLevel: DegreeLevel
+  semester: string
   title: string
   description: string
   sequenceOrder: number | null

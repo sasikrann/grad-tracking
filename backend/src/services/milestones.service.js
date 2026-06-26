@@ -2,9 +2,12 @@ import { randomUUID } from 'node:crypto'
 
 import pool from '../config/database.js'
 
+let schemaReady
+
 const milestoneColumns = `
   milestone_id AS "milestoneId",
   degree_level AS "degreeLevel",
+  semester,
   title,
   description,
   sequence_order AS "sequenceOrder",
@@ -17,16 +20,38 @@ const milestoneColumns = `
   updated_at AS "updatedAt"
 `
 
-export async function findMilestones({ degreeLevel } = {}) {
-  const values = degreeLevel ? [degreeLevel] : []
-  const filter = degreeLevel ? 'WHERE degree_level = $1' : ''
+async function ensureMilestoneSchema() {
+  schemaReady ??= pool.query(`
+    ALTER TABLE milestone_templates
+    ADD COLUMN IF NOT EXISTS semester VARCHAR NOT NULL DEFAULT '1'
+  `)
+  await schemaReady
+}
+
+export async function findMilestones({ degreeLevel, semester } = {}) {
+  await ensureMilestoneSchema()
+
+  const conditions = []
+  const values = []
+
+  if (degreeLevel) {
+    values.push(degreeLevel)
+    conditions.push(`degree_level = $${values.length}`)
+  }
+
+  if (semester) {
+    values.push(semester)
+    conditions.push(`semester = $${values.length}`)
+  }
+
+  const filter = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
 
   const result = await pool.query(
     `
       SELECT ${milestoneColumns}
       FROM milestone_templates
       ${filter}
-      ORDER BY degree_level, sequence_order, created_at
+      ORDER BY degree_level, semester, sequence_order, created_at
     `,
     values,
   )
@@ -35,6 +60,8 @@ export async function findMilestones({ degreeLevel } = {}) {
 }
 
 export async function findMilestoneById(milestoneId) {
+  await ensureMilestoneSchema()
+
   const result = await pool.query(
     `
       SELECT ${milestoneColumns}
@@ -47,30 +74,40 @@ export async function findMilestoneById(milestoneId) {
   return result.rows[0] || null
 }
 
-export async function nextSequenceOrder(degreeLevel) {
+export async function nextSequenceOrder(degreeLevel, semester = '1') {
+  await ensureMilestoneSchema()
+
   const result = await pool.query(
-    'SELECT COALESCE(MAX(sequence_order), 0) + 1 AS "nextOrder" FROM milestone_templates WHERE degree_level = $1',
-    [degreeLevel],
+    `
+      SELECT COALESCE(MAX(sequence_order), 0) + 1 AS "nextOrder"
+      FROM milestone_templates
+      WHERE degree_level = $1 AND semester = $2
+    `,
+    [degreeLevel, semester],
   )
 
   return result.rows[0].nextOrder
 }
 
 export async function createMilestone(input) {
+  await ensureMilestoneSchema()
+
   const milestoneId = randomUUID()
-  const sequenceOrder = input.sequenceOrder || (await nextSequenceOrder(input.degreeLevel))
+  const sequenceOrder =
+    input.sequenceOrder || (await nextSequenceOrder(input.degreeLevel, input.semester))
 
   await pool.query(
     `
       INSERT INTO milestone_templates (
-        milestone_id, degree_level, title, description, sequence_order,
+        milestone_id, degree_level, semester, title, description, sequence_order,
         open_date, deadline, first_reminder_date, second_reminder_date, is_enabled
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     `,
     [
       milestoneId,
       input.degreeLevel,
+      input.semester,
       input.title,
       input.description,
       sequenceOrder,
@@ -86,25 +123,29 @@ export async function createMilestone(input) {
 }
 
 export async function updateMilestone(milestoneId, input) {
+  await ensureMilestoneSchema()
+
   const result = await pool.query(
     `
       UPDATE milestone_templates
       SET
         degree_level = $2,
-        title = $3,
-        description = $4,
-        sequence_order = $5,
-        open_date = $6,
-        deadline = $7,
-        first_reminder_date = $8,
-        second_reminder_date = $9,
-        is_enabled = $10,
+        semester = $3,
+        title = $4,
+        description = $5,
+        sequence_order = $6,
+        open_date = $7,
+        deadline = $8,
+        first_reminder_date = $9,
+        second_reminder_date = $10,
+        is_enabled = $11,
         updated_at = NOW()
       WHERE milestone_id = $1
     `,
     [
       milestoneId,
       input.degreeLevel,
+      input.semester,
       input.title,
       input.description,
       input.sequenceOrder,
@@ -121,6 +162,8 @@ export async function updateMilestone(milestoneId, input) {
 }
 
 export async function removeMilestone(milestoneId) {
+  await ensureMilestoneSchema()
+
   const result = await pool.query('DELETE FROM milestone_templates WHERE milestone_id = $1', [
     milestoneId,
   ])
@@ -128,6 +171,8 @@ export async function removeMilestone(milestoneId) {
 }
 
 export async function setMilestoneEnabled(milestoneId, isEnabled) {
+  await ensureMilestoneSchema()
+
   const result = await pool.query(
     `
       UPDATE milestone_templates
@@ -142,13 +187,15 @@ export async function setMilestoneEnabled(milestoneId, isEnabled) {
 }
 
 export async function moveMilestone(milestoneId, direction) {
+  await ensureMilestoneSchema()
+
   const client = await pool.connect()
 
   try {
     await client.query('BEGIN')
 
     const current = await client.query(
-      'SELECT milestone_id, degree_level, sequence_order FROM milestone_templates WHERE milestone_id = $1 FOR UPDATE',
+      'SELECT milestone_id, degree_level, semester, sequence_order FROM milestone_templates WHERE milestone_id = $1 FOR UPDATE',
       [milestoneId],
     )
     const milestone = current.rows[0]
@@ -163,12 +210,12 @@ export async function moveMilestone(milestoneId, direction) {
       `
         SELECT milestone_id, sequence_order
         FROM milestone_templates
-        WHERE degree_level = $1 AND sequence_order ${operator} $2
+        WHERE degree_level = $1 AND semester = $2 AND sequence_order ${operator} $3
         ORDER BY sequence_order ${order}
         LIMIT 1
         FOR UPDATE
       `,
-      [milestone.degree_level, milestone.sequence_order],
+      [milestone.degree_level, milestone.semester, milestone.sequence_order],
     )
 
     const target = neighbor.rows[0]
@@ -196,13 +243,26 @@ export async function moveMilestone(milestoneId, direction) {
   }
 }
 
-export async function copyMilestones({ fromDegreeLevel, toDegreeLevel, milestoneIds = [] }) {
+export async function copyMilestones({
+  fromDegreeLevel,
+  toDegreeLevel,
+  fromSemester = null,
+  toSemester = '1',
+  milestoneIds = [],
+}) {
+  await ensureMilestoneSchema()
+
   const client = await pool.connect()
 
   try {
     await client.query('BEGIN')
     const values = [fromDegreeLevel]
-    const selectedFilter = milestoneIds.length ? 'AND milestone_id = ANY($2::uuid[])' : ''
+    const semesterFilter = fromSemester ? `AND semester = $${values.length + 1}` : ''
+    if (fromSemester) values.push(fromSemester)
+
+    const selectedFilter = milestoneIds.length
+      ? `AND milestone_id = ANY($${values.length + 1}::uuid[])`
+      : ''
     if (milestoneIds.length) values.push(milestoneIds)
 
     const source = await client.query(
@@ -211,6 +271,7 @@ export async function copyMilestones({ fromDegreeLevel, toDegreeLevel, milestone
           first_reminder_date, second_reminder_date, is_enabled
         FROM milestone_templates
         WHERE degree_level = $1
+        ${semesterFilter}
         ${selectedFilter}
         ORDER BY sequence_order
       `,
@@ -221,14 +282,15 @@ export async function copyMilestones({ fromDegreeLevel, toDegreeLevel, milestone
       await client.query(
         `
           INSERT INTO milestone_templates (
-            milestone_id, degree_level, title, description, sequence_order,
+            milestone_id, degree_level, semester, title, description, sequence_order,
             open_date, deadline, first_reminder_date, second_reminder_date, is_enabled
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         `,
         [
           randomUUID(),
           toDegreeLevel,
+          toSemester,
           row.title,
           row.description,
           row.sequence_order,

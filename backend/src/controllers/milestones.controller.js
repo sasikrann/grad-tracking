@@ -14,6 +14,7 @@ import {
 } from '../services/milestones.service.js'
 
 const degreeLevels = new Set(['Master', 'Doctoral'])
+const semesters = new Set(['1', '2'])
 
 function requiredText(value, field) {
   const result = String(value ?? '').trim()
@@ -37,12 +38,25 @@ function optionalDate(value, field) {
   return result
 }
 
+function requiredSemester(value) {
+  const semester = requiredText(value, 'semester')
+  if (!semesters.has(semester)) throw new ApiError(400, 'semester must be 1 or 2')
+  return semester
+}
+
+function optionalSemester(value) {
+  const semester = optionalText(value)
+  if (semester && !semesters.has(semester)) throw new ApiError(400, 'semester must be 1 or 2')
+  return semester
+}
+
 function normalizeMilestone(body) {
   const degreeLevel = requiredText(body.degreeLevel, 'degreeLevel')
   if (!degreeLevels.has(degreeLevel)) throw new ApiError(400, 'degreeLevel must be Master or Doctoral')
 
   return {
     degreeLevel,
+    semester: requiredSemester(body.semester ?? '1'),
     title: requiredText(body.title, 'title'),
     description: optionalText(body.description),
     sequenceOrder: body.sequenceOrder ? Number(body.sequenceOrder) : null,
@@ -56,7 +70,8 @@ function normalizeMilestone(body) {
 
 export async function getMilestones(request, response) {
   const degreeLevel = String(request.query.degreeLevel ?? '').trim()
-  response.json({ data: await findMilestones({ degreeLevel: degreeLevel || null }) })
+  const semester = optionalSemester(request.query.semester)
+  response.json({ data: await findMilestones({ degreeLevel: degreeLevel || null, semester }) })
 }
 
 export async function getMilestone(request, response) {
@@ -67,7 +82,8 @@ export async function getMilestone(request, response) {
 
 export async function getNextMilestoneOrder(request, response) {
   const degreeLevel = requiredText(request.query.degreeLevel, 'degreeLevel')
-  response.json({ data: { sequenceOrder: await nextSequenceOrder(degreeLevel) } })
+  const semester = requiredSemester(request.query.semester ?? '1')
+  response.json({ data: { sequenceOrder: await nextSequenceOrder(degreeLevel, semester) } })
 }
 
 export async function addMilestone(request, response) {
@@ -106,6 +122,8 @@ export async function reorderMilestone(request, response) {
 export async function copyMilestoneSet(request, response) {
   const fromDegreeLevel = requiredText(request.body.fromDegreeLevel, 'fromDegreeLevel')
   const toDegreeLevel = requiredText(request.body.toDegreeLevel, 'toDegreeLevel')
+  const fromSemester = optionalSemester(request.body.fromSemester)
+  const toSemester = requiredSemester(request.body.toSemester ?? '1')
   const milestoneIds = Array.isArray(request.body.milestoneIds) ? request.body.milestoneIds : []
   if (!degreeLevels.has(fromDegreeLevel) || !degreeLevels.has(toDegreeLevel)) {
     throw new ApiError(400, 'degree levels must be Master or Doctoral')
@@ -113,7 +131,13 @@ export async function copyMilestoneSet(request, response) {
 
   response.status(201).json({
     data: {
-      copiedRecords: await copyMilestones({ fromDegreeLevel, toDegreeLevel, milestoneIds }),
+      copiedRecords: await copyMilestones({
+        fromDegreeLevel,
+        toDegreeLevel,
+        fromSemester,
+        toSemester,
+        milestoneIds,
+      }),
     },
   })
 }

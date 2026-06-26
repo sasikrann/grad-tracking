@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import CopyMilestoneModal from '@/components/milestone/CopyMilestoneModal.vue'
 import MilestoneFormModal from '@/components/milestone/MilestoneFormModal.vue'
@@ -25,10 +25,13 @@ const selectedYear = ref('all')
 const isFormOpen = ref(false)
 const isCopyOpen = ref(false)
 const editingMilestone = ref<Milestone | null>(null)
+type MilestoneFilterKey = 'semester' | 'year' | 'degreeLevel'
+const openFilter = ref<MilestoneFilterKey | null>(null)
 
 const filteredMilestones = computed(() =>
   milestones.value.filter((milestone) => {
-    const matchesSemester = selectedSemester.value === 'all'
+    const matchesSemester =
+      selectedSemester.value === 'all' || milestone.semester === selectedSemester.value
     const matchesDegree = milestone.degreeLevel === selectedDegreeLevel.value
     const matchesYear =
       selectedYear.value === 'all' || new Date(milestone.deadline).getFullYear().toString() === selectedYear.value
@@ -42,12 +45,44 @@ const yearOptions = computed(() => {
   return Array.from(years).sort()
 })
 
+const filterDefinitions = computed(() => [
+  {
+    key: 'semester' as const,
+    label:
+      selectedSemester.value === 'all'
+        ? 'All Semester'
+        : selectedSemester.value,
+    options: [
+      { label: 'All Semester', value: 'all' },
+      { label: '1', value: '1' },
+      { label: '2', value: '2' },
+    ],
+  },
+  {
+    key: 'year' as const,
+    label: selectedYear.value === 'all' ? 'All Year' : selectedYear.value,
+    options: [
+      { label: 'All Year', value: 'all' },
+      ...yearOptions.value.map((year) => ({ label: year, value: year })),
+    ],
+  },
+  {
+    key: 'degreeLevel' as const,
+    label: selectedDegreeLevel.value === 'Doctoral' ? 'Ph.D' : selectedDegreeLevel.value,
+    options: [
+      { label: 'Master', value: 'Master' },
+      { label: 'Ph.D', value: 'Doctoral' },
+    ],
+  },
+])
+
 const nextOrder = computed(() => {
   return (
     Math.max(
       0,
       ...milestones.value
         .filter((milestone) => milestone.degreeLevel === selectedDegreeLevel.value)
+        .filter((milestone) => selectedSemester.value === 'all' || milestone.semester === selectedSemester.value)
         .map((milestone) => milestone.sequenceOrder),
     ) + 1
   )
@@ -88,6 +123,7 @@ async function saveMilestone(input: MilestoneInput) {
       message.value = 'Milestone added successfully'
     }
     selectedDegreeLevel.value = input.degreeLevel
+    selectedSemester.value = input.semester
     selectedYear.value = new Date(input.deadline).getFullYear().toString()
     isFormOpen.value = false
     await loadMilestones()
@@ -132,13 +168,22 @@ async function moveMilestoneOrder(milestoneId: string, direction: 'up' | 'down')
 async function copyMilestoneTemplates(
   fromDegreeLevel: DegreeLevel,
   toDegreeLevel: DegreeLevel,
+  fromSemester: string,
+  toSemester: string,
   milestoneIds: string[],
 ) {
   errorMessage.value = ''
   try {
-    const result = await copyMilestones(fromDegreeLevel, toDegreeLevel, milestoneIds)
+    const result = await copyMilestones(
+      fromDegreeLevel,
+      toDegreeLevel,
+      fromSemester,
+      toSemester,
+      milestoneIds,
+    )
     message.value = `Copied ${result.copiedRecords} milestones successfully`
     selectedDegreeLevel.value = toDegreeLevel
+    selectedSemester.value = toSemester
     isCopyOpen.value = false
     await loadMilestones()
   } catch (error) {
@@ -146,7 +191,28 @@ async function copyMilestoneTemplates(
   }
 }
 
-onMounted(loadMilestones)
+function selectedFilterValue(key: MilestoneFilterKey) {
+  if (key === 'semester') return selectedSemester.value
+  if (key === 'year') return selectedYear.value
+  return selectedDegreeLevel.value
+}
+
+function selectFilter(key: MilestoneFilterKey, value: string) {
+  if (key === 'semester') selectedSemester.value = value
+  if (key === 'year') selectedYear.value = value
+  if (key === 'degreeLevel') selectedDegreeLevel.value = value as DegreeLevel
+  openFilter.value = null
+}
+
+function closeDropdown() {
+  openFilter.value = null
+}
+
+onMounted(() => {
+  loadMilestones()
+  document.addEventListener('click', closeDropdown)
+})
+onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
 </script>
 
 <template>
@@ -186,21 +252,60 @@ onMounted(loadMilestones)
         </div>
 
         <div class="flex gap-3">
-          <select v-model="selectedSemester" class="h-9 rounded-lg border border-slate-100 bg-white px-4 text-xs shadow-sm">
-            <option value="all">All Semester</option>
-          </select>
+          <div
+            v-for="filter in filterDefinitions"
+            :key="filter.key"
+            class="relative"
+            @click.stop
+          >
+            <button
+              type="button"
+              class="flex h-9 min-w-32 items-center justify-between gap-3 rounded-lg border border-slate-100 bg-white px-4 text-left text-xs shadow-sm outline-none hover:border-[#dfcccc] focus:border-[#8a2b25]"
+              :class="{ 'border-[#8a2b25]': openFilter === filter.key }"
+              :aria-expanded="openFilter === filter.key"
+              @click="openFilter = openFilter === filter.key ? null : filter.key"
+            >
+              <span class="whitespace-nowrap">{{ filter.label }}</span>
+              <svg
+                class="size-4 shrink-0 text-slate-500 transition-transform"
+                :class="{ 'rotate-180': openFilter === filter.key }"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                aria-hidden="true"
+              >
+                <path d="m7 10 5 5 5-5" />
+              </svg>
+            </button>
 
-          <select v-model="selectedYear" class="h-9 rounded-lg border border-slate-100 bg-white px-4 text-xs shadow-sm">
-            <option value="all">All Year</option>
-            <option v-for="year in yearOptions" :key="year" :value="year">
-              {{ year }}
-            </option>
-          </select>
-
-          <select v-model="selectedDegreeLevel" class="h-9 rounded-lg border border-slate-100 bg-white px-4 text-xs shadow-sm">
-            <option value="Master">Master</option>
-            <option value="Doctoral">Ph.D</option>
-          </select>
+            <div
+              v-if="openFilter === filter.key"
+              class="absolute left-0 top-[calc(100%+8px)] z-30 min-w-full overflow-hidden rounded-lg border border-slate-100 bg-white p-1.5 shadow-[0_5px_12px_rgba(0,0,0,0.12)]"
+            >
+              <button
+                v-for="option in filter.options"
+                :key="option.value"
+                type="button"
+                class="flex w-full items-center justify-between gap-4 whitespace-nowrap rounded-md px-3 py-2 text-left text-xs hover:bg-[#f8eeee]"
+                :class="{ 'bg-[#f8eeee]': selectedFilterValue(filter.key) === option.value }"
+                @click="selectFilter(filter.key, option.value)"
+              >
+                {{ option.label }}
+                <svg
+                  v-if="selectedFilterValue(filter.key) === option.value"
+                  class="size-4 text-slate-500"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path d="m5 12 4 4L19 6" />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -218,6 +323,7 @@ onMounted(loadMilestones)
       v-if="isFormOpen"
       :milestone="editingMilestone"
       :default-degree-level="selectedDegreeLevel"
+      :default-semester="selectedSemester"
       :default-order="nextOrder"
       @close="isFormOpen = false"
       @save="saveMilestone"

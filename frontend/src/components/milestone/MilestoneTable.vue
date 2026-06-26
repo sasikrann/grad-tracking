@@ -1,3 +1,4 @@
+<!-- Component ตารางสำหรับแสดงรายการ Milestone ในหน้า Milestone Management -->
 <script setup lang="ts">
 import type { Milestone } from '@/types/milestone'
 
@@ -27,22 +28,23 @@ function formatDate(value: string) {
     <table class="w-full min-w-[780px] border-collapse text-left">
       <thead>
         <tr class="border-b border-slate-200 text-xs">
-          <th class="w-[11%] py-3 font-semibold">Order</th>
-          <th class="w-[24%] py-3 font-semibold">Title</th>
-          <th class="w-[24%] py-3 font-semibold">Description</th>
-          <th class="w-[13%] py-3 font-semibold">Program</th>
-          <th class="w-[14%] py-3 font-semibold">Deadline</th>
-          <th class="w-[14%] py-3 text-right font-semibold">Actions</th>
+          <th class="w-[10%] py-3 font-semibold">Order</th>
+          <th class="w-[23%] py-3 font-semibold">Title</th>
+          <th class="w-[22%] py-3 font-semibold">Description</th>
+          <th class="w-[12%] py-3 text-center font-semibold">Program</th>
+          <th class="w-[11%] py-3 text-center font-semibold">Semester</th>
+          <th class="w-[12%] py-3 pl-4 font-semibold">Deadline</th>
+          <th class="w-[10%] py-3 text-right font-semibold">Actions</th>
         </tr>
       </thead>
 
       <tbody>
         <tr v-if="isLoading">
-          <td colspan="6" class="py-12 text-center text-sm text-slate-500">Loading milestones...</td>
+          <td colspan="7" class="py-12 text-center text-sm text-slate-500">Loading milestones...</td>
         </tr>
 
         <tr v-else-if="milestones.length === 0">
-          <td colspan="6" class="py-12 text-center text-sm text-slate-500">No milestones configured.</td>
+          <td colspan="7" class="py-12 text-center text-sm text-slate-500">No milestones configured.</td>
         </tr>
 
         <tr
@@ -81,16 +83,24 @@ function formatDate(value: string) {
           <td class="py-4 align-top font-semibold leading-snug">{{ milestone.title }}</td>
           <td class="py-4 align-top leading-snug text-slate-500">{{ milestone.description || '-' }}</td>
 
-          <td class="py-4 align-top">
-            <span class="inline-flex min-w-20 justify-center rounded-md bg-slate-100 px-3 py-1">
+          <td class="py-4 text-center align-middle">
+            <span class="inline-flex min-w-20 items-center justify-center rounded-md bg-slate-100 px-3 py-1 leading-none">
               {{ milestone.degreeLevel === 'Doctoral' ? 'Ph.D' : 'Master' }}
             </span>
           </td>
 
-          <td class="py-4 align-top text-slate-500">{{ formatDate(milestone.deadline) }}</td>
+          <td class="py-4 text-center align-middle">
+            <span
+              class="inline-flex min-w-14 items-center justify-center rounded-md border border-slate-200 px-3 py-1 leading-none"
+            >
+              {{ milestone.semester }}
+            </span>
+          </td>
 
-          <td class="py-4 align-top">
-            <div class="flex justify-end gap-2">
+          <td class="py-4 pl-4 align-middle text-slate-500">{{ formatDate(milestone.deadline) }}</td>
+
+          <td class="py-4 align-middle">
+            <div class="-mt-1 flex justify-end gap-2">
               <button
                 type="button"
                 class="rounded-md border px-3 py-1 text-[11px]"

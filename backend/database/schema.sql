@@ -63,6 +63,7 @@ CREATE TABLE students (
 CREATE TABLE milestone_templates (
   milestone_id UUID PRIMARY KEY,
   degree_level degree_level NOT NULL,
+  semester VARCHAR NOT NULL DEFAULT '1',
   title VARCHAR NOT NULL,
   description TEXT,
   sequence_order INT NOT NULL,

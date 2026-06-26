@@ -7,6 +7,7 @@ import type { DegreeLevel, Milestone, MilestoneInput } from '@/types/milestone'
 const props = defineProps<{
   milestone: Milestone | null
   defaultDegreeLevel: DegreeLevel
+  defaultSemester: string
   defaultOrder: number
 }>()
 
@@ -17,6 +18,7 @@ const emit = defineEmits<{
 
 const form = reactive<MilestoneInput>({
   degreeLevel: props.defaultDegreeLevel,
+  semester: props.defaultSemester === 'all' ? '1' : props.defaultSemester,
   title: '',
   description: '',
   sequenceOrder: props.defaultOrder,
@@ -33,6 +35,8 @@ watch(
   () => props.milestone,
   (milestone) => {
     form.degreeLevel = milestone?.degreeLevel ?? props.defaultDegreeLevel
+    form.semester =
+      milestone?.semester ?? (props.defaultSemester === 'all' ? '1' : props.defaultSemester)
     form.title = milestone?.title ?? ''
     form.description = milestone?.description ?? ''
     form.sequenceOrder = milestone?.sequenceOrder ?? props.defaultOrder
@@ -86,6 +90,19 @@ watch(
             </select>
           </label>
 
+          <label class="block text-xs font-semibold">
+            Semester
+            <select
+              v-model="form.semester"
+              class="mt-1 h-10 w-full rounded-md border border-[#c9827c] bg-white px-3 text-xs outline-none focus:border-[#7D2923]"
+            >
+              <option value="1">Semester 1</option>
+              <option value="2">Semester 2</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
           <label class="block text-xs font-semibold">
             Order
             <input
