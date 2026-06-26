@@ -191,6 +191,7 @@ export async function exportStudents(request, response) {
   response.send(Buffer.from(buffer))
 }
 
+// ตัวอย่าง template สำหรับการ import ข้อมูลนักศึกษา 
 export async function downloadStudentTemplate(_request, response) {
   const workbook = new ExcelJS.Workbook()
   const worksheet = workbook.addWorksheet('Students')
