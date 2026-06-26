@@ -48,7 +48,7 @@ try {
   await client.query(
     `
       INSERT INTO advisors (advisor_id, user_id, full_name, email)
-      VALUES ('DEV-ADV-001', $1, $2, $3)
+      VALUES ('ADV001', $1, $2, $3)
       ON CONFLICT (advisor_id) DO UPDATE SET
         user_id = EXCLUDED.user_id,
         full_name = EXCLUDED.full_name,
@@ -70,7 +70,7 @@ try {
         expected_graduation_year,
         advisor_id
       )
-      VALUES ('DEV-STU-001', $1, $2, 'CE', 'Doctoral', 2026, '1', 2030, 'DEV-ADV-001')
+      VALUES ('DEV-STU-001', $1, $2, 'CE', 'Doctoral', 2026, '1', 2030, 'ADV001')
       ON CONFLICT (student_id) DO UPDATE SET
         user_id = EXCLUDED.user_id,
         full_name = EXCLUDED.full_name,
