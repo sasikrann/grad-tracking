@@ -63,10 +63,12 @@ export function moveMilestone(milestoneId: string, direction: 'up' | 'down') {
 export function copyMilestones(
   fromDegreeLevel: DegreeLevel,
   toDegreeLevel: DegreeLevel,
+  fromSemester: string,
+  toSemester: string,
   milestoneIds: string[],
 ) {
   return request<{ copiedRecords: number }>('/api/milestones/copy', {
     method: 'POST',
-    body: JSON.stringify({ fromDegreeLevel, toDegreeLevel, milestoneIds }),
+    body: JSON.stringify({ fromDegreeLevel, toDegreeLevel, fromSemester, toSemester, milestoneIds }),
   })
 }

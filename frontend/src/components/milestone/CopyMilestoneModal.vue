@@ -1,38 +1,53 @@
+<!-- Component Modal สำหรับ Copy Milestone -->
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
 import type { DegreeLevel, Milestone } from '@/types/milestone'
 
+// รับข้อมูลจากหน้าหลักเข้ามาใช้ใน component นี้
 const props = defineProps<{
   milestones: Milestone[]
   yearOptions: string[]
 }>()
 
+// copy ใช้ตอนกดปุ่ม Copy Milestone พร้อมส่งข้อมูลต้นทาง ปลายทาง และ milestone ที่เลือก
 const emit = defineEmits<{
   close: []
-  copy: [fromDegreeLevel: DegreeLevel, toDegreeLevel: DegreeLevel, milestoneIds: string[]]
+  copy: [
+    fromDegreeLevel: DegreeLevel,
+    toDegreeLevel: DegreeLevel,
+    fromSemester: string,
+    toSemester: string,
+    milestoneIds: string[],
+  ]
 }>()
 
-const fromSemester = ref('all')
+// เก็บค่าที่ user เลือกฝั่งต้นทาง
+const fromSemester = ref('1')
 const fromYear = ref('all')
 const fromDegreeLevel = ref<DegreeLevel>('Master')
-const toSemester = ref('all')
+// เก็บค่าที่ user เลือกฝั่งปลายทาง
+const toSemester = ref('1')
 const toYear = ref('all')
 const toDegreeLevel = ref<DegreeLevel>('Doctoral')
 const selectedMilestoneIds = ref<string[]>([])
 
+// กรอง milestone เฉพาะที่ตรงกับต้นทางที่เลือก
+// เช่น program ตรงกัน, year ตรงกัน และ semester ตรงกัน
 const sourceMilestones = computed(() =>
   props.milestones.filter((milestone) => {
     const matchesProgram = milestone.degreeLevel === fromDegreeLevel.value
     const matchesYear =
       fromYear.value === 'all' ||
       new Date(milestone.deadline).getFullYear().toString() === fromYear.value
-    const matchesSemester = fromSemester.value === 'all'
+    const matchesSemester = milestone.semester === fromSemester.value
 
     return matchesProgram && matchesYear && matchesSemester
   }),
 )
 
+// เช็คว่า milestone ฝั่งต้นทางถูกเลือกครบทุกอันแล้วหรือยัง
+// ใช้กับ checkbox Select All
 const allSelected = computed(
   () =>
     sourceMilestones.value.length > 0 &&
@@ -40,7 +55,7 @@ const allSelected = computed(
       selectedMilestoneIds.value.includes(milestone.milestoneId),
     ),
 )
-
+// ถ้ารายการ milestone ต้นทางเปลี่ยน ให้เลือก milestone ทั้งหมดของต้นทางนั้นอัตโนมัติ
 watch(
   sourceMilestones,
   (milestones) => {
@@ -56,7 +71,14 @@ function toggleAll() {
 }
 
 function submitCopy() {
-  emit('copy', fromDegreeLevel.value, toDegreeLevel.value, selectedMilestoneIds.value)
+  emit(
+    'copy',
+    fromDegreeLevel.value,
+    toDegreeLevel.value,
+    fromSemester.value,
+    toSemester.value,
+    selectedMilestoneIds.value,
+  )
 }
 </script>
 
@@ -68,12 +90,13 @@ function submitCopy() {
 
       <div class="mt-7 grid grid-cols-[1fr_auto_1fr] items-end gap-8">
         <section>
-          <h3 class="text-xs font-semibold text-[#8b0000]">1.From(Source)</h3>
+          <h3 class="text-xs font-semibold text-[#8b0000]">1. From (Source)</h3>
           <div class="mt-4 grid grid-cols-3 gap-3">
             <label class="text-xs font-semibold">
               Semester
               <select v-model="fromSemester" class="mt-1 h-10 w-full rounded-md border border-slate-200 px-3 text-xs shadow-sm">
-                <option value="all">Semester</option>
+                <option value="1">Semester 1</option>
+                <option value="2">Semester 2</option>
               </select>
             </label>
 
@@ -108,12 +131,13 @@ function submitCopy() {
         </svg>
 
         <section>
-          <h3 class="text-xs font-semibold text-[#8b0000]">2. To(Destination)</h3>
+          <h3 class="text-xs font-semibold text-[#8b0000]">2. To (Destination)</h3>
           <div class="mt-4 grid grid-cols-3 gap-3">
             <label class="text-xs font-semibold">
               Semester
               <select v-model="toSemester" class="mt-1 h-10 w-full rounded-md border border-slate-200 px-3 text-xs shadow-sm">
-                <option value="all">Semester</option>
+                <option value="1">Semester 1</option>
+                <option value="2">Semester 2</option>
               </select>
             </label>
 
@@ -168,6 +192,9 @@ function submitCopy() {
               :value="milestone.milestoneId"
               class="accent-[#8b2a23]"
             />
+            <span class="min-w-6 text-center text-xs font-bold text-[#8b2a23]">
+              {{ milestone.sequenceOrder }}.
+            </span>
             {{ milestone.title }}
           </label>
 
