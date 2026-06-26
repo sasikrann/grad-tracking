@@ -88,6 +88,7 @@ function submitCopy() {
       <h2 class="text-lg font-semibold">Copy Milestone</h2>
       <p class="mt-1 text-xs text-slate-500">Copy milestone from one semester/program to another.</p>
 
+      <!-- From (Source) -->
       <div class="mt-7 grid grid-cols-[1fr_auto_1fr] items-end gap-8">
         <section>
           <h3 class="text-xs font-semibold text-[#8b0000]">1. From (Source)</h3>
@@ -95,8 +96,8 @@ function submitCopy() {
             <label class="text-xs font-semibold">
               Semester
               <select v-model="fromSemester" class="mt-1 h-10 w-full rounded-md border border-slate-200 px-3 text-xs shadow-sm">
-                <option value="1">Semester 1</option>
-                <option value="2">Semester 2</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
               </select>
             </label>
 
@@ -130,14 +131,15 @@ function submitCopy() {
           <path d="m13 6 6 6-6 6" />
         </svg>
 
+        <!-- To (Destination) -->
         <section>
           <h3 class="text-xs font-semibold text-[#8b0000]">2. To (Destination)</h3>
           <div class="mt-4 grid grid-cols-3 gap-3">
             <label class="text-xs font-semibold">
               Semester
               <select v-model="toSemester" class="mt-1 h-10 w-full rounded-md border border-slate-200 px-3 text-xs shadow-sm">
-                <option value="1">Semester 1</option>
-                <option value="2">Semester 2</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
               </select>
             </label>
 
