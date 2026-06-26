@@ -96,8 +96,8 @@ watch(
               v-model="form.semester"
               class="mt-1 h-10 w-full rounded-md border border-[#c9827c] bg-white px-3 text-xs outline-none focus:border-[#7D2923]"
             >
-              <option value="1">Semester 1</option>
-              <option value="2">Semester 2</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
             </select>
           </label>
         </div>
