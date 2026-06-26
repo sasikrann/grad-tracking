@@ -158,6 +158,7 @@ export async function importStudentFile(request, response) {
   response.status(201).json({ data: result })
 }
 
+// template สำหรับการ import ข้อมูลนักศึกษา 
 function addHeaders(worksheet) {
   worksheet.columns = [
     { header: 'Student ID', key: 'studentId', width: 16 },
@@ -168,7 +169,6 @@ function addHeaders(worksheet) {
     { header: 'Enrollment Academic Year', key: 'enrollmentAcademicYear', width: 25 },
     { header: 'Semester', key: 'semester', width: 12 },
     { header: 'Year', key: 'expectedGraduationYear', width: 12 },
-    { header: 'Advisor ID', key: 'advisorId', width: 16 },
     { header: 'Advisor Email', key: 'advisorEmail', width: 32 },
     { header: 'Advisor Name', key: 'advisorName', width: 28 },
   ]
@@ -204,7 +204,6 @@ export async function downloadStudentTemplate(_request, response) {
     enrollmentAcademicYear: 2023,
     semester: '2',
     expectedGraduationYear: 2026,
-    advisorId: '',
     advisorEmail: 'advisor.dev@lamduan.mfu.ac.th',
     advisorName: 'Development Advisor',
   })
