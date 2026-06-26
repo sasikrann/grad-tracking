@@ -1,3 +1,5 @@
+// Controller สำหรับ Student Management
+// ใช้จัดการข้อมูลนักศึกษา และนำเข้า/ส่งออกไฟล์ Excel หรือ CSV
 import ExcelJS from 'exceljs'
 import { Readable } from 'node:stream'
 
@@ -29,10 +31,17 @@ function requiredYear(value, field) {
   return result
 }
 
-function normalizeStudent(body, { studentId } = {}) {
-  const email = requiredText(body.email, 'email').toLowerCase()
-  const degreeLevel = requiredText(body.degreeLevel, 'degreeLevel')
+function optionalEmail(value) {
+  const email = String(value ?? '').trim().toLowerCase()
+  if (!email) return null
   if (!emailPattern.test(email)) throw new ApiError(400, 'A valid email is required')
+  return email
+}
+
+function normalizeStudent(body, { studentId, requireEmail = true } = {}) {
+  const email = requireEmail ? requiredText(body.email, 'email').toLowerCase() : optionalEmail(body.email)
+  const degreeLevel = requiredText(body.degreeLevel, 'degreeLevel')
+  if (email && !emailPattern.test(email)) throw new ApiError(400, 'A valid email is required')
   if (!degreeLevels.has(degreeLevel)) {
     throw new ApiError(400, 'degreeLevel must be Master or Doctoral')
   }
@@ -45,8 +54,13 @@ function normalizeStudent(body, { studentId } = {}) {
     degreeLevel,
     enrollmentAcademicYear: requiredYear(body.enrollmentAcademicYear, 'enrollmentAcademicYear'),
     semester: requiredText(body.semester, 'semester'),
-    expectedGraduationYear: requiredYear(body.expectedGraduationYear, 'expectedGraduationYear'),
+    expectedGraduationYear: requiredYear(
+      body.expectedGraduationYear ?? body.year,
+      'expectedGraduationYear',
+    ),
     advisorId: String(body.advisorId ?? '').trim() || null,
+    advisorEmail: optionalEmail(body.advisorEmail),
+    advisorName: String(body.advisorName ?? '').trim() || null,
   }
 }
 
@@ -87,9 +101,11 @@ async function readImportFile(file) {
         degreeLevel: cellValue(row, headerMap, ['degreelevel', 'degree level']),
         enrollmentAcademicYear: cellValue(row, headerMap, ['enrollmentacademicyear', 'enrollment academic year']),
         semester: cellValue(row, headerMap, ['semester']),
-        expectedGraduationYear: cellValue(row, headerMap, ['expectedgraduationyear', 'expected graduation year']),
+        expectedGraduationYear: cellValue(row, headerMap, ['expectedgraduationyear', 'expected graduation year', 'year']),
         advisorId: cellValue(row, headerMap, ['advisorid', 'advisor id']),
-      }))
+        advisorEmail: cellValue(row, headerMap, ['advisoremail', 'advisor email']),
+        advisorName: cellValue(row, headerMap, ['advisorname', 'advisor name', 'advisor']),
+      }, { requireEmail: false }))
     } catch (error) {
       validationErrors.push(`Row ${rowNumber}: ${error.message}`)
     }
@@ -142,6 +158,7 @@ export async function importStudentFile(request, response) {
   response.status(201).json({ data: result })
 }
 
+// template สำหรับการ import ข้อมูลนักศึกษา 
 function addHeaders(worksheet) {
   worksheet.columns = [
     { header: 'Student ID', key: 'studentId', width: 16 },
@@ -151,26 +168,30 @@ function addHeaders(worksheet) {
     { header: 'Degree Level', key: 'degreeLevel', width: 16 },
     { header: 'Enrollment Academic Year', key: 'enrollmentAcademicYear', width: 25 },
     { header: 'Semester', key: 'semester', width: 12 },
-    { header: 'Expected Graduation Year', key: 'expectedGraduationYear', width: 25 },
-    { header: 'Advisor ID', key: 'advisorId', width: 16 },
+    { header: 'Year', key: 'expectedGraduationYear', width: 12 },
+    { header: 'Advisor Email', key: 'advisorEmail', width: 32 },
     { header: 'Advisor Name', key: 'advisorName', width: 28 },
   ]
   worksheet.getRow(1).font = { bold: true }
 }
 
 export async function exportStudents(request, response) {
-  const year = String(request.query.year ?? '').trim()
+  const enrollmentYear = String(request.query.enrollmentYear ?? '').trim()
   const workbook = new ExcelJS.Workbook()
   const worksheet = workbook.addWorksheet('Students')
   addHeaders(worksheet)
-  worksheet.addRows(await findStudentsForExport({ year: year || null }))
+  worksheet.addRows(await findStudentsForExport({ enrollmentYear: enrollmentYear || null }))
   const buffer = await workbook.xlsx.writeBuffer()
 
   response.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-  response.setHeader('Content-Disposition', `attachment; filename="students${year ? `-${year}` : ''}.xlsx"`)
+  response.setHeader(
+    'Content-Disposition',
+    `attachment; filename="students${enrollmentYear ? `-enrollment-${enrollmentYear}` : ''}.xlsx"`,
+  )
   response.send(Buffer.from(buffer))
 }
 
+// ตัวอย่าง template สำหรับการ import ข้อมูลนักศึกษา 
 export async function downloadStudentTemplate(_request, response) {
   const workbook = new ExcelJS.Workbook()
   const worksheet = workbook.addWorksheet('Students')
@@ -184,7 +205,8 @@ export async function downloadStudentTemplate(_request, response) {
     enrollmentAcademicYear: 2023,
     semester: '2',
     expectedGraduationYear: 2026,
-    advisorId: 'ADV001',
+    advisorEmail: 'advisor.dev@lamduan.mfu.ac.th',
+    advisorName: 'Development Advisor',
   })
   const buffer = await workbook.xlsx.writeBuffer()
   response.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')

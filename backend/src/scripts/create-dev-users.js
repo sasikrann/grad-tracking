@@ -45,6 +45,7 @@ try {
     users[key].userId = result.rows[0].user_id
   }
 
+  // สร้างหรืออัปเดตข้อมูล advisor mock สำหรับ development
   await client.query(
     `
       INSERT INTO advisors (advisor_id, user_id, full_name, email)
@@ -57,6 +58,7 @@ try {
     [users.advisor.userId, users.advisor.fullName, users.advisor.email],
   )
 
+  // จัดการข้อมูลของนักศึกษา โดยใช้ user_id ที่ได้จากการสร้างผู้ใช้
   await client.query(
     `
       INSERT INTO students (

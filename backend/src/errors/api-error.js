@@ -1,6 +1,8 @@
+// เอาไว้โยน error พร้อม status code กลับไปให้ frontend
 export class ApiError extends Error {
-  constructor(statusCode, message) {
+  constructor(statusCode, message, details = undefined) {
     super(message)
     this.statusCode = statusCode
+    this.details = details
   }
 }

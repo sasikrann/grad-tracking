@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import pool from '../config/database.js'
+import { resolveAdvisorReference } from './advisors.service.js'
 
 const studentDetailColumns = `
   s.student_id AS "studentId",
@@ -14,6 +15,7 @@ const studentDetailColumns = `
   s.expected_graduation_year AS "expectedGraduationYear",
   s.advisor_id AS "advisorId",
   a.full_name AS "advisorName",
+  a.email AS "advisorEmail",
   s.advisor_evidence_url AS "advisorEvidenceUrl",
   s.created_at AS "createdAt",
   s.updated_at AS "updatedAt"
@@ -30,7 +32,9 @@ async function findStudents({ advisorId } = {}) {
         s.full_name AS "fullName",
         s.program,
         s.degree_level AS "degreeLevel",
+        s.enrollment_academic_year AS "enrollmentAcademicYear",
         s.semester,
+        s.enrollment_academic_year AS "year",
         s.expected_graduation_year AS "expectedGraduationYear",
         s.advisor_id AS "advisorId",
         a.full_name AS "advisorName",
@@ -47,6 +51,15 @@ async function findStudents({ advisorId } = {}) {
             WHERE mt.deadline < CURRENT_DATE
               AND COALESCE(sm.status, 'Missing') NOT IN ('Completed', 'Approved')
           ) > 0 THEN 'Overdue'
+          WHEN EXTRACT(YEAR FROM CURRENT_DATE)::INT > s.expected_graduation_year
+            AND COALESCE(
+              ROUND(
+                100.0 * COUNT(sm.student_milestone_id)
+                  FILTER (WHERE sm.status IN ('Completed', 'Approved'))
+                / NULLIF(COUNT(mt.milestone_id), 0)
+              ),
+              0
+            )::INT < 100 THEN 'Overdue'
           ELSE 'On-track'
         END AS status
       FROM students s
@@ -63,6 +76,7 @@ async function findStudents({ advisorId } = {}) {
         s.full_name,
         s.program,
         s.degree_level,
+        s.enrollment_academic_year,
         s.semester,
         s.expected_graduation_year,
         s.advisor_id,
@@ -98,24 +112,16 @@ export async function findStudentById(studentId) {
   return result.rows[0] || null
 }
 
-async function advisorExists(client, advisorId) {
-  if (!advisorId) return true
-  const result = await client.query('SELECT 1 FROM advisors WHERE advisor_id = $1', [advisorId])
-  return result.rowCount > 0
-}
-
 async function upsertStudentWithClient(client, input) {
-  if (!(await advisorExists(client, input.advisorId))) {
-    const error = new Error(`Advisor ${input.advisorId} does not exist`)
-    error.statusCode = 400
-    throw error
-  }
+  const advisorId = await resolveAdvisorReference(client, input)
 
   const existingStudent = await client.query(
     'SELECT user_id FROM students WHERE student_id = $1',
     [input.studentId],
   )
-  const existingUser = await client.query('SELECT user_id, role FROM users WHERE email = $1', [input.email])
+  const existingUser = input.email
+    ? await client.query('SELECT user_id, role FROM users WHERE email = $1', [input.email])
+    : { rows: [] }
   const studentUserId = existingStudent.rows[0]?.user_id
   const emailUserId = existingUser.rows[0]?.user_id
 
@@ -131,50 +137,144 @@ async function upsertStudentWithClient(client, input) {
     throw error
   }
 
-  const userId = studentUserId || emailUserId || randomUUID()
+  const userId = input.email ? studentUserId || emailUserId || randomUUID() : studentUserId || null
 
-  await client.query(
-    `
-      INSERT INTO users (user_id, email, full_name, role)
-      VALUES ($1, $2, $3, 'student')
-      ON CONFLICT (user_id) DO UPDATE
-      SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = 'student'
-    `,
-    [userId, input.email, input.fullName],
-  )
+  if (userId) {
+    const linkedStudent = await client.query(
+      'SELECT student_id FROM students WHERE user_id = $1 AND student_id <> $2',
+      [userId, input.studentId],
+    )
 
-  await client.query(
-    `
-      INSERT INTO students (
-        student_id, user_id, full_name, program, degree_level,
-        enrollment_academic_year, semester, expected_graduation_year, advisor_id
+    if (linkedStudent.rowCount) {
+      const error = new Error(
+        input.email
+          ? `Email ${input.email} is already assigned to student ${linkedStudent.rows[0].student_id}`
+          : `User account is already assigned to student ${linkedStudent.rows[0].student_id}`,
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      ON CONFLICT (student_id) DO UPDATE SET
-        user_id = EXCLUDED.user_id,
-        full_name = EXCLUDED.full_name,
-        program = EXCLUDED.program,
-        degree_level = EXCLUDED.degree_level,
-        enrollment_academic_year = EXCLUDED.enrollment_academic_year,
-        semester = EXCLUDED.semester,
-        expected_graduation_year = EXCLUDED.expected_graduation_year,
-        advisor_id = EXCLUDED.advisor_id,
-        updated_at = NOW()
-    `,
-    [
-      input.studentId,
-      userId,
-      input.fullName,
-      input.program,
-      input.degreeLevel,
-      input.enrollmentAcademicYear,
-      input.semester,
-      input.expectedGraduationYear,
-      input.advisorId,
-    ],
-  )
+      error.statusCode = 409
+      throw error
+    }
+  }
+
+  if (input.email) {
+    await client.query(
+      `
+        INSERT INTO users (user_id, email, full_name, role)
+        VALUES ($1, $2, $3, 'student')
+        ON CONFLICT (user_id) DO UPDATE
+        SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = 'student'
+      `,
+      [userId, input.email, input.fullName],
+    )
+  }
+
+  try {
+    await client.query(
+      `
+        INSERT INTO students (
+          student_id, user_id, full_name, program, degree_level,
+          enrollment_academic_year, semester, expected_graduation_year, advisor_id
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ON CONFLICT (student_id) DO UPDATE SET
+          user_id = COALESCE(EXCLUDED.user_id, students.user_id),
+          full_name = EXCLUDED.full_name,
+          program = EXCLUDED.program,
+          degree_level = EXCLUDED.degree_level,
+          enrollment_academic_year = EXCLUDED.enrollment_academic_year,
+          semester = EXCLUDED.semester,
+          expected_graduation_year = EXCLUDED.expected_graduation_year,
+          advisor_id = EXCLUDED.advisor_id,
+          updated_at = NOW()
+      `,
+      [
+        input.studentId,
+        userId,
+        input.fullName,
+        input.program,
+        input.degreeLevel,
+        input.enrollmentAcademicYear,
+        input.semester,
+        input.expectedGraduationYear,
+        advisorId,
+      ],
+    )
+  } catch (error) {
+    if (error.code === '23505' && error.constraint === 'students_user_id_key') {
+      const conflict = new Error(
+        input.email
+          ? `Email ${input.email} is already assigned to another student`
+          : 'This user account is already assigned to another student',
+      )
+      conflict.statusCode = 409
+      throw conflict
+    }
+    throw error
+  }
 
   return input.studentId
+}
+
+export async function findStudentByUserId(userId) {
+  const result = await pool.query(
+    `
+      SELECT ${studentDetailColumns}
+      FROM students s
+      LEFT JOIN users u ON u.user_id = s.user_id
+      LEFT JOIN advisors a ON a.advisor_id = s.advisor_id
+      WHERE s.user_id = $1
+    `,
+    [userId],
+  )
+
+  return result.rows[0] || null
+}
+
+export async function updateStudentAdvisorByUserId(
+  userId,
+  { advisorId, advisorEmail, advisorName, advisorEvidenceUrl },
+) {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const resolvedAdvisorId = await resolveAdvisorReference(client, {
+      advisorId,
+      advisorEmail,
+      advisorName,
+    })
+
+    if (!resolvedAdvisorId) {
+      const error = new Error('advisorId, advisorEmail, or advisorName is required')
+      error.statusCode = 400
+      throw error
+    }
+
+    const result = await client.query(
+      `
+        UPDATE students
+        SET
+          advisor_id = $2,
+          advisor_evidence_url = COALESCE($3, advisor_evidence_url),
+          updated_at = NOW()
+        WHERE user_id = $1
+        RETURNING student_id
+      `,
+      [userId, resolvedAdvisorId, advisorEvidenceUrl || null],
+    )
+
+    if (!result.rowCount) {
+      await client.query('ROLLBACK')
+      return null
+    }
+
+    await client.query('COMMIT')
+    return findStudentByUserId(userId)
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
 }
 
 export async function insertStudent(input) {
@@ -245,9 +345,9 @@ export async function removeStudent(studentId) {
   }
 }
 
-export async function findStudentsForExport({ year } = {}) {
-  const values = year ? [year] : []
-  const yearFilter = year ? 'WHERE s.expected_graduation_year = $1' : ''
+export async function findStudentsForExport({ enrollmentYear } = {}) {
+  const values = enrollmentYear ? [enrollmentYear] : []
+  const yearFilter = enrollmentYear ? 'WHERE s.enrollment_academic_year = $1' : ''
 
   const result = await pool.query(`
     SELECT ${studentDetailColumns}

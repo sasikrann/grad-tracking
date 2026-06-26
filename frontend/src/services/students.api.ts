@@ -8,7 +8,9 @@ interface StudentApiResponse {
   fullName: string
   program: string
   degreeLevel: 'Master' | 'Doctoral'
+  enrollmentAcademicYear: number
   semester: string
+  year?: number | string
   expectedGraduationYear: number
   advisorId: string | null
   advisorName: string | null
@@ -26,8 +28,10 @@ function toStudent(student: StudentApiResponse, currentAdvisorId?: string): Stud
     name: student.fullName,
     degree: student.degreeLevel === 'Doctoral' ? 'Ph. D.' : 'Master',
     program: student.program,
+    enrollmentAcademicYear: String(student.enrollmentAcademicYear),
+    expectedGraduationYear: String(student.expectedGraduationYear),
     semester: Number(student.semester),
-    year: String(student.expectedGraduationYear),
+    year: String(student.year ?? student.enrollmentAcademicYear),
     progress: Number(student.progress),
     status: student.status,
     advisor: student.advisorName ?? 'Unassigned',
@@ -75,8 +79,11 @@ async function downloadStudentFile(path: string, fallbackName: string) {
   URL.revokeObjectURL(url)
 }
 
-export function exportStudents(year = 'all') {
-  const query = year === 'all' ? '' : `?year=${encodeURIComponent(year)}`
+export function exportStudents(enrollmentYear = 'all') {
+  const query =
+    enrollmentYear === 'all'
+      ? ''
+      : `?enrollmentYear=${encodeURIComponent(enrollmentYear)}`
   return downloadStudentFile(`/api/students/export${query}`, 'students.xlsx')
 }
 

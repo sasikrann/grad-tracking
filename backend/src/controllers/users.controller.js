@@ -1,3 +1,5 @@
+// Controller สำหรับ User Management
+// ใช้จัดการข้อมูลผู้ใช้ เช่น student, advisor และ admin
 import { ApiError } from '../errors/api-error.js'
 import {
   findAllUsers,

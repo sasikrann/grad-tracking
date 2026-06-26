@@ -17,12 +17,13 @@ defineEmits<{
     <table class="w-full min-w-[900px] table-fixed border-collapse text-left">
       <thead>
         <tr class="border-b border-[#dddddd] text-xs">
-          <th class="w-[29%] pb-3 font-semibold">Student</th>
+          <th class="w-[25%] pb-3 font-semibold">Student</th>
           <th class="w-[13%] pb-3 font-semibold">Program</th>
-          <th class="w-[13%] pb-3 font-semibold">Semester</th>
-          <th class="w-[23%] pb-3 font-semibold">Progress</th>
-          <th class="w-[17%] pb-3 font-semibold">Status</th>
-          <th class="w-[8%] pb-3 font-semibold">Actions</th>
+          <th class="w-[10%] pb-3 font-semibold">Semester</th>
+          <th class="w-[10%] pb-3 text-center font-semibold">Year</th>
+          <th class="w-[22%] pb-3 text-center font-semibold">Progress</th>
+          <th class="w-[14%] pb-3 text-center font-semibold">Status</th>
+          <th class="w-[8%] pb-3 text-center font-semibold">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -75,8 +76,15 @@ defineEmits<{
               {{ student.semester }}
             </span>
           </td>
+          <td class="text-center">
+            <span
+              class="inline-flex min-w-14 justify-center rounded-md border border-[#dedede] px-3 py-0.5 text-xs leading-none"
+            >
+              {{ student.year }}
+            </span>
+          </td>
           <td>
-            <div class="flex items-center gap-1">
+            <div class="flex items-center justify-center gap-1">
               <div class="h-2 w-28 overflow-hidden rounded-full bg-[#f7c9cf]">
                 <div
                   class="h-full rounded-full bg-[#d50012]"
@@ -86,7 +94,7 @@ defineEmits<{
               <span class="text-xs font-semibold">{{ student.progress }}%</span>
             </div>
           </td>
-          <td>
+          <td class="text-center">
             <span
               class="inline-flex min-w-[82px] justify-center rounded-xl px-3 py-1 text-xs font-semibold text-white"
               :class="student.status === 'Overdue' ? 'bg-[#d90012]' : 'bg-[#ffb51b]'"
@@ -94,7 +102,7 @@ defineEmits<{
               {{ student.status }}
             </span>
           </td>
-          <td>
+          <td class="text-center">
             <button
               type="button"
               class="inline-flex items-center gap-1.5 rounded-md px-1 py-2 text-xs font-semibold text-sky-500 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-300"
@@ -117,15 +125,15 @@ defineEmits<{
           </td>
         </tr>
         <tr v-if="isLoading">
-          <td colspan="6" class="py-14 text-center text-[#777]">Loading students...</td>
+          <td colspan="7" class="py-14 text-center text-[#777]">Loading students...</td>
         </tr>
         <tr v-else-if="error">
-          <td colspan="6" class="py-14 text-center text-[#b42318]">
+          <td colspan="7" class="py-14 text-center text-[#b42318]">
             {{ error }} Please make sure the backend is running.
           </td>
         </tr>
         <tr v-else-if="students.length === 0">
-          <td colspan="6" class="py-14 text-center text-[#777]">
+          <td colspan="7" class="py-14 text-center text-[#777]">
             No students match the selected filters.
           </td>
         </tr>

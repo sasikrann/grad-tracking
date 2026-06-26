@@ -1,3 +1,4 @@
+// ใช้สร้างและตรวจสอบ JWT token รวมถึงเช็คสิทธิ์ของ user ตาม role เช่น student, advisor, admin
 import jwt from 'jsonwebtoken'
 
 import { ApiError } from '../errors/api-error.js'
@@ -5,6 +6,7 @@ import { ApiError } from '../errors/api-error.js'
 const tokenIssuer = 'grad-tracking'
 const tokenAudience = 'grad-tracking-web'
 
+// ดึง JWT_SECRET จาก .env ถ้าไม่มีจะ error เพราะระบบ auth ยังไม่ได้ตั้งค่า
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET
 
@@ -15,6 +17,7 @@ function getJwtSecret() {
   return secret
 }
 
+// ดึง JWT_SECRET จาก .env ถ้าไม่มีจะ error เพราะระบบ auth ยังไม่ได้ตั้งค่า
 export function createAccessToken(user) {
   return jwt.sign(
     {
@@ -38,7 +41,8 @@ export function requireAuth(request, _response, next) {
   if (scheme !== 'Bearer' || !token) {
     throw new ApiError(401, 'Authentication is required')
   }
-
+  
+// ตรวจสอบ token ว่าถูกต้อง หมดอายุ หรือถูกแก้ไขไหม
   try {
     const payload = jwt.verify(token, getJwtSecret(), {
       issuer: tokenIssuer,

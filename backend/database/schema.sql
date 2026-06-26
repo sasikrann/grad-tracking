@@ -1,3 +1,5 @@
+-- ไฟล์นี้เป็น schema ข้อมูลเริ่มต้นของฐานข้อมูล PostgreSQL
+-- ใช้สร้างตารางและชนิดข้อมูลที่จำเป็นสำหรับระบบ Thesis Progress Tracking 
 CREATE TYPE user_role AS ENUM (
   'student',
   'advisor',
@@ -61,6 +63,7 @@ CREATE TABLE students (
 CREATE TABLE milestone_templates (
   milestone_id UUID PRIMARY KEY,
   degree_level degree_level NOT NULL,
+  semester VARCHAR NOT NULL DEFAULT '1',
   title VARCHAR NOT NULL,
   description TEXT,
   sequence_order INT NOT NULL,

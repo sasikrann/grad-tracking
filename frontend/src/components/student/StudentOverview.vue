@@ -8,10 +8,12 @@ withDefaults(
     students: StudentTableItem[]
     isLoading: boolean
     error: string
+    yearOptions?: string[]
     advisorMode?: 'default' | 'all-only'
   }>(),
   {
     advisorMode: 'default',
+    yearOptions: () => [],
   },
 )
 
@@ -30,7 +32,12 @@ const filters = defineModel<StudentFiltersState>('filters', { required: true })
       </p>
     </header>
 
-    <StudentFilters v-model="filters" v-model:search="search" :advisor-mode="advisorMode" />
+    <StudentFilters
+      v-model="filters"
+      v-model:search="search"
+      :advisor-mode="advisorMode"
+      :year-options="yearOptions"
+    />
     <StudentTable :students="students" :is-loading="isLoading" :error="error" />
   </section>
 </template>
