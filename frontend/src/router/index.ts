@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import { currentUser, initializeAuth } from '@/services/auth'
+import AdvisorDashboardView from '@/views/admin/AdvisorDashboardView.vue'
 import StudentDashboardView from '@/views/admin/StudentDashboardView.vue'
 
 function normalizeRole(role: string | undefined) {
@@ -46,6 +47,13 @@ const router = createRouter({
       path: '/admin/student-dashboard',
       name: 'admin-student-dashboard',
       component: StudentDashboardView,
+      meta: { requiresAuth: true, role: 'admin' },
+    },
+    {
+      path: '/admin/advisor-dashboard',
+      alias: '/advisor-dashboard',
+      name: 'admin-advisor-dashboard',
+      component: AdvisorDashboardView,
       meta: { requiresAuth: true, role: 'admin' },
     },
     {

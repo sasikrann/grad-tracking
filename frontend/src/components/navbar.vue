@@ -28,7 +28,7 @@ const emit = defineEmits<{
 const menus: Record<MenuRole, MenuItem[]> = {
   admin: [
     { label: 'Student Dashboard', to: '/admin/student-dashboard', icon: 'dashboard' },
-    { label: 'Advisor Dashboard', to: '/advisor-dashboard', icon: 'dashboard' },
+    { label: 'Advisor Dashboard', to: '/admin/advisor-dashboard', icon: 'dashboard' },
     { label: 'Milestone Management', to: '/milestones', icon: 'milestone' },
     { label: 'Notification Management', to: '/notifications', icon: 'notification' },
   ],
