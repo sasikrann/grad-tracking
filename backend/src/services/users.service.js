@@ -30,16 +30,28 @@ export async function findUserById(userId) {
 }
 
 async function nextAdvisorId(client) {
+  await client.query('SELECT pg_advisory_xact_lock(2026062801)')
   const result = await client.query(`
     SELECT advisor_id
     FROM advisors
     WHERE advisor_id ~ '^ADV[0-9]+$'
-    ORDER BY CAST(SUBSTRING(advisor_id FROM 4) AS INT) DESC
-    LIMIT 1
   `)
 
-  const lastNumber = Number(result.rows[0]?.advisor_id?.replace('ADV', '') ?? 0)
-  return `ADV${String(lastNumber + 1).padStart(3, '0')}`
+  const usedNumbers = new Set(
+    result.rows
+      .map((row) => {
+        const match = String(row.advisor_id ?? '').match(/^ADV0*(\d+)$/i)
+        return match ? Number(match[1]) : null
+      })
+      .filter(Number.isInteger),
+  )
+  let nextNumber = 1
+
+  while (usedNumbers.has(nextNumber)) {
+    nextNumber += 1
+  }
+
+  return `ADV${String(nextNumber).padStart(3, '0')}`
 }
 
 async function upsertAdvisorForUser(client, { userId, email, fullName }) {
