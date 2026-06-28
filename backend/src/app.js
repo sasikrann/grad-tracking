@@ -1,3 +1,5 @@
+// ไฟล์ตั้งค่าหลักของ backend
+// ใช้รวม middleware, routes, health check และ error handler
 import cors from 'cors'
 import express from 'express'
 
