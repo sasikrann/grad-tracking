@@ -73,7 +73,7 @@ const router = createRouter({
       path: '/advisor/summary',
       name: 'advisor-milestone-summary',
       component: () => import('../views/lecturer/LecturerMilestoneSummaryView.vue'),
-      meta: { role: 'advisor' },
+      meta: { requiresAuth: true, role: 'advisor' },
     },
   ],
 })

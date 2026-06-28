@@ -1,5 +1,4 @@
-// Controller สำหรับจัดการข้อมูล Advisor
-// ใช้ดึง เพิ่ม แก้ไข ลบ import/export ข้อมูลอาจารย์ และใช้ดึงรายชื่อนักศึกษากับ milestone summary ของ advisor
+// Controller for advisor CRUD, import/export, and advised student lists.
 import { ApiError } from '../errors/api-error.js'
 import {
   createAdvisorExportBuffer,
@@ -16,32 +15,7 @@ import {
   replaceAdvisor,
 } from '../services/advisors.service.js'
 import { findAdvisorIdByUserId } from '../services/auth.service.js'
-import { findAdvisorMilestoneSummary } from '../services/milestone-summary.service.js'
 import { findStudentsByAdvisorId } from '../services/students.service.js'
-
-export function parseMilestoneSummaryFilters(query = {}) {
-  const semesterValue = query.semester === undefined ? 'all' : String(query.semester).trim()
-  const yearValue = query.year === undefined ? 'all' : String(query.year).trim()
-
-  if (!['all', '1', '2'].includes(semesterValue)) {
-    throw new ApiError(400, 'semester must be all, 1, or 2')
-  }
-
-  if (yearValue !== 'all' && !/^\d{4}$/.test(yearValue)) {
-    throw new ApiError(400, 'year must be all or a four-digit year')
-  }
-
-  const year = yearValue === 'all' ? null : Number(yearValue)
-
-  if (year !== null && (year < 2000 || year > 3000)) {
-    throw new ApiError(400, 'year must be between 2000 and 3000')
-  }
-
-  return {
-    semester: semesterValue === 'all' ? null : semesterValue,
-    year,
-  }
-}
 
 export async function getAdvisors(_request, response) {
   response.json({ data: await findAllAdvisors() })
@@ -120,18 +94,4 @@ export async function getAdvisorStudents(request, response) {
   response.json({
     data: students,
   })
-}
-
-export async function getAdvisorMilestoneSummary(request, response) {
-  if (request.user.role === 'student') {
-    throw new ApiError(403, 'Students cannot access advisor milestone summaries')
-  }
-
-  const filters = parseMilestoneSummaryFilters(request.query)
-  const summary = await findAdvisorMilestoneSummary({
-    advisorId: request.params.advisorId,
-    ...filters,
-  })
-
-  response.json({ data: summary })
 }

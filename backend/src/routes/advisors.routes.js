@@ -8,7 +8,6 @@ import {
   downloadAdvisorTemplate,
   exportAdvisors,
   getAdvisor,
-  getAdvisorMilestoneSummary,
   getAdvisorStudents,
   getAdvisors,
   importAdvisorFile,
@@ -41,6 +40,5 @@ router.get('/:advisorId', getAdvisor)
 router.put('/:advisorId', adminOnly, updateAdvisor)
 router.delete('/:advisorId', adminOnly, deleteAdvisor)
 router.get('/:advisorId/students', getAdvisorStudents)
-router.get('/:advisorId/milestone-summary', getAdvisorMilestoneSummary)
 
 export default router
