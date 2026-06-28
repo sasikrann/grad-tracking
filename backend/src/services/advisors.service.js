@@ -22,7 +22,13 @@ export async function findAllAdvisors() {
     SELECT ${advisorColumns}
     FROM advisors a
     INNER JOIN users u ON u.user_id = a.user_id AND u.role = 'advisor'
-    ORDER BY CAST(SUBSTRING(a.advisor_id FROM 4) AS INT), a.advisor_id
+    ORDER BY
+      CASE
+        WHEN a.advisor_id ~* '^ADV[0-9]+$'
+          THEN CAST(SUBSTRING(a.advisor_id FROM 4) AS INT)
+        ELSE NULL
+      END NULLS LAST,
+      a.advisor_id
   `)
 
   return result.rows

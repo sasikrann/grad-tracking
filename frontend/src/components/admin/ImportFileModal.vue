@@ -6,6 +6,7 @@ defineProps<{
   description: string
   selectedFile: File | null
   isImporting: boolean
+  actionLabel?: string
 }>()
 
 const emit = defineEmits<{
@@ -73,7 +74,7 @@ function handleFileDrop(event: DragEvent) {
           class="rounded bg-[#8b2a23] px-3 py-2 text-xs font-medium text-white hover:bg-[#7a211c] disabled:cursor-not-allowed disabled:opacity-60"
           @click="$emit('import')"
         >
-          {{ isImporting ? 'Importing...' : 'Import Advisor' }}
+          {{ isImporting ? 'Importing...' : (actionLabel ?? 'Import Advisor') }}
         </button>
       </div>
     </section>

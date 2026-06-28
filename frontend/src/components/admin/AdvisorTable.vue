@@ -50,7 +50,9 @@ function initials(name: string) {
             <td class="px-4 py-3 text-right text-xs text-slate-600">{{ advisor.email }}</td>
           </tr>
           <tr v-if="advisors.length === 0">
-            <td colspan="2" class="py-10 text-center text-sm text-slate-500">No advisors found</td>
+            <td colspan="2" class="py-10 text-center text-sm text-slate-500">
+              No advisors match the selected filters.
+            </td>
           </tr>
         </tbody>
       </table>

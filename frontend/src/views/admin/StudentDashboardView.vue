@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
+import DashboardActionCard from '@/components/admin/DashboardActionCard.vue'
+import ImportFileModal from '@/components/admin/ImportFileModal.vue'
 import ExportYearSelect from '@/components/student/ExportYearSelect.vue'
 import StudentOverview from '@/components/student/StudentOverview.vue'
 import SummaryCard from '@/components/student/SummaryCard.vue'
@@ -23,7 +25,6 @@ const {
   yearOptions,
 } = useStudentOverview(getStudents, 'all')
 
-const fileInput = ref<HTMLInputElement | null>(null)
 const operationMessage = ref('')
 const isImporting = ref(false)
 const isExporting = ref(false)
@@ -75,15 +76,6 @@ function closeExportModal() {
   isExportModalOpen.value = false
 }
 
-function handleFileSelect(event: Event) {
-  const input = event.target as HTMLInputElement
-  selectedImportFile.value = input.files?.[0] ?? null
-}
-
-function handleFileDrop(event: DragEvent) {
-  selectedImportFile.value = event.dataTransfer?.files?.[0] ?? null
-}
-
 async function handleImport() {
   const file = selectedImportFile.value
   if (!file) return
@@ -105,7 +97,6 @@ async function handleImport() {
     showOperationMessage(error instanceof Error ? error.message : 'Unable to import students')
   } finally {
     isImporting.value = false
-    if (fileInput.value) fileInput.value.value = ''
   }
 }
 
@@ -126,7 +117,7 @@ async function handleExport() {
 
 <template>
   <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
-    <header class="flex items-start justify-between gap-4">
+    <header class="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h1 class="text-3xl font-bold tracking-tight">Student Dashboard</h1>
         <p class="mt-1 text-sm text-slate-500">
@@ -144,37 +135,23 @@ async function handleExport() {
     </header>
 
     <section class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2" aria-label="Import and export">
-      <button
-        type="button"
-        :disabled="isImporting"
-        class="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-7 text-center shadow-sm transition hover:border-[#7d2923] disabled:cursor-wait disabled:opacity-60"
+      <DashboardActionCard
+        title="Import Excel"
+        description="Upload student records from CSV or Excel."
+        tone="red"
+        :busy="isImporting"
+        busy-label="Importing..."
         @click="openImportModal"
-      >
-        <span class="flex size-12 items-center justify-center rounded-full bg-[#f8e9e9] text-[#a33a3a]">
-          <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M12 3v12M7 10l5 5 5-5" />
-            <path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" />
-          </svg>
-        </span>
-        <span class="mt-3 font-semibold">{{ isImporting ? 'Importing...' : 'Import Excel' }}</span>
-        <span class="mt-1 text-xs text-slate-500">Upload student records from CSV or Excel.</span>
-      </button>
+      />
 
-      <button
-        type="button"
-        :disabled="isExporting"
-        class="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-7 text-center shadow-sm transition hover:border-emerald-500 disabled:cursor-wait disabled:opacity-60"
+      <DashboardActionCard
+        title="Export Excel"
+        description="Download all student information."
+        tone="green"
+        :busy="isExporting"
+        busy-label="Exporting..."
         @click="openExportModal"
-      >
-        <span class="flex size-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-          <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M12 15V3M7 8l5-5 5 5" />
-            <path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" />
-          </svg>
-        </span>
-        <span class="mt-3 font-semibold">{{ isExporting ? 'Exporting...' : 'Export Excel' }}</span>
-        <span class="mt-1 text-xs text-slate-500">Download all student information.</span>
-      </button>
+      />
     </section>
 
     <p v-if="operationMessage" class="mt-3 text-sm text-slate-600" role="status">
@@ -197,58 +174,17 @@ async function handleExport() {
       advisor-mode="all-only"
     />
 
-    <div
+    <ImportFileModal
       v-if="isImportModalOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="import-modal-title"
-    >
-      <section class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
-        <h2 id="import-modal-title" class="text-base font-semibold">Import Student</h2>
-        <p class="mt-1 text-xs text-slate-500">Upload an Excel or CSV file to import users in bulk</p>
-
-        <button
-          type="button"
-          class="mt-5 flex h-36 w-full flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 text-center transition hover:border-[#8b2a23]"
-          @click="fileInput?.click()"
-          @dragover.prevent
-          @drop.prevent="handleFileDrop"
-        >
-          <svg class="size-8 text-[#8b2a23]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
-            <path d="M12 3v12M7 10l5 5 5-5" />
-            <path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" />
-          </svg>
-          <span class="mt-3 text-xs text-slate-500">
-            {{ selectedImportFile ? selectedImportFile.name : 'Drag and drop your file here, or click to browse' }}
-          </span>
-          <span class="mt-2 rounded bg-[#8b2a23] px-3 py-1.5 text-xs font-medium text-white">
-            Browse File
-          </span>
-          <span class="mt-2 text-[10px] text-slate-400">Supported formats: .xlsx, .csv</span>
-        </button>
-
-        <input ref="fileInput" class="hidden" type="file" accept=".csv,.xlsx" @change="handleFileSelect" />
-
-        <div class="mt-4 flex justify-end gap-2">
-          <button
-            type="button"
-            class="rounded border border-slate-200 px-3 py-2 text-xs font-medium hover:bg-slate-50"
-            @click="closeImportModal"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            :disabled="!selectedImportFile || isImporting"
-            class="rounded bg-[#8b2a23] px-3 py-2 text-xs font-medium text-white hover:bg-[#7a211c] disabled:cursor-not-allowed disabled:opacity-60"
-            @click="handleImport"
-          >
-            {{ isImporting ? 'Importing...' : 'Import User' }}
-          </button>
-        </div>
-      </section>
-    </div>
+      title="Import Student"
+      description="Upload an Excel or CSV file to import students in bulk"
+      :selected-file="selectedImportFile"
+      :is-importing="isImporting"
+      action-label="Import Student"
+      @select-file="selectedImportFile = $event"
+      @close="closeImportModal"
+      @import="handleImport"
+    />
 
     <div
       v-if="isExportModalOpen"

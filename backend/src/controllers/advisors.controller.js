@@ -1,3 +1,5 @@
+// Controller สำหรับจัดการข้อมูล Advisor
+// ใช้ดึง เพิ่ม แก้ไข ลบ import/export ข้อมูลอาจารย์ และใช้ดึงรายชื่อนักศึกษากับ milestone summary ของ advisor
 import { ApiError } from '../errors/api-error.js'
 import {
   createAdvisorExportBuffer,
