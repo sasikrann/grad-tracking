@@ -50,7 +50,8 @@ const router = createRouter({
       meta: { requiresAuth: true, role: 'admin' },
     },
     {
-      path: '/advisor-dashboard',
+      path: '/admin/advisor-dashboard',
+      alias: '/advisor-dashboard',
       name: 'admin-advisor-dashboard',
       component: AdvisorDashboardView,
       meta: { requiresAuth: true, role: 'admin' },
