@@ -14,7 +14,7 @@ defineEmits<{
 
 <template>
   <div class="mt-6 overflow-x-auto">
-    <table class="w-full min-w-[900px] table-fixed border-collapse text-left">
+    <table class="w-full min-w-225 table-fixed border-collapse text-left">
       <thead>
         <tr class="border-b border-[#dddddd] text-xs">
           <th class="w-[25%] pb-3 font-semibold">Student</th>
@@ -30,7 +30,7 @@ defineEmits<{
         <tr
           v-for="student in students"
           :key="student.studentId"
-          class="h-[58px] border-b border-[#dddddd]"
+          class="h-14.5 border-b border-[#dddddd]"
         >
           <td>
             <div class="flex items-center gap-3 pl-1">
@@ -96,7 +96,7 @@ defineEmits<{
           </td>
           <td class="text-center">
             <span
-              class="inline-flex min-w-[82px] justify-center rounded-xl px-3 py-1 text-xs font-semibold text-white"
+              class="inline-flex min-w-20.5 justify-center rounded-xl px-3 py-1 text-xs font-semibold text-white"
               :class="student.status === 'Overdue' ? 'bg-[#d90012]' : 'bg-[#ffb51b]'"
             >
               {{ student.status }}
