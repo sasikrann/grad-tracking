@@ -19,6 +19,8 @@ const milestones = ref<Milestone[]>([])
 const isLoading = ref(false)
 const message = ref('')
 const errorMessage = ref('')
+const notificationType = ref<'success' | 'error'>('success')
+let notificationTimer: ReturnType<typeof setTimeout> | undefined
 const selectedSemester = ref('all')
 const selectedDegreeLevel = ref<DegreeLevel>('Master')
 const selectedYear = ref('all')
@@ -88,6 +90,34 @@ const nextOrder = computed(() => {
   )
 })
 
+const notificationText = computed(() => errorMessage.value || message.value)
+
+function showNotification(text: string, type: 'success' | 'error' = 'success') {
+  message.value = type === 'success' ? text : ''
+  errorMessage.value = type === 'error' ? text : ''
+  notificationType.value = type
+// กำหนดเวลาให้ข้อความแจ้งเตือนหายไปหลังจาก 20 วินาที 
+  if (notificationTimer) clearTimeout(notificationTimer)
+  notificationTimer = setTimeout(() => {
+    message.value = ''
+    errorMessage.value = ''
+  }, 20000)
+}
+
+function formatMilestoneError(error: unknown, fallback: string) {
+  const text = error instanceof Error ? error.message : fallback
+  const readableMessages: Record<string, string> = {
+    'title is required': 'Milestone could not be saved because the title is missing.',
+    'openDate is required': 'Milestone could not be saved because the start date is missing.',
+    'deadline is required': 'Milestone could not be saved because the deadline is missing.',
+    'degreeLevel is required': 'Milestone could not be saved because the program is missing.',
+    'semester is required': 'Milestone could not be saved because the semester is missing.',
+    'sequenceOrder is required': 'Milestone could not be saved because the order is missing.',
+  }
+
+  return readableMessages[text] ?? text
+}
+
 async function loadMilestones() {
   isLoading.value = true
   errorMessage.value = ''
@@ -96,7 +126,9 @@ async function loadMilestones() {
   } catch (error) {
     milestones.value = []
     const text = error instanceof Error ? error.message : 'Unable to load milestones'
-    errorMessage.value = text.includes('not found') ? '' : text
+    if (!text.includes('not found')) {
+      showNotification('ไม่สามารถโหลดข้อมูล milestone ได้ กรุณาลองใหม่อีกครั้ง', 'error')
+    }
   } finally {
     isLoading.value = false
   }
@@ -117,10 +149,10 @@ async function saveMilestone(input: MilestoneInput) {
   try {
     if (editingMilestone.value) {
       await updateMilestone(editingMilestone.value.milestoneId, input)
-      message.value = 'Milestone updated successfully'
+      showNotification('Milestone updated successfully')
     } else {
       await createMilestone(input)
-      message.value = 'Milestone added successfully'
+      showNotification('Milestone added successfully')
     }
     selectedDegreeLevel.value = input.degreeLevel
     selectedSemester.value = input.semester
@@ -128,7 +160,7 @@ async function saveMilestone(input: MilestoneInput) {
     isFormOpen.value = false
     await loadMilestones()
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Unable to save milestone'
+    showNotification(formatMilestoneError(error, 'Unable to save milestone'), 'error')
   }
 }
 
@@ -137,10 +169,10 @@ async function removeMilestone(milestoneId: string) {
   errorMessage.value = ''
   try {
     await deleteMilestone(milestoneId)
-    message.value = 'Milestone deleted successfully'
+    showNotification('Milestone deleted successfully')
     await loadMilestones()
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Unable to delete milestone'
+    showNotification(formatMilestoneError(error, 'Unable to delete milestone'), 'error')
   }
 }
 
@@ -148,10 +180,10 @@ async function setMilestoneStatus(milestone: Milestone, isEnabled: boolean) {
   errorMessage.value = ''
   try {
     await setMilestoneEnabled(milestone.milestoneId, isEnabled)
-    message.value = ''
+    showNotification(isEnabled ? 'Milestone enabled successfully' : 'Milestone disabled successfully')
     await loadMilestones()
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Unable to update milestone'
+    showNotification(formatMilestoneError(error, 'Unable to update milestone'), 'error')
   }
 }
 
@@ -159,9 +191,10 @@ async function moveMilestoneOrder(milestoneId: string, direction: 'up' | 'down')
   errorMessage.value = ''
   try {
     await moveMilestone(milestoneId, direction)
+    showNotification('Milestone order updated successfully')
     await loadMilestones()
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Unable to reorder milestone'
+    showNotification(formatMilestoneError(error, 'Unable to reorder milestone'), 'error')
   }
 }
 
@@ -181,13 +214,13 @@ async function copyMilestoneTemplates(
       toSemester,
       milestoneIds,
     )
-    message.value = `Copied ${result.copiedRecords} milestones successfully`
+    showNotification(`Copied ${result.copiedRecords} milestones successfully`)
     selectedDegreeLevel.value = toDegreeLevel
     selectedSemester.value = toSemester
     isCopyOpen.value = false
     await loadMilestones()
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Unable to copy milestones'
+    showNotification(formatMilestoneError(error, 'Unable to copy milestones'), 'error')
   }
 }
 
@@ -212,7 +245,10 @@ onMounted(() => {
   loadMilestones()
   document.addEventListener('click', closeDropdown)
 })
-onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
+onBeforeUnmount(() => {
+  document.removeEventListener('click', closeDropdown)
+  if (notificationTimer) clearTimeout(notificationTimer)
+})
 </script>
 
 <template>
@@ -240,9 +276,6 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
         </button>
       </div>
     </header>
-
-    <p v-if="message" class="mt-4 text-sm text-slate-600">{{ message }}</p>
-    <p v-if="errorMessage" class="mt-4 text-sm text-red-600">{{ errorMessage }}</p>
 
     <section class="mt-6 rounded-xl border border-slate-200 bg-white px-6 py-6 shadow-[0_2px_4px_rgba(0,0,0,0.18)]">
       <div class="flex items-start justify-between gap-4">
@@ -336,5 +369,19 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
       @close="isCopyOpen = false"
       @copy="copyMilestoneTemplates"
     />
+
+    <div
+      v-if="notificationText"
+      class="fixed bottom-6 left-1/2 z-50 w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 rounded-xl border bg-white px-4 py-3 text-sm shadow-[0_8px_24px_rgba(0,0,0,0.16)]"
+      :class="
+        notificationType === 'success'
+          ? 'border-[#8b2a23]/30 text-[#8b2a23]'
+          : 'border-red-200 text-red-600'
+      "
+      role="status"
+      aria-live="polite"
+    >
+      {{ notificationText }}
+    </div>
   </div>
 </template>

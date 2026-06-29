@@ -86,7 +86,8 @@ CREATE TABLE student_milestones (
   submitted_at TIMESTAMP,
   reviewed_at TIMESTAMP,
   reviewed_by VARCHAR REFERENCES advisors(advisor_id),
-  updated_at TIMESTAMP DEFAULT NOW()
+  updated_at TIMESTAMP DEFAULT NOW(),
+  CONSTRAINT student_milestones_student_milestone_unique UNIQUE (student_id, milestone_id)
 );
 
 CREATE TABLE notifications (

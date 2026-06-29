@@ -24,7 +24,13 @@ async function ensureMilestoneSchema() {
   schemaReady ??= pool.query(`
     ALTER TABLE milestone_templates
     ADD COLUMN IF NOT EXISTS semester VARCHAR NOT NULL DEFAULT '1'
+  `).then(() => pool.query(`
+    ALTER TABLE student_milestones
+    ADD CONSTRAINT student_milestones_student_milestone_unique UNIQUE (student_id, milestone_id)
   `)
+  .catch((error) => {
+    if (!['42710', '42P07'].includes(error.code)) throw error
+  }))
   await schemaReady
 }
 
@@ -54,6 +60,178 @@ export async function findMilestones({ degreeLevel, semester } = {}) {
       ORDER BY degree_level, semester, sequence_order, created_at
     `,
     values,
+  )
+
+  return result.rows
+}
+
+export async function findStudentMilestonesByUserId(userId) {
+  await ensureMilestoneSchema()
+
+  const result = await pool.query(
+    `
+      SELECT
+        mt.milestone_id AS "milestoneId",
+        mt.degree_level AS "degreeLevel",
+        mt.semester,
+        mt.title,
+        mt.description,
+        mt.sequence_order AS "sequenceOrder",
+        mt.open_date AS "openDate",
+        mt.deadline,
+        mt.first_reminder_date AS "firstReminderDate",
+        mt.second_reminder_date AS "secondReminderDate",
+        COALESCE(
+          sm.status,
+          CASE
+            WHEN mt.deadline < CURRENT_DATE THEN 'Missing'::milestone_status
+            ELSE 'In Progress'::milestone_status
+          END
+        ) AS status,
+        sm.evidence_url AS "evidenceUrl",
+        sm.advisor_comment AS "advisorComment",
+        sm.submitted_at AS "submittedAt",
+        sm.reviewed_at AS "reviewedAt"
+      FROM students s
+      JOIN milestone_templates mt
+        ON mt.degree_level = s.degree_level
+        AND mt.is_enabled = TRUE
+      LEFT JOIN student_milestones sm
+        ON sm.student_id = s.student_id
+        AND sm.milestone_id = mt.milestone_id
+      WHERE s.user_id = $1
+      ORDER BY mt.semester, mt.sequence_order, mt.created_at
+    `,
+    [userId],
+  )
+
+  return result.rows
+}
+
+export async function submitStudentMilestoneEvidence(userId, milestoneId, evidenceUrl) {
+  await ensureMilestoneSchema()
+
+  const result = await pool.query(
+    `
+      INSERT INTO student_milestones (
+        student_milestone_id, student_id, milestone_id, status, evidence_url, submitted_at, updated_at
+      )
+      SELECT
+        $4,
+        s.student_id,
+        mt.milestone_id,
+        'Completed',
+        $3,
+        NOW(),
+        NOW()
+      FROM students s
+      JOIN milestone_templates mt
+        ON mt.milestone_id = $2
+        AND mt.degree_level = s.degree_level
+        AND mt.is_enabled = TRUE
+      WHERE s.user_id = $1
+      ON CONFLICT (student_id, milestone_id) DO UPDATE SET
+        status = 'Completed'::milestone_status,
+        evidence_url = EXCLUDED.evidence_url,
+        advisor_comment = NULL,
+        submitted_at = NOW(),
+        reviewed_at = NULL,
+        reviewed_by = NULL,
+        updated_at = NOW()
+      RETURNING milestone_id
+    `,
+    [userId, milestoneId, evidenceUrl, randomUUID()],
+  )
+
+  return result.rowCount > 0
+}
+
+export async function clearStudentMilestoneEvidence(userId, milestoneId) {
+  await ensureMilestoneSchema()
+
+  const result = await pool.query(
+    `
+      UPDATE student_milestones sm
+      SET
+        status = 'In Progress',
+        evidence_url = NULL,
+        advisor_comment = NULL,
+        submitted_at = NULL,
+        reviewed_at = NULL,
+        reviewed_by = NULL,
+        updated_at = NOW()
+      FROM students s
+      WHERE sm.student_id = s.student_id
+        AND s.user_id = $1
+        AND sm.milestone_id = $2
+        AND sm.status <> 'Approved'
+      RETURNING sm.milestone_id
+    `,
+    [userId, milestoneId],
+  )
+
+  return result.rowCount > 0
+}
+
+export async function reviewStudentMilestone({
+  reviewerUserId,
+  studentId,
+  milestoneId,
+  status,
+  advisorComment,
+}) {
+  await ensureMilestoneSchema()
+
+  const result = await pool.query(
+    `
+      UPDATE student_milestones sm
+      SET
+        status = $4::milestone_status,
+        advisor_comment = $5,
+        reviewed_at = NOW(),
+        reviewed_by = a.advisor_id,
+        updated_at = NOW()
+      FROM students s
+      JOIN advisors a ON a.advisor_id = s.advisor_id
+      WHERE sm.student_id = s.student_id
+        AND s.student_id = $1
+        AND sm.milestone_id = $2
+        AND a.user_id = $3
+        AND sm.evidence_url IS NOT NULL
+      RETURNING sm.student_milestone_id
+    `,
+    [studentId, milestoneId, reviewerUserId, status, advisorComment],
+  )
+
+  return result.rowCount > 0
+}
+
+export async function findAdvisorMilestoneSubmissions(advisorUserId) {
+  await ensureMilestoneSchema()
+
+  const result = await pool.query(
+    `
+      SELECT
+        s.student_id AS "studentId",
+        s.full_name AS "studentName",
+        mt.milestone_id AS "milestoneId",
+        mt.title,
+        mt.description,
+        mt.deadline,
+        sm.status,
+        sm.evidence_url AS "evidenceUrl",
+        sm.advisor_comment AS "advisorComment",
+        sm.submitted_at AS "submittedAt",
+        sm.reviewed_at AS "reviewedAt"
+      FROM advisors a
+      JOIN students s ON s.advisor_id = a.advisor_id
+      JOIN student_milestones sm ON sm.student_id = s.student_id
+      JOIN milestone_templates mt ON mt.milestone_id = sm.milestone_id
+      WHERE a.user_id = $1
+        AND sm.evidence_url IS NOT NULL
+      ORDER BY sm.submitted_at DESC NULLS LAST, mt.deadline, s.student_id
+    `,
+    [advisorUserId],
   )
 
   return result.rows
@@ -164,10 +342,22 @@ export async function updateMilestone(milestoneId, input) {
 export async function removeMilestone(milestoneId) {
   await ensureMilestoneSchema()
 
-  const result = await pool.query('DELETE FROM milestone_templates WHERE milestone_id = $1', [
-    milestoneId,
-  ])
-  return result.rowCount > 0
+  const client = await pool.connect()
+
+  try {
+    await client.query('BEGIN')
+    await client.query('DELETE FROM student_milestones WHERE milestone_id = $1', [milestoneId])
+    const result = await client.query('DELETE FROM milestone_templates WHERE milestone_id = $1', [
+      milestoneId,
+    ])
+    await client.query('COMMIT')
+    return result.rowCount > 0
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
 }
 
 export async function setMilestoneEnabled(milestoneId, isEnabled) {

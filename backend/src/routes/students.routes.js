@@ -12,6 +12,7 @@ import {
   updateStudent,
 } from '../controllers/students.controller.js'
 
+// 5 MB limit
 const router = Router()
 const upload = multer({
   storage: multer.memoryStorage(),
