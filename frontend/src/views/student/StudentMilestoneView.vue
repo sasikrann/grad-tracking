@@ -114,11 +114,11 @@ onBeforeUnmount(() => {
 
       <div
         v-if="milestones.length"
-        class="relative mt-5 space-y-6 pb-10"
+        class="relative mt-5 space-y-4 pb-10"
       >
         <div
           v-if="milestones.length > 1"
-          class="absolute bottom-3 left-4 top-3 w-px bg-neutral-400 md:left-5"
+          class="absolute bottom-3 left-3 top-3 w-px bg-slate-200 md:left-4"
           aria-hidden="true"
         ></div>
 
