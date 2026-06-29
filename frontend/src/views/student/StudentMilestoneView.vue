@@ -91,7 +91,7 @@ onBeforeUnmount(() => {
   <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
     <header>
       <h1 class="text-3xl font-bold tracking-tight text-black">Milestone</h1>
-      <p class="mt-1 text-sm font-semibold text-neutral-500">
+      <p class="mt-1 text-sm text-slate-500">
         Track your academic progress and deadline
       </p>
     </header>
@@ -114,7 +114,7 @@ onBeforeUnmount(() => {
 
       <div
         v-if="milestones.length"
-        class="relative mt-5 space-y-8 pb-10"
+        class="relative mt-5 space-y-6 pb-10"
       >
         <div
           v-if="milestones.length > 1"
