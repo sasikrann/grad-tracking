@@ -100,7 +100,7 @@ onBeforeUnmount(() => {
       {{ errorMessage }}
     </p>
 
-    <div v-if="isLoading" class="mt-5 rounded-lg bg-white px-5 py-4 text-sm text-neutral-500">
+    <div v-if="isLoading" class="mt-5 rounded-lg bg-white px-5 py-4 text-sm text-slate-500">
       Loading milestones...
     </div>
 
@@ -135,7 +135,7 @@ onBeforeUnmount(() => {
 
       <section
         v-else
-        class="mt-5 rounded-lg border border-slate-200 bg-white px-5 py-10 text-center text-sm text-neutral-500"
+        class="mt-5 rounded-lg border border-slate-200 bg-white px-5 py-10 text-center text-sm text-slate-500"
       >
         No milestones are currently assigned.
       </section>
