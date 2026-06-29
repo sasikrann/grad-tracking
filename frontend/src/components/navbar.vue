@@ -37,7 +37,7 @@ const menus: Record<MenuRole, MenuItem[]> = {
     { label: 'Milestone Summary', to: '/advisor/summary', icon: 'milestone' },
   ],
   student: [
-    { label: 'Student Information', to: '/', icon: 'student' },
+    { label: 'Student Information', to: '/student/information', icon: 'student' },
     { label: 'Milestone', to: '/milestones', icon: 'milestone' },
     { label: 'Notification', to: '/notifications', icon: 'notification' },
   ],

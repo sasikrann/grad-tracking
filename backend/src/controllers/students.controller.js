@@ -159,19 +159,25 @@ export async function importStudentFile(request, response) {
 }
 
 // template สำหรับการ import ข้อมูลนักศึกษา 
-function addHeaders(worksheet) {
-  worksheet.columns = [
-    { header: 'Student ID', key: 'studentId', width: 16 },
-    { header: 'Email', key: 'email', width: 32 },
-    { header: 'Full Name', key: 'fullName', width: 28 },
-    { header: 'Program', key: 'program', width: 18 },
-    { header: 'Degree Level', key: 'degreeLevel', width: 16 },
-    { header: 'Enrollment Academic Year', key: 'enrollmentAcademicYear', width: 25 },
-    { header: 'Semester', key: 'semester', width: 12 },
-    { header: 'Year', key: 'expectedGraduationYear', width: 12 },
-    { header: 'Advisor Email', key: 'advisorEmail', width: 32 },
-    { header: 'Advisor Name', key: 'advisorName', width: 28 },
-  ]
+const studentTemplateColumns = [
+  { header: 'Student ID', key: 'studentId', width: 16 },
+  { header: 'Email', key: 'email', width: 32 },
+  { header: 'Full Name', key: 'fullName', width: 28 },
+  { header: 'Program', key: 'program', width: 18 },
+  { header: 'Degree Level', key: 'degreeLevel', width: 16 },
+  { header: 'Enrollment Academic Year', key: 'enrollmentAcademicYear', width: 25 },
+  { header: 'Semester', key: 'semester', width: 12 },
+  { header: 'Year', key: 'expectedGraduationYear', width: 12 },
+]
+
+const studentExportColumns = [
+  ...studentTemplateColumns,
+  { header: 'Advisor Email', key: 'advisorEmail', width: 32 },
+  { header: 'Advisor Name', key: 'advisorName', width: 28 },
+]
+
+function addHeaders(worksheet, columns = studentExportColumns) {
+  worksheet.columns = columns
   worksheet.getRow(1).font = { bold: true }
 }
 
@@ -195,7 +201,7 @@ export async function exportStudents(request, response) {
 export async function downloadStudentTemplate(_request, response) {
   const workbook = new ExcelJS.Workbook()
   const worksheet = workbook.addWorksheet('Students')
-  addHeaders(worksheet)
+  addHeaders(worksheet, studentTemplateColumns)
   worksheet.addRow({
     studentId: '6631500001',
     email: 'student@lamduan.mfu.ac.th',
@@ -205,8 +211,6 @@ export async function downloadStudentTemplate(_request, response) {
     enrollmentAcademicYear: 2023,
     semester: '2',
     expectedGraduationYear: 2026,
-    advisorEmail: 'advisor.dev@lamduan.mfu.ac.th',
-    advisorName: 'Development Advisor',
   })
   const buffer = await workbook.xlsx.writeBuffer()
   response.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
