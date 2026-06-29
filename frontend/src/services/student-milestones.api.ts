@@ -27,13 +27,6 @@ export function getMyStudentMilestones() {
   return request<StudentMilestone[]>('/api/student-profile/me/milestones')
 }
 
-export function submitMyMilestoneEvidence(milestoneId: string, evidenceUrl: string) {
-  return request<StudentMilestone[]>(`/api/student-profile/me/milestones/${milestoneId}/evidence`, {
-    method: 'PUT',
-    body: JSON.stringify({ evidenceUrl }),
-  })
-}
-
 export async function uploadMyMilestoneEvidence(milestoneId: string, file: File) {
   const body = new FormData()
   body.append('file', file)

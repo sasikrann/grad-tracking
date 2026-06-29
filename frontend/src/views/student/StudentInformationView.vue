@@ -9,6 +9,7 @@ import {
 } from '@/services/student-profile.api'
 import type { Advisor } from '@/types/advisor'
 
+// 2 MB limit
 const maxAdvisorEvidenceFileSize = 2 * 1024 * 1024
 const allowedAdvisorEvidenceTypes = new Set(['image/png', 'image/jpeg'])
 
