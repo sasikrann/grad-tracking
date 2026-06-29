@@ -70,7 +70,7 @@ function handleFileChange(event: Event) {
   <article class="relative grid grid-cols-[2rem_minmax(0,1fr)] gap-8 md:grid-cols-[2.5rem_minmax(0,1fr)]">
     <div class="relative flex justify-center">
       <div
-        class="relative z-10 flex size-6 items-center justify-center rounded-full text-xs font-bold text-white"
+        class="relative z-10 flex size-6 items-center justify-center rounded-full text-xs font-semibold text-white"
         :class="milestone.status === 'Missing' || milestone.status === 'In Progress' ? 'bg-[#ffbb2a]' : 'bg-[#49b866]'"
       >
         {{ index }}
@@ -83,7 +83,7 @@ function handleFileChange(event: Event) {
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="min-w-0">
           <h3 class="text-base font-semibold text-black">{{ milestone.title }}</h3>
-          <p class="mt-0.5 text-sm text-neutral-500">
+          <p class="mt-0.5 text-sm text-slate-500">
             {{ milestone.description || 'Complete course registration for first semester' }}
           </p>
         </div>
@@ -98,7 +98,7 @@ function handleFileChange(event: Event) {
 
       <div
         class="mt-2 flex items-center gap-2 text-sm"
-        :class="isDeadlineUrgent ? 'text-red-600' : 'text-neutral-500'"
+        :class="isDeadlineUrgent ? 'text-red-600' : 'text-slate-500'"
       >
         <svg
           class="size-4 shrink-0"
@@ -126,7 +126,7 @@ function handleFileChange(event: Event) {
         <button
           v-if="canRemoveEvidence"
           type="button"
-          class="flex size-5 items-center justify-center rounded-full border border-slate-300 text-xs font-bold leading-none text-slate-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+          class="flex size-5 items-center justify-center rounded-full border border-slate-300 text-xs font-semibold leading-none text-slate-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
           aria-label="Remove evidence"
           :disabled="isUploading"
           @click="emit('removeEvidence', milestone.milestoneId)"
@@ -144,7 +144,7 @@ function handleFileChange(event: Event) {
         />
         <button
           type="button"
-          class="inline-flex h-7 items-center gap-2 rounded border border-slate-300 bg-white px-3 text-xs font-bold text-black shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          class="inline-flex h-7 items-center gap-2 rounded border border-slate-300 bg-white px-3 text-xs font-semibold text-black shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           :disabled="isUploading"
           @click="openUploadPicker"
         >
