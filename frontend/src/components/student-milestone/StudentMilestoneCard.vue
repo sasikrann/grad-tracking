@@ -67,10 +67,10 @@ function handleFileChange(event: Event) {
 </script>
 
 <template>
-  <article class="relative grid grid-cols-[2rem_minmax(0,1fr)] gap-8 md:grid-cols-[2.5rem_minmax(0,1fr)]">
+  <article class="relative grid grid-cols-[1.5rem_minmax(0,1fr)] gap-4 md:grid-cols-[2rem_minmax(0,1fr)]">
     <div class="relative flex justify-center">
       <div
-        class="relative z-10 flex size-6 items-center justify-center rounded-full text-xs font-semibold text-white"
+        class="relative z-10 flex size-6 items-center justify-center rounded-full text-xs font-semibold text-white shadow-sm"
         :class="milestone.status === 'Missing' || milestone.status === 'In Progress' ? 'bg-[#ffbb2a]' : 'bg-[#49b866]'"
       >
         {{ index }}
@@ -78,7 +78,7 @@ function handleFileChange(event: Event) {
     </div>
 
     <div
-      class="rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-[0_1px_3px_rgba(0,0,0,0.18)]"
+      class="rounded-lg border border-slate-200 bg-white px-4 pb-4 pt-3 shadow-sm sm:px-5 sm:pb-4 sm:pt-3"
     >
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="min-w-0">
@@ -89,7 +89,7 @@ function handleFileChange(event: Event) {
         </div>
 
         <span
-          class="rounded-lg px-4 py-2 text-sm font-semibold leading-tight"
+          class="rounded-lg px-3 py-1.5 text-xs font-semibold leading-tight"
           :class="statusStyles[milestone.status]"
         >
           {{ milestone.status }}
