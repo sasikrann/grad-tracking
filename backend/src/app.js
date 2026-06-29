@@ -2,6 +2,7 @@
 // ใช้รวม middleware, routes, health check และ error handler
 import cors from 'cors'
 import express from 'express'
+import path from 'node:path'
 
 import pool from './config/database.js'
 import { requireAuth, requireRole } from './middleware/auth.middleware.js'
@@ -17,6 +18,7 @@ const app = express()
 
 app.use(cors())
 app.use(express.json())
+app.use('/uploads', express.static(path.resolve('uploads')))
 app.use('/api/auth', authRouter)
 app.use('/api/advisors', requireAuth, requireRole('advisor', 'admin', 'student'), advisorsRouter)
 app.use('/api/milestones', requireAuth, requireRole('admin'), milestonesRouter)

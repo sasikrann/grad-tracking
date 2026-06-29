@@ -19,6 +19,10 @@ function getDefaultRoute() {
     return { name: 'admin-student-dashboard' }
   }
 
+  if (role === 'student') {
+    return { name: 'student-milestones' }
+  }
+
   return { name: 'access-unavailable' }
 }
 
@@ -61,6 +65,12 @@ const router = createRouter({
       name: 'admin-milestone-management',
       component: () => import('../views/admin/MilestoneManagementView.vue'),
       meta: { requiresAuth: true, role: 'admin' },
+    },
+    {
+      path: '/student/milestones',
+      name: 'student-milestones',
+      component: () => import('../views/student/StudentMilestoneView.vue'),
+      meta: { requiresAuth: true, role: 'student' },
     },
     {
       path: '/advisor/student-overall',
