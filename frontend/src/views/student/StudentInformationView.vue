@@ -31,9 +31,7 @@ const advisorOptions = computed(() =>
   })),
 )
 
-const selectedAdvisor = computed(
-  () => advisors.value.find((advisor) => advisor.advisorId === selectedAdvisorId.value) ?? null,
-)
+const canSubmitAdvisor = computed(() => Boolean(selectedAdvisorId.value && evidenceDataUrl.value))
 
 const selectedFileSize = computed(() => {
   const file = selectedFile.value
@@ -100,7 +98,8 @@ async function loadPage() {
 
 function startAdvisorEdit() {
   saveMessage.value = ''
-  selectedAdvisorId.value = profile.value?.advisorId ?? ''
+  selectedAdvisorId.value = ''
+  clearSelectedFile()
   isEditingAdvisor.value = true
 }
 
@@ -151,6 +150,11 @@ async function handleFileChange(event: Event) {
 async function saveAdvisor() {
   if (!selectedAdvisorId.value) {
     saveMessage.value = 'Please select an advisor'
+    return
+  }
+
+  if (!evidenceDataUrl.value) {
+    saveMessage.value = 'Please upload a supporting document'
     return
   }
 
@@ -277,16 +281,18 @@ onMounted(loadPage)
             id="advisor-select"
             v-model="selectedAdvisorId"
             class="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-[#8b2a23] focus:ring-2 focus:ring-[#8b2a23]/15"
+            :class="selectedAdvisorId ? 'text-slate-900' : 'text-slate-400'"
           >
-            <option value="" disabled>Select advisor</option>
-            <option v-for="advisor in advisorOptions" :key="advisor.value" :value="advisor.value">
+            <option value="" disabled class="text-slate-400">Select advisor</option>
+            <option
+              v-for="advisor in advisorOptions"
+              :key="advisor.value"
+              :value="advisor.value"
+              class="text-slate-900"
+            >
               {{ advisor.label }}
             </option>
           </select>
-
-          <p v-if="selectedAdvisor" class="mt-2 text-xs text-slate-500">
-            Selected: {{ selectedAdvisor.fullName }}
-          </p>
 
           <label class="mt-4 block text-sm font-semibold text-slate-900" for="advisor-document">
             Supporting Document
@@ -362,6 +368,9 @@ onMounted(loadPage)
             </span>
           </button>
           <p v-else class="mt-3 text-xs text-slate-500">No document uploaded</p>
+          <p v-if="!evidenceDataUrl" class="mt-3 text-xs text-slate-500">
+            A supporting document is required before submitting.
+          </p>
 
           <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
             <button
@@ -376,7 +385,7 @@ onMounted(loadPage)
             <button
               type="button"
               class="h-10 rounded-lg bg-[#8b2a23] px-4 text-sm font-semibold text-white transition hover:bg-[#7a211c] disabled:cursor-wait disabled:opacity-60 sm:min-w-36"
-              :disabled="isSaving"
+              :disabled="isSaving || !canSubmitAdvisor"
               @click="saveAdvisor"
             >
               {{ isSaving ? 'Saving...' : 'Submit' }}
