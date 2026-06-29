@@ -6,6 +6,28 @@ import {
   updateStudentAdvisorByUserId,
 } from '../services/students.service.js'
 
+const maxAdvisorEvidenceFileSize = 2 * 1024 * 1024
+const advisorEvidencePattern = /^data:(image\/png|image\/jpeg);base64,([A-Za-z0-9+/]+={0,2})$/
+
+function normalizeAdvisorEvidenceUrl(value) {
+  if (value === null || value === undefined || value === '') return value
+  if (typeof value !== 'string') {
+    throw new ApiError(400, 'Supporting document must be a PNG or JPG file')
+  }
+
+  const match = value.match(advisorEvidencePattern)
+  if (!match) {
+    throw new ApiError(400, 'Supporting document must be a PNG or JPG file')
+  }
+
+  const fileSize = Buffer.byteLength(match[2], 'base64')
+  if (fileSize > maxAdvisorEvidenceFileSize) {
+    throw new ApiError(413, 'Supporting document must not exceed 2 MB')
+  }
+
+  return value
+}
+
 export async function getMyStudentProfile(request, response) {
   const student = await findStudentByUserId(request.user.userId)
 
@@ -21,7 +43,7 @@ export async function updateMyAdvisor(request, response) {
     advisorId: request.body.advisorId,
     advisorEmail: request.body.advisorEmail,
     advisorName: request.body.advisorName,
-    advisorEvidenceUrl: request.body.advisorEvidenceUrl,
+    advisorEvidenceUrl: normalizeAdvisorEvidenceUrl(request.body.advisorEvidenceUrl),
   })
 
   if (!student) {

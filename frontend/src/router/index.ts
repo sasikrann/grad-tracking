@@ -11,6 +11,10 @@ function normalizeRole(role: string | undefined) {
 function getDefaultRoute() {
   const role = normalizeRole(currentUser.value?.role)
 
+  if (role === 'student') {
+    return { name: 'student-information' }
+  }
+
   if (role === 'advisor') {
     return { name: 'advisor-student-overall' }
   }
@@ -48,6 +52,12 @@ const router = createRouter({
       name: 'admin-student-dashboard',
       component: StudentDashboardView,
       meta: { requiresAuth: true, role: 'admin' },
+    },
+    {
+      path: '/student/information',
+      name: 'student-information',
+      component: () => import('../views/student/StudentInformationView.vue'),
+      meta: { requiresAuth: true, role: 'student' },
     },
     {
       path: '/admin/advisor-dashboard',
