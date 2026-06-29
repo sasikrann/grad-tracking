@@ -8,9 +8,11 @@ import {
   downloadAdvisorTemplate,
   exportAdvisors,
   getAdvisor,
+  getAdvisorMilestoneSubmissions,
   getAdvisorStudents,
   getAdvisors,
   importAdvisorFile,
+  reviewAdvisorStudentMilestone,
   updateAdvisor,
 } from '../controllers/advisors.controller.js'
 
@@ -34,11 +36,13 @@ const upload = multer({
 router.get('/', getAdvisors)
 router.get('/export', adminOnly, exportAdvisors)
 router.get('/template', adminOnly, downloadAdvisorTemplate)
+router.get('/milestone-submissions', getAdvisorMilestoneSubmissions)
 router.post('/import', adminOnly, upload.single('file'), importAdvisorFile)
 router.post('/', adminOnly, createAdvisor)
 router.get('/:advisorId', getAdvisor)
 router.put('/:advisorId', adminOnly, updateAdvisor)
 router.delete('/:advisorId', adminOnly, deleteAdvisor)
 router.get('/:advisorId/students', getAdvisorStudents)
+router.patch('/students/:studentId/milestones/:milestoneId/review', reviewAdvisorStudentMilestone)
 
 export default router

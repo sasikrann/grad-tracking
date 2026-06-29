@@ -15,6 +15,10 @@ import {
   replaceAdvisor,
 } from '../services/advisors.service.js'
 import { findAdvisorIdByUserId } from '../services/auth.service.js'
+import {
+  findAdvisorMilestoneSubmissions,
+  reviewStudentMilestone,
+} from '../services/milestones.service.js'
 import { findStudentsByAdvisorId } from '../services/students.service.js'
 
 export async function getAdvisors(_request, response) {
@@ -94,4 +98,37 @@ export async function getAdvisorStudents(request, response) {
   response.json({
     data: students,
   })
+}
+
+export async function reviewAdvisorStudentMilestone(request, response) {
+  if (request.user.role !== 'advisor') {
+    throw new ApiError(403, 'Only advisors can review milestone submissions')
+  }
+
+  const decision = String(request.body.decision ?? '').trim()
+  if (!['approve', 'reject'].includes(decision)) {
+    throw new ApiError(400, 'decision must be approve or reject')
+  }
+
+  const reviewed = await reviewStudentMilestone({
+    reviewerUserId: request.user.userId,
+    studentId: request.params.studentId,
+    milestoneId: request.params.milestoneId,
+    status: decision === 'approve' ? 'Approved' : 'In Progress',
+    advisorComment: String(request.body.comment ?? '').trim() || null,
+  })
+
+  if (!reviewed) {
+    throw new ApiError(404, 'Milestone submission not found')
+  }
+
+  response.json({ data: { status: decision === 'approve' ? 'Approved' : 'In Progress' } })
+}
+
+export async function getAdvisorMilestoneSubmissions(request, response) {
+  if (request.user.role !== 'advisor') {
+    throw new ApiError(403, 'Only advisors can review milestone submissions')
+  }
+
+  response.json({ data: await findAdvisorMilestoneSubmissions(request.user.userId) })
 }

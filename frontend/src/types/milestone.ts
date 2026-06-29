@@ -26,3 +26,23 @@ export interface MilestoneInput {
   secondReminderDate: string
   isEnabled: boolean
 }
+
+export type StudentMilestoneStatus = 'In Progress' | 'Completed' | 'Approved' | 'Missing'
+
+export interface StudentMilestone {
+  milestoneId: string
+  degreeLevel: DegreeLevel
+  semester: string
+  title: string
+  description: string | null
+  sequenceOrder: number
+  openDate: string
+  deadline: string
+  firstReminderDate: string | null
+  secondReminderDate: string | null
+  status: StudentMilestoneStatus
+  evidenceUrl: string | null
+  advisorComment: string | null
+  submittedAt: string | null
+  reviewedAt: string | null
+}
