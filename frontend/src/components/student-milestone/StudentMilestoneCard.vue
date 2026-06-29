@@ -89,7 +89,7 @@ function handleFileChange(event: Event) {
         </div>
 
         <span
-          class="rounded-lg px-4 py-2 text-sm font-bold leading-none"
+          class="rounded-lg px-4 py-2 text-sm font-semibold leading-tight"
           :class="statusStyles[milestone.status]"
         >
           {{ milestone.status }}
