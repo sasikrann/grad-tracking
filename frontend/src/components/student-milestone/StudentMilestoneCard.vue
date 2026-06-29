@@ -82,7 +82,7 @@ function handleFileChange(event: Event) {
     >
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="min-w-0">
-          <h3 class="text-base font-bold text-black">{{ milestone.title }}</h3>
+          <h3 class="text-base font-semibold text-black">{{ milestone.title }}</h3>
           <p class="mt-0.5 text-sm text-neutral-500">
             {{ milestone.description || 'Complete course registration for first semester' }}
           </p>

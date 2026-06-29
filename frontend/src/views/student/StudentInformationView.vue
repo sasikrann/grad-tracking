@@ -24,6 +24,7 @@ const isEditingAdvisor = ref(false)
 const isSaving = ref(false)
 const loadError = ref('')
 const saveMessage = ref('')
+const documentWarningMessage = ref('')
 
 const advisorOptions = computed(() =>
   advisors.value.map((advisor) => ({
@@ -33,6 +34,12 @@ const advisorOptions = computed(() =>
 )
 
 const canSubmitAdvisor = computed(() => Boolean(selectedAdvisorId.value && evidenceDataUrl.value))
+const isSaveMessageError = computed(
+  () => Boolean(saveMessage.value) && saveMessage.value !== 'Advisor updated successfully',
+)
+const supportingDocumentWarning = computed(
+  () => documentWarningMessage.value || 'A supporting document is required before submitting.',
+)
 
 const selectedFileSize = computed(() => {
   const file = selectedFile.value
@@ -114,6 +121,7 @@ function cancelAdvisorEdit() {
 function clearSelectedFile() {
   selectedFile.value = null
   evidenceDataUrl.value = null
+  documentWarningMessage.value = ''
   if (fileInput.value) fileInput.value.value = ''
 }
 
@@ -133,17 +141,18 @@ async function handleFileChange(event: Event) {
 
   if (!allowedAdvisorEvidenceTypes.has(file.type)) {
     clearSelectedFile()
-    saveMessage.value = 'Please upload a PNG or JPG file'
+    documentWarningMessage.value = 'Please upload a PNG or JPG file'
     return
   }
 
   if (file.size > maxAdvisorEvidenceFileSize) {
     clearSelectedFile()
-    saveMessage.value = 'Supporting document must not exceed 2 MB'
+    documentWarningMessage.value = 'Supporting document must not exceed 2 MB'
     return
   }
 
   saveMessage.value = ''
+  documentWarningMessage.value = ''
   selectedFile.value = file
   evidenceDataUrl.value = await readFileAsDataUrl(file)
 }
@@ -155,7 +164,7 @@ async function saveAdvisor() {
   }
 
   if (!evidenceDataUrl.value) {
-    saveMessage.value = 'Please upload a supporting document'
+    documentWarningMessage.value = 'Please upload a supporting document'
     return
   }
 
@@ -368,9 +377,9 @@ onMounted(loadPage)
               <span class="block text-xs text-slate-500">Saved file</span>
             </span>
           </button>
-          <p v-else class="mt-3 text-xs text-slate-500">No document uploaded</p>
-          <p v-if="!evidenceDataUrl" class="mt-3 text-xs text-slate-500">
-            A supporting document is required before submitting.
+          <p v-else class="mt-2 text-xs text-red-600">No document uploaded</p>
+          <p v-if="!evidenceDataUrl" class="mt-1 text-xs text-red-600">
+            {{ supportingDocumentWarning }}
           </p>
 
           <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -385,7 +394,7 @@ onMounted(loadPage)
             </button>
             <button
               type="button"
-              class="h-10 rounded-lg bg-[#8b2a23] px-4 text-sm font-semibold text-white transition hover:bg-[#7a211c] disabled:cursor-wait disabled:opacity-60 sm:min-w-36"
+              class="h-10 rounded-lg bg-[#8b2a23] px-4 text-sm font-semibold text-white transition hover:bg-[#7a211c] disabled:cursor-default disabled:opacity-60 sm:min-w-36"
               :disabled="isSaving || !canSubmitAdvisor"
               @click="saveAdvisor"
             >
@@ -394,7 +403,12 @@ onMounted(loadPage)
           </div>
         </div>
         
-        <p v-if="saveMessage" class="mt-3 text-sm text-slate-600" role="status">
+        <p
+          v-if="saveMessage"
+          class="mt-3 text-sm"
+          :class="isSaveMessageError ? 'font-semibold text-red-600' : 'text-slate-600'"
+          role="status"
+        >
           {{ saveMessage }}
         </p>
       </section>
