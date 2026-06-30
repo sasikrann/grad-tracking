@@ -121,6 +121,7 @@ export async function getAdvisorMilestoneSummaryReport(request, response) {
 
   response.json({
     data: await getAdvisorMilestoneSummary(requestedAdvisorId, {
+      degreeLevel: String(request.query.degreeLevel ?? '').trim() || null,
       semester: String(request.query.semester ?? '').trim() || null,
       year: String(request.query.year ?? '').trim() || null,
     }),
