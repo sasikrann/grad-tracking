@@ -9,6 +9,7 @@ import {
 import {
   findAdvisorById,
   findAllAdvisors,
+  getAdvisorMilestoneSummary,
   importAdvisors,
   insertAdvisor,
   removeAdvisor,
@@ -16,6 +17,7 @@ import {
 } from '../services/advisors.service.js'
 import { findAdvisorIdByUserId } from '../services/auth.service.js'
 import {
+  findAdvisorStudentMilestones,
   findAdvisorMilestoneSubmissions,
   reviewStudentMilestone,
 } from '../services/milestones.service.js'
@@ -102,6 +104,29 @@ export async function getAdvisorStudents(request, response) {
   })
 }
 
+export async function getAdvisorMilestoneSummaryReport(request, response) {
+  const requestedAdvisorId = request.params.advisorId
+
+  if (request.user.role === 'student') {
+    throw new ApiError(403, 'Students cannot access advisor milestone summaries')
+  }
+
+  if (request.user.role === 'advisor') {
+    const advisorId = await findAdvisorIdByUserId(request.user.userId)
+
+    if (!advisorId || advisorId !== requestedAdvisorId) {
+      throw new ApiError(403, 'You can only access your own milestone summary')
+    }
+  }
+
+  response.json({
+    data: await getAdvisorMilestoneSummary(requestedAdvisorId, {
+      semester: String(request.query.semester ?? '').trim() || null,
+      year: String(request.query.year ?? '').trim() || null,
+    }),
+  })
+}
+
 export async function reviewAdvisorStudentMilestone(request, response) {
   if (request.user.role !== 'advisor') {
     throw new ApiError(403, 'Only advisors can review milestone submissions')
@@ -125,6 +150,20 @@ export async function reviewAdvisorStudentMilestone(request, response) {
   }
 
   response.json({ data: { status: decision === 'approve' ? 'Approved' : 'In Progress' } })
+}
+
+export async function getAdvisorStudentMilestones(request, response) {
+  if (request.user.role !== 'advisor') {
+    throw new ApiError(403, 'Only advisors can view advised student milestones')
+  }
+
+  const result = await findAdvisorStudentMilestones(request.user.userId, request.params.studentId)
+
+  if (!result) {
+    throw new ApiError(404, 'Advised student not found')
+  }
+
+  response.json({ data: result })
 }
 
 export async function getAdvisorMilestoneSubmissions(request, response) {

@@ -20,17 +20,24 @@ const milestoneColumns = `
   updated_at AS "updatedAt"
 `
 
+const maxRejectedRevisionRounds = 3
+
 async function ensureMilestoneSchema() {
   schemaReady ??= pool.query(`
     ALTER TABLE milestone_templates
     ADD COLUMN IF NOT EXISTS semester VARCHAR NOT NULL DEFAULT '1'
-  `).then(() => pool.query(`
-    ALTER TABLE student_milestones
-    ADD CONSTRAINT student_milestones_student_milestone_unique UNIQUE (student_id, milestone_id)
   `)
-  .catch((error) => {
-    if (!['42710', '42P07'].includes(error.code)) throw error
-  }))
+    .then(() => pool.query(`
+      ALTER TABLE student_milestones
+      ADD COLUMN IF NOT EXISTS rejection_count INT NOT NULL DEFAULT 0
+    `))
+    .then(() => pool.query(`
+      ALTER TABLE student_milestones
+      ADD CONSTRAINT student_milestones_student_milestone_unique UNIQUE (student_id, milestone_id)
+    `)
+    .catch((error) => {
+      if (!['42710', '42P07'].includes(error.code)) throw error
+    }))
   await schemaReady
 }
 
@@ -90,6 +97,8 @@ export async function findStudentMilestonesByUserId(userId) {
         ) AS status,
         sm.evidence_url AS "evidenceUrl",
         sm.advisor_comment AS "advisorComment",
+        COALESCE(sm.rejection_count, 0) AS "rejectionCount",
+        ${maxRejectedRevisionRounds} AS "maxRejectedRevisionRounds",
         sm.submitted_at AS "submittedAt",
         sm.reviewed_at AS "reviewedAt"
       FROM students s
@@ -106,6 +115,123 @@ export async function findStudentMilestonesByUserId(userId) {
   )
 
   return result.rows
+}
+
+export async function findStudentMilestonesByStudentId(studentId) {
+  await ensureMilestoneSchema()
+
+  const result = await pool.query(
+    `
+      SELECT
+        s.student_id AS "studentId",
+        s.full_name AS "studentName",
+        mt.milestone_id AS "milestoneId",
+        mt.degree_level AS "degreeLevel",
+        mt.semester,
+        mt.title,
+        mt.description,
+        mt.sequence_order AS "sequenceOrder",
+        mt.open_date AS "openDate",
+        mt.deadline,
+        mt.first_reminder_date AS "firstReminderDate",
+        mt.second_reminder_date AS "secondReminderDate",
+        COALESCE(
+          sm.status,
+          CASE
+            WHEN mt.deadline < CURRENT_DATE THEN 'Missing'::milestone_status
+            ELSE 'In Progress'::milestone_status
+          END
+        ) AS status,
+        sm.evidence_url AS "evidenceUrl",
+        sm.advisor_comment AS "advisorComment",
+        COALESCE(sm.rejection_count, 0) AS "rejectionCount",
+        ${maxRejectedRevisionRounds} AS "maxRejectedRevisionRounds",
+        sm.submitted_at AS "submittedAt",
+        sm.reviewed_at AS "reviewedAt"
+      FROM students s
+      LEFT JOIN milestone_templates mt
+        ON mt.degree_level = s.degree_level
+        AND mt.is_enabled = TRUE
+      LEFT JOIN student_milestones sm
+        ON sm.student_id = s.student_id
+        AND sm.milestone_id = mt.milestone_id
+      WHERE s.student_id = $1
+      ORDER BY mt.semester, mt.sequence_order, mt.created_at
+    `,
+    [studentId],
+  )
+
+  if (!result.rows.length) return null
+
+  return {
+    student: {
+      studentId: result.rows[0].studentId,
+      studentName: result.rows[0].studentName,
+    },
+    milestones: result.rows
+      .filter((row) => row.milestoneId)
+      .map(({ studentId: _studentId, studentName: _studentName, ...milestone }) => milestone),
+  }
+}
+
+export async function findAdvisorStudentMilestones(advisorUserId, studentId) {
+  await ensureMilestoneSchema()
+
+  const result = await pool.query(
+    `
+      SELECT
+        s.student_id AS "studentId",
+        s.full_name AS "studentName",
+        mt.milestone_id AS "milestoneId",
+        mt.degree_level AS "degreeLevel",
+        mt.semester,
+        mt.title,
+        mt.description,
+        mt.sequence_order AS "sequenceOrder",
+        mt.open_date AS "openDate",
+        mt.deadline,
+        mt.first_reminder_date AS "firstReminderDate",
+        mt.second_reminder_date AS "secondReminderDate",
+        COALESCE(
+          sm.status,
+          CASE
+            WHEN mt.deadline < CURRENT_DATE THEN 'Missing'::milestone_status
+            ELSE 'In Progress'::milestone_status
+          END
+        ) AS status,
+        sm.evidence_url AS "evidenceUrl",
+        sm.advisor_comment AS "advisorComment",
+        COALESCE(sm.rejection_count, 0) AS "rejectionCount",
+        ${maxRejectedRevisionRounds} AS "maxRejectedRevisionRounds",
+        sm.submitted_at AS "submittedAt",
+        sm.reviewed_at AS "reviewedAt"
+      FROM advisors a
+      JOIN students s
+        ON s.advisor_id = a.advisor_id
+        AND s.student_id = $2
+      LEFT JOIN milestone_templates mt
+        ON mt.degree_level = s.degree_level
+        AND mt.is_enabled = TRUE
+      LEFT JOIN student_milestones sm
+        ON sm.student_id = s.student_id
+        AND sm.milestone_id = mt.milestone_id
+      WHERE a.user_id = $1
+      ORDER BY mt.semester, mt.sequence_order, mt.created_at
+    `,
+    [advisorUserId, studentId],
+  )
+
+  if (!result.rows.length) return null
+
+  return {
+    student: {
+      studentId: result.rows[0].studentId,
+      studentName: result.rows[0].studentName,
+    },
+    milestones: result.rows
+      .filter((row) => row.milestoneId)
+      .map(({ studentId: _studentId, studentName: _studentName, ...milestone }) => milestone),
+  }
 }
 
 export async function submitStudentMilestoneEvidence(userId, milestoneId, evidenceUrl) {
@@ -129,7 +255,11 @@ export async function submitStudentMilestoneEvidence(userId, milestoneId, eviden
         ON mt.milestone_id = $2
         AND mt.degree_level = s.degree_level
         AND mt.is_enabled = TRUE
+      LEFT JOIN student_milestones existing_sm
+        ON existing_sm.student_id = s.student_id
+        AND existing_sm.milestone_id = mt.milestone_id
       WHERE s.user_id = $1
+        AND COALESCE(existing_sm.rejection_count, 0) < ${maxRejectedRevisionRounds}
       ON CONFLICT (student_id, milestone_id) DO UPDATE SET
         status = 'Completed'::milestone_status,
         evidence_url = EXCLUDED.evidence_url,
@@ -141,6 +271,25 @@ export async function submitStudentMilestoneEvidence(userId, milestoneId, eviden
       RETURNING milestone_id
     `,
     [userId, milestoneId, evidenceUrl, randomUUID()],
+  )
+
+  return result.rowCount > 0
+}
+
+export async function hasReachedRejectedRevisionLimit(userId, milestoneId) {
+  await ensureMilestoneSchema()
+
+  const result = await pool.query(
+    `
+      SELECT 1
+      FROM students s
+      JOIN student_milestones sm
+        ON sm.student_id = s.student_id
+        AND sm.milestone_id = $2
+      WHERE s.user_id = $1
+        AND sm.rejection_count >= ${maxRejectedRevisionRounds}
+    `,
+    [userId, milestoneId],
   )
 
   return result.rowCount > 0
@@ -188,6 +337,12 @@ export async function reviewStudentMilestone({
       SET
         status = $4::milestone_status,
         advisor_comment = $5,
+        rejection_count = CASE
+          WHEN $4 = 'In Progress' THEN LEAST(sm.rejection_count + 1, ${maxRejectedRevisionRounds})
+          ELSE sm.rejection_count
+        END,
+        evidence_url = CASE WHEN $4 = 'In Progress' THEN NULL ELSE sm.evidence_url END,
+        submitted_at = CASE WHEN $4 = 'In Progress' THEN NULL ELSE sm.submitted_at END,
         reviewed_at = NOW(),
         reviewed_by = a.advisor_id,
         updated_at = NOW()
@@ -221,6 +376,8 @@ export async function findAdvisorMilestoneSubmissions(advisorUserId) {
         sm.status,
         sm.evidence_url AS "evidenceUrl",
         sm.advisor_comment AS "advisorComment",
+        COALESCE(sm.rejection_count, 0) AS "rejectionCount",
+        ${maxRejectedRevisionRounds} AS "maxRejectedRevisionRounds",
         sm.submitted_at AS "submittedAt",
         sm.reviewed_at AS "reviewedAt"
       FROM advisors a

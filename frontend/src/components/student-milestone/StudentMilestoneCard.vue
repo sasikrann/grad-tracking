@@ -10,11 +10,16 @@ const props = defineProps<{
   milestone: StudentMilestone
   index: number
   isUploading?: boolean
+  canReview?: boolean
+  isReviewing?: boolean
+  readonly?: boolean
 }>()
 
 const emit = defineEmits<{
   upload: [milestoneId: string, file: File]
   removeEvidence: [milestoneId: string]
+  approve: [milestone: StudentMilestone]
+  reject: [milestone: StudentMilestone]
 }>()
 
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -27,10 +32,20 @@ const statusStyles: Record<StudentMilestoneStatus, string> = {
 }
 
 const needsEvidence = computed(() =>
+  !props.readonly &&
+    ['Missing', 'In Progress'].includes(props.milestone.status) &&
+    !props.milestone.evidenceUrl,
+)
+const hasReachedRevisionLimit = computed(
+  () =>
+    needsEvidence.value &&
+    (props.milestone.rejectionCount ?? 0) >= (props.milestone.maxRejectedRevisionRounds ?? 3),
+)
+const canUploadEvidence = computed(() => needsEvidence.value && !hasReachedRevisionLimit.value)
+
+const isDeadlineUrgent = computed(() =>
   ['Missing', 'In Progress'].includes(props.milestone.status) && !props.milestone.evidenceUrl,
 )
-
-const isDeadlineUrgent = computed(() => needsEvidence.value)
 const evidenceHref = computed(() => {
   if (!props.milestone.evidenceUrl) return ''
   return resolveEvidenceUrl(props.milestone.evidenceUrl)
@@ -41,7 +56,7 @@ const evidenceName = computed(() => {
   return fileName.replace(/^\d+-/, '')
 })
 const canRemoveEvidence = computed(() =>
-  Boolean(props.milestone.evidenceUrl) && props.milestone.status !== 'Approved',
+  !props.readonly && Boolean(props.milestone.evidenceUrl) && props.milestone.status !== 'Approved',
 )
 
 function formatDate(value: string) {
@@ -135,7 +150,26 @@ function handleFileChange(event: Event) {
         </button>
       </div>
 
-      <div v-if="needsEvidence" class="mt-3 flex flex-wrap items-center gap-3">
+      <div v-if="canReview" class="mt-3 flex justify-end gap-3">
+        <button
+          type="button"
+          class="h-7 min-w-28 rounded bg-[#8a2b25] px-4 text-xs font-semibold text-white shadow-sm hover:bg-[#75201b] disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="isReviewing"
+          @click="emit('approve', milestone)"
+        >
+          Approve
+        </button>
+        <button
+          type="button"
+          class="h-7 min-w-28 rounded border border-slate-300 bg-[#f3f3f3] px-4 text-xs font-semibold text-black shadow-sm hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="isReviewing"
+          @click="emit('reject', milestone)"
+        >
+          Reject
+        </button>
+      </div>
+
+      <div v-if="canUploadEvidence" class="mt-3 flex flex-wrap items-center gap-3">
         <input
           ref="fileInput"
           class="hidden"
@@ -164,10 +198,18 @@ function handleFileChange(event: Event) {
       </div>
 
       <p
-        v-if="milestone.status === 'Missing'"
+        v-if="!readonly && milestone.status === 'Missing'"
         class="mt-4 rounded-lg bg-[#fff7e8] px-3 py-2 text-xs text-[#3b2708]"
       >
         Please upload supporting evidence to complete this milestone.
+      </p>
+
+      <p
+        v-if="hasReachedRevisionLimit"
+        class="mt-4 rounded-lg bg-[#feecec] px-3 py-2 text-xs text-[#8a2b25]"
+      >
+        This submission has reached the maximum of
+        {{ milestone.maxRejectedRevisionRounds }} rejected revision rounds.
       </p>
 
       <div v-if="milestone.advisorComment !== null" class="mt-3 flex items-center gap-3">

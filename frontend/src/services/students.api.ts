@@ -1,5 +1,6 @@
 import type { Student, StudentStatus } from '@/types/student'
 import { authenticatedFetch } from '@/services/auth'
+import type { StudentMilestone } from '@/types/milestone'
 
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
@@ -20,6 +21,18 @@ interface StudentApiResponse {
 
 interface StudentsApiResponse {
   data?: StudentApiResponse[]
+}
+
+interface ApiResponse<T> {
+  data: T
+}
+
+export interface AdminStudentMilestones {
+  student: {
+    studentId: string
+    studentName: string
+  }
+  milestones: StudentMilestone[]
 }
 
 function toStudent(student: StudentApiResponse, currentAdvisorId?: string): Student {
@@ -66,6 +79,21 @@ export function getAdvisorStudents(advisorId: string) {
 
 export function getAdvisorStudentOverview(advisorId: string) {
   return requestStudents(`/api/advisors/${advisorId}/students?scope=all`, advisorId)
+}
+
+export async function getStudentMilestones(studentId: string) {
+  const response = await authenticatedFetch(
+    `${apiBaseUrl}/api/students/${encodeURIComponent(studentId)}/milestones`,
+    { cache: 'no-store' },
+  )
+
+  if (!response.ok) {
+    const result = await response.json().catch(() => null)
+    throw new Error(result?.message ?? `Unable to load student milestones (${response.status})`)
+  }
+
+  const result = (await response.json()) as ApiResponse<AdminStudentMilestones>
+  return result.data
 }
 
 async function downloadStudentFile(path: string, fallbackName: string) {

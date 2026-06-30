@@ -17,6 +17,10 @@ withDefaults(
   },
 )
 
+const emit = defineEmits<{
+  view: [studentId: string]
+}>()
+
 const search = defineModel<string>('search', { required: true })
 const filters = defineModel<StudentFiltersState>('filters', { required: true })
 </script>
@@ -38,6 +42,11 @@ const filters = defineModel<StudentFiltersState>('filters', { required: true })
       :advisor-mode="advisorMode"
       :year-options="yearOptions"
     />
-    <StudentTable :students="students" :is-loading="isLoading" :error="error" />
+    <StudentTable
+      :students="students"
+      :is-loading="isLoading"
+      :error="error"
+      @view="emit('view', $event)"
+    />
   </section>
 </template>
