@@ -364,3 +364,125 @@ export async function resolveAdvisorReference(client, { advisorId, advisorEmail,
 
   return null
 }
+
+export async function getAdvisorMilestoneSummary(advisorId, { semester, year } = {}) {
+  const values = [advisorId]
+  const filters = []
+
+  if (semester) {
+    values.push(String(semester))
+    filters.push(`mt.semester = $${values.length}`)
+  }
+
+  if (year) {
+    values.push(Number(year))
+    filters.push(`mt.year = $${values.length}`)
+  }
+
+  const filterSql = filters.length ? `AND ${filters.join(' AND ')}` : ''
+
+  const result = await pool.query(
+    `
+      WITH all_eligible AS (
+        SELECT
+          s.student_id,
+          mt.milestone_id,
+          mt.title,
+          mt.sequence_order,
+          mt.semester,
+          EXTRACT(YEAR FROM mt.deadline)::INT AS year,
+          COALESCE(
+            sm.status,
+            CASE
+              WHEN mt.deadline < CURRENT_DATE THEN 'Missing'::milestone_status
+              ELSE 'In Progress'::milestone_status
+            END
+          ) AS status
+        FROM students s
+        JOIN milestone_templates mt
+          ON mt.degree_level = s.degree_level
+         AND mt.is_enabled = TRUE
+        LEFT JOIN student_milestones sm
+          ON sm.student_id = s.student_id
+         AND sm.milestone_id = mt.milestone_id
+        WHERE s.advisor_id = $1
+      ),
+      eligible AS (
+        SELECT *
+        FROM all_eligible mt
+        WHERE TRUE
+          ${filterSql}
+      ),
+      status_counts AS (
+        SELECT status, COUNT(*)::INT AS count
+        FROM eligible
+        GROUP BY status
+      ),
+      milestone_counts AS (
+        SELECT
+          milestone_id AS "milestoneId",
+          title,
+          sequence_order AS "sequenceOrder",
+          semester,
+          year,
+          COUNT(*)::INT AS "totalStudents",
+          COUNT(*) FILTER (WHERE status = 'Completed')::INT AS completed,
+          COUNT(*) FILTER (WHERE status = 'In Progress')::INT AS "inProgress",
+          COUNT(*) FILTER (WHERE status = 'Approved')::INT AS approved,
+          COUNT(*) FILTER (WHERE status = 'Missing')::INT AS missing
+        FROM eligible
+        GROUP BY milestone_id, title, sequence_order, semester, year
+      )
+      SELECT
+        COALESCE((SELECT SUM(count) FROM status_counts), 0)::INT AS total,
+        COALESCE((SELECT count FROM status_counts WHERE status = 'Completed'), 0)::INT AS completed,
+        COALESCE((SELECT count FROM status_counts WHERE status = 'In Progress'), 0)::INT AS "inProgress",
+        COALESCE((SELECT count FROM status_counts WHERE status = 'Approved'), 0)::INT AS approved,
+        COALESCE((SELECT count FROM status_counts WHERE status = 'Missing'), 0)::INT AS missing,
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'milestoneId', "milestoneId",
+                'title', title,
+                'sequenceOrder', "sequenceOrder",
+                'semester', semester,
+                'year', year,
+                'totalStudents', "totalStudents",
+                'completed', completed,
+                'inProgress', "inProgress",
+                'approved', approved,
+                'missing', missing
+              )
+              ORDER BY "sequenceOrder", title
+            )
+            FROM milestone_counts
+          ),
+          '[]'::json
+        ) AS milestones,
+        COALESCE((SELECT json_agg(DISTINCT semester ORDER BY semester) FROM all_eligible), '[]'::json) AS semesters,
+        COALESCE((SELECT json_agg(DISTINCT year ORDER BY year DESC) FROM all_eligible), '[]'::json) AS years
+    `,
+    values,
+  )
+
+  const row = result.rows[0]
+  const total = row.total
+  const achieved = row.completed + row.approved
+
+  return {
+    counts: {
+      completed: row.completed,
+      inProgress: row.inProgress,
+      approved: row.approved,
+      missing: row.missing,
+      total,
+    },
+    overallProgress: total ? Math.round((achieved / total) * 100) : 0,
+    milestones: row.milestones,
+    filters: {
+      semesters: row.semesters,
+      years: row.years,
+    },
+  }
+}

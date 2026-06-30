@@ -48,3 +48,32 @@ export interface StudentMilestone {
   submittedAt: string | null
   reviewedAt: string | null
 }
+
+export interface AdvisorMilestoneBreakdown {
+  milestoneId: string
+  title: string
+  sequenceOrder: number
+  semester: string
+  year: number
+  totalStudents: number
+  completed: number
+  inProgress: number
+  approved: number
+  missing: number
+}
+
+export interface AdvisorMilestoneSummary {
+  counts: {
+    completed: number
+    inProgress: number
+    approved: number
+    missing: number
+    total: number
+  }
+  overallProgress: number
+  milestones: AdvisorMilestoneBreakdown[]
+  filters: {
+    semesters: string[]
+    years: number[]
+  }
+}
