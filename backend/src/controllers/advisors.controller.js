@@ -20,7 +20,7 @@ import {
   findAdvisorMilestoneSubmissions,
   reviewStudentMilestone,
 } from '../services/milestones.service.js'
-import { findStudentsByAdvisorId } from '../services/students.service.js'
+import { findAllStudents, findStudentsByAdvisorId } from '../services/students.service.js'
 
 export async function getAdvisors(_request, response) {
   response.json({ data: await findAllAdvisors() })
@@ -81,6 +81,7 @@ export async function downloadAdvisorTemplate(_request, response) {
 
 export async function getAdvisorStudents(request, response) {
   const requestedAdvisorId = request.params.advisorId
+  const scope = String(request.query.scope ?? '').trim()
 
   if (request.user.role === 'student') {
     throw new ApiError(403, 'Students cannot access advisor student lists')
@@ -94,7 +95,8 @@ export async function getAdvisorStudents(request, response) {
     }
   }
 
-  const students = await findStudentsByAdvisorId(requestedAdvisorId)
+  const students =
+    scope === 'all' ? await findAllStudents() : await findStudentsByAdvisorId(requestedAdvisorId)
 
   response.json({
     data: students,

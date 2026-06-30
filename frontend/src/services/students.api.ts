@@ -77,6 +77,10 @@ export function getAdvisorStudents(advisorId: string) {
   return requestStudents(`/api/advisors/${advisorId}/students`, advisorId)
 }
 
+export function getAdvisorStudentOverview(advisorId: string) {
+  return requestStudents(`/api/advisors/${advisorId}/students?scope=all`, advisorId)
+}
+
 export async function getStudentMilestones(studentId: string) {
   const response = await authenticatedFetch(
     `${apiBaseUrl}/api/students/${encodeURIComponent(studentId)}/milestones`,
