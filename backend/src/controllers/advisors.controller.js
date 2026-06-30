@@ -9,6 +9,7 @@ import {
 import {
   findAdvisorById,
   findAllAdvisors,
+  getAdvisorMilestoneSummary,
   importAdvisors,
   insertAdvisor,
   removeAdvisor,
@@ -99,6 +100,29 @@ export async function getAdvisorStudents(request, response) {
 
   response.json({
     data: students,
+  })
+}
+
+export async function getAdvisorMilestoneSummaryReport(request, response) {
+  const requestedAdvisorId = request.params.advisorId
+
+  if (request.user.role === 'student') {
+    throw new ApiError(403, 'Students cannot access advisor milestone summaries')
+  }
+
+  if (request.user.role === 'advisor') {
+    const advisorId = await findAdvisorIdByUserId(request.user.userId)
+
+    if (!advisorId || advisorId !== requestedAdvisorId) {
+      throw new ApiError(403, 'You can only access your own milestone summary')
+    }
+  }
+
+  response.json({
+    data: await getAdvisorMilestoneSummary(requestedAdvisorId, {
+      semester: String(request.query.semester ?? '').trim() || null,
+      year: String(request.query.year ?? '').trim() || null,
+    }),
   })
 }
 
