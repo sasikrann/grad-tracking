@@ -3,21 +3,36 @@ import StudentOverview from '@/components/student/StudentOverview.vue'
 import SummaryCard from '@/components/student/SummaryCard.vue'
 import { useStudentOverview } from '@/composables/useStudentOverview'
 import { currentUser } from '@/services/auth'
-import { getAdvisorStudents } from '@/services/students.api'
+import { getAdvisorStudentOverview, getAdvisorStudents } from '@/services/students.api'
+import type { Student } from '@/types/student'
+import { computed } from 'vue'
 
-function loadAdvisorStudents() {
+async function loadAdvisorStudentOverview() {
   const advisorId = currentUser.value?.advisorId
 
   if (!advisorId) {
     throw new Error('Advisor profile is not linked to this account')
   }
 
-  return getAdvisorStudents(advisorId)
+  const advisorStudents = await getAdvisorStudents(advisorId)
+  const allStudents = await getAdvisorStudentOverview(advisorId).catch(() => [])
+
+  if (!allStudents.length) return advisorStudents
+
+  const studentsById = new Map<string, Student>()
+  allStudents.forEach((student) => studentsById.set(student.studentId, student))
+  advisorStudents.forEach((student) => studentsById.set(student.studentId, student))
+
+  return Array.from(studentsById.values())
 }
 
 const { filteredStudents, filters, isLoading, loadError, search, statistics, yearOptions } = useStudentOverview(
-  loadAdvisorStudents,
+  loadAdvisorStudentOverview,
   'default',
+)
+
+const totalStudentsTitle = computed(() =>
+  filters.value.advisor === 'all' ? 'Total Students' : 'Advised Students',
 )
 </script>
 
@@ -31,7 +46,7 @@ const { filteredStudents, filters, isLoading, loadError, search, statistics, yea
     </header>
 
     <section class="mt-6 grid grid-cols-1 gap-5 md:grid-cols-3">
-      <SummaryCard title="Advised Students" :value="statistics.total" icon="students" />
+      <SummaryCard :title="totalStudentsTitle" :value="statistics.total" icon="students" />
       <SummaryCard title="On-track" :value="statistics.onTrack" icon="on-track" />
       <SummaryCard title="Overdue" :value="statistics.overdue" icon="overdue" />
     </section>
