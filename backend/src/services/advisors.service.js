@@ -365,9 +365,14 @@ export async function resolveAdvisorReference(client, { advisorId, advisorEmail,
   return null
 }
 
-export async function getAdvisorMilestoneSummary(advisorId, { semester, year } = {}) {
+export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, semester, year } = {}) {
   const values = [advisorId]
   const filters = []
+
+  if (degreeLevel) {
+    values.push(String(degreeLevel))
+    filters.push(`mt.degree_level = $${values.length}::degree_level`)
+  }
 
   if (semester) {
     values.push(String(semester))
@@ -389,6 +394,7 @@ export async function getAdvisorMilestoneSummary(advisorId, { semester, year } =
           mt.milestone_id,
           mt.title,
           mt.sequence_order,
+          mt.degree_level,
           mt.semester,
           EXTRACT(YEAR FROM mt.deadline)::INT AS year,
           COALESCE(
@@ -423,6 +429,7 @@ export async function getAdvisorMilestoneSummary(advisorId, { semester, year } =
           milestone_id AS "milestoneId",
           title,
           sequence_order AS "sequenceOrder",
+          degree_level AS "degreeLevel",
           semester,
           year,
           COUNT(*)::INT AS "totalStudents",
@@ -431,7 +438,7 @@ export async function getAdvisorMilestoneSummary(advisorId, { semester, year } =
           COUNT(*) FILTER (WHERE status = 'Approved')::INT AS approved,
           COUNT(*) FILTER (WHERE status = 'Missing')::INT AS missing
         FROM eligible
-        GROUP BY milestone_id, title, sequence_order, semester, year
+        GROUP BY milestone_id, title, sequence_order, degree_level, semester, year
       )
       SELECT
         COALESCE((SELECT SUM(count) FROM status_counts), 0)::INT AS total,
@@ -446,6 +453,7 @@ export async function getAdvisorMilestoneSummary(advisorId, { semester, year } =
                 'milestoneId', "milestoneId",
                 'title', title,
                 'sequenceOrder', "sequenceOrder",
+                'degreeLevel', "degreeLevel",
                 'semester', semester,
                 'year', year,
                 'totalStudents', "totalStudents",
@@ -454,12 +462,13 @@ export async function getAdvisorMilestoneSummary(advisorId, { semester, year } =
                 'approved', approved,
                 'missing', missing
               )
-              ORDER BY "sequenceOrder", title
+              ORDER BY semester, "sequenceOrder", title
             )
             FROM milestone_counts
           ),
           '[]'::json
         ) AS milestones,
+        COALESCE((SELECT json_agg(DISTINCT degree_level ORDER BY degree_level) FROM all_eligible), '[]'::json) AS "degreeLevels",
         COALESCE((SELECT json_agg(DISTINCT semester ORDER BY semester) FROM all_eligible), '[]'::json) AS semesters,
         COALESCE((SELECT json_agg(DISTINCT year ORDER BY year DESC) FROM all_eligible), '[]'::json) AS years
     `,
@@ -481,6 +490,7 @@ export async function getAdvisorMilestoneSummary(advisorId, { semester, year } =
     overallProgress: total ? Math.round((achieved / total) * 100) : 0,
     milestones: row.milestones,
     filters: {
+      degreeLevels: row.degreeLevels,
       semesters: row.semesters,
       years: row.years,
     },

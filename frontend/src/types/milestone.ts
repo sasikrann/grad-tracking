@@ -53,6 +53,7 @@ export interface AdvisorMilestoneBreakdown {
   milestoneId: string
   title: string
   sequenceOrder: number
+  degreeLevel: DegreeLevel
   semester: string
   year: number
   totalStudents: number
@@ -73,6 +74,7 @@ export interface AdvisorMilestoneSummary {
   overallProgress: number
   milestones: AdvisorMilestoneBreakdown[]
   filters: {
+    degreeLevels: DegreeLevel[]
     semesters: string[]
     years: number[]
   }
