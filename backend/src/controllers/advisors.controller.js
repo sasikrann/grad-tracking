@@ -17,6 +17,7 @@ import {
 } from '../services/advisors.service.js'
 import { findAdvisorIdByUserId } from '../services/auth.service.js'
 import {
+  findAdvisorStudentMilestones,
   findAdvisorMilestoneSubmissions,
   reviewStudentMilestone,
 } from '../services/milestones.service.js'
@@ -149,6 +150,20 @@ export async function reviewAdvisorStudentMilestone(request, response) {
   }
 
   response.json({ data: { status: decision === 'approve' ? 'Approved' : 'In Progress' } })
+}
+
+export async function getAdvisorStudentMilestones(request, response) {
+  if (request.user.role !== 'advisor') {
+    throw new ApiError(403, 'Only advisors can view advised student milestones')
+  }
+
+  const result = await findAdvisorStudentMilestones(request.user.userId, request.params.studentId)
+
+  if (!result) {
+    throw new ApiError(404, 'Advised student not found')
+  }
+
+  response.json({ data: result })
 }
 
 export async function getAdvisorMilestoneSubmissions(request, response) {

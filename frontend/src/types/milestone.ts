@@ -43,6 +43,8 @@ export interface StudentMilestone {
   status: StudentMilestoneStatus
   evidenceUrl: string | null
   advisorComment: string | null
+  rejectionCount: number
+  maxRejectedRevisionRounds: number
   submittedAt: string | null
   reviewedAt: string | null
 }

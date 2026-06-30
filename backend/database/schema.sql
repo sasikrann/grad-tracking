@@ -83,6 +83,7 @@ CREATE TABLE student_milestones (
   status milestone_status NOT NULL,
   evidence_url TEXT,
   advisor_comment TEXT,
+  rejection_count INT NOT NULL DEFAULT 0,
   submitted_at TIMESTAMP,
   reviewed_at TIMESTAMP,
   reviewed_by VARCHAR REFERENCES advisors(advisor_id),

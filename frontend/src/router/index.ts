@@ -54,6 +54,12 @@ const router = createRouter({
       meta: { requiresAuth: true, role: 'admin' },
     },
     {
+      path: '/admin/students/:studentId/milestones',
+      name: 'admin-student-milestones',
+      component: () => import('../views/admin/AdminStudentMilestoneView.vue'),
+      meta: { requiresAuth: true, role: 'admin' },
+    },
+    {
       path: '/student/information',
       name: 'student-information',
       component: () => import('../views/student/StudentInformationView.vue'),
@@ -89,6 +95,12 @@ const router = createRouter({
       path: '/advisor/summary',
       name: 'advisor-milestone-summary',
       component: () => import('../views/lecturer/LecturerMilestoneSummaryView.vue'),
+      meta: { requiresAuth: true, role: 'advisor' },
+    },
+    {
+      path: '/advisor/students/:studentId/milestones',
+      name: 'advisor-student-milestones',
+      component: () => import('../views/lecturer/LecturerStudentMilestoneView.vue'),
       meta: { requiresAuth: true, role: 'advisor' },
     },
   ],

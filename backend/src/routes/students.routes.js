@@ -7,6 +7,7 @@ import {
   downloadStudentTemplate,
   exportStudents,
   getStudent,
+  getStudentMilestones,
   getStudents,
   importStudentFile,
   updateStudent,
@@ -33,6 +34,7 @@ router.get('/', getStudents)
 router.get('/export', exportStudents)
 router.get('/template', downloadStudentTemplate)
 router.post('/import', upload.single('file'), importStudentFile)
+router.get('/:studentId/milestones', getStudentMilestones)
 router.get('/:studentId', getStudent)
 router.post('/', createStudent)
 router.put('/:studentId', updateStudent)

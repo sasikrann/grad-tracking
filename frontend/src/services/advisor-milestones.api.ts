@@ -1,6 +1,6 @@
 import { authenticatedFetch } from '@/services/auth'
 import { resolveEvidenceUrl } from '@/services/student-milestones.api'
-import type { StudentMilestoneStatus } from '@/types/milestone'
+import type { StudentMilestone, StudentMilestoneStatus } from '@/types/milestone'
 
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
@@ -22,6 +22,14 @@ export interface AdvisorMilestoneSubmission {
   reviewedAt: string | null
 }
 
+export interface AdvisorStudentMilestones {
+  student: {
+    studentId: string
+    studentName: string
+  }
+  milestones: StudentMilestone[]
+}
+
 async function request<T>(path: string, options?: RequestInit) {
   const response = await authenticatedFetch(`${apiBaseUrl}${path}`, {
     cache: 'no-store',
@@ -40,6 +48,12 @@ async function request<T>(path: string, options?: RequestInit) {
 
 export function getAdvisorMilestoneSubmissions() {
   return request<AdvisorMilestoneSubmission[]>('/api/advisors/milestone-submissions')
+}
+
+export function getAdvisorStudentMilestones(studentId: string) {
+  return request<AdvisorStudentMilestones>(
+    `/api/advisors/students/${encodeURIComponent(studentId)}/milestones`,
+  )
 }
 
 export function reviewAdvisorMilestone(

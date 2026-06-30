@@ -4,6 +4,7 @@ import ExcelJS from 'exceljs'
 import { Readable } from 'node:stream'
 
 import { ApiError } from '../errors/api-error.js'
+import { findStudentMilestonesByStudentId } from '../services/milestones.service.js'
 import {
   findAllStudents,
   findStudentById,
@@ -125,6 +126,12 @@ export async function getStudent(request, response) {
   const student = await findStudentById(request.params.studentId)
   if (!student) throw new ApiError(404, 'Student not found')
   response.json({ data: student })
+}
+
+export async function getStudentMilestones(request, response) {
+  const result = await findStudentMilestonesByStudentId(request.params.studentId)
+  if (!result) throw new ApiError(404, 'Student not found')
+  response.json({ data: result })
 }
 
 export async function createStudent(request, response) {
