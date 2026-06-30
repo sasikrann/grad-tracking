@@ -1,5 +1,5 @@
 import { authenticatedFetch } from '@/services/auth'
-import type { AdvisorMilestoneSummary } from '@/types/milestone'
+import type { AdvisorMilestoneSummary, DegreeLevel } from '@/types/milestone'
 
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
@@ -10,10 +10,11 @@ interface AdvisorMilestoneSummaryResponse {
 
 export async function getAdvisorMilestoneSummary(
   advisorId: string,
-  filters: { semester?: string; year?: string } = {},
+  filters: { degreeLevel?: DegreeLevel | 'all'; semester?: string; year?: string } = {},
 ) {
   const params = new URLSearchParams()
 
+  if (filters.degreeLevel && filters.degreeLevel !== 'all') params.set('degreeLevel', filters.degreeLevel)
   if (filters.semester && filters.semester !== 'all') params.set('semester', filters.semester)
   if (filters.year && filters.year !== 'all') params.set('year', filters.year)
 
@@ -32,7 +33,7 @@ export async function getAdvisorMilestoneSummary(
       counts: { completed: 0, inProgress: 0, approved: 0, missing: 0, total: 0 },
       overallProgress: 0,
       milestones: [],
-      filters: { semesters: [], years: [] },
+      filters: { degreeLevels: [], semesters: [], years: [] },
     }
   )
 }

@@ -3,22 +3,30 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { getAdvisorMilestoneSummary } from '@/services/advisor-milestone-summary.api'
 import { currentUser } from '@/services/auth'
-import type { AdvisorMilestoneBreakdown, AdvisorMilestoneSummary } from '@/types/milestone'
+import type { AdvisorMilestoneBreakdown, AdvisorMilestoneSummary, DegreeLevel } from '@/types/milestone'
 
 type SummaryIcon = 'completed' | 'progress' | 'approved' | 'overall'
-type SummaryFilterKey = 'semester' | 'year'
+type SummaryFilterKey = 'degreeLevel' | 'semester' | 'year'
 
 const defaultSummary: AdvisorMilestoneSummary = {
   counts: { completed: 0, inProgress: 0, approved: 0, missing: 0, total: 0 },
   overallProgress: 0,
   milestones: [],
-  filters: { semesters: [], years: [] },
+  filters: { degreeLevels: [], semesters: [], years: [] },
 }
 const currentYear = new Date().getFullYear().toString()
 
+function getCurrentSemester() {
+  const currentMonth = new Date().getMonth() + 1
+
+  return currentMonth >= 1 && currentMonth <= 5 ? '2' : '1'
+}
+
 const summary = ref<AdvisorMilestoneSummary>(defaultSummary)
-const selectedSemester = ref('all')
+const selectedDegreeLevel = ref<DegreeLevel>('Master')
+const selectedSemester = ref(getCurrentSemester())
 const selectedYear = ref(currentYear)
+const degreeLevelOptions = ref<DegreeLevel[]>(['Master', 'Doctoral'])
 const semesterOptions = ref<string[]>(['1', '2'])
 const yearOptions = ref<number[]>([Number(currentYear)])
 const isLoading = ref(true)
@@ -54,6 +62,20 @@ const summaryCards = computed(() => [
 
 const hasBreakdown = computed(() => summary.value.milestones.length > 0)
 
+const milestoneGroups = computed(() => {
+  const groups = new Map<string, AdvisorMilestoneBreakdown[]>()
+
+  summary.value.milestones.forEach((milestone) => {
+    const milestones = groups.get(milestone.semester) ?? []
+    milestones.push(milestone)
+    groups.set(milestone.semester, milestones)
+  })
+
+  return Array.from(groups.entries())
+    .sort(([firstSemester], [secondSemester]) => Number(firstSemester) - Number(secondSemester))
+    .map(([semester, milestones]) => ({ semester, milestones }))
+})
+
 const filterDefinitions = computed(() => [
   {
     key: 'semester' as const,
@@ -71,9 +93,21 @@ const filterDefinitions = computed(() => [
       ...yearOptions.value.map((year) => ({ label: year.toString(), value: year.toString() })),
     ],
   },
+  {
+    key: 'degreeLevel' as const,
+    label: selectedDegreeLevel.value === 'Doctoral' ? 'Ph.D' : selectedDegreeLevel.value,
+    options: degreeLevelOptions.value.map((degreeLevel) => ({
+      label: degreeLevel === 'Doctoral' ? 'Ph.D' : degreeLevel,
+      value: degreeLevel,
+    })),
+  },
 ])
 
 function mergeOptions(nextSummary: AdvisorMilestoneSummary) {
+  degreeLevelOptions.value = Array.from(
+    new Set(['Master' as DegreeLevel, 'Doctoral' as DegreeLevel, ...degreeLevelOptions.value, ...nextSummary.filters.degreeLevels]),
+  )
+
   semesterOptions.value = Array.from(
     new Set(['1', '2', ...semesterOptions.value, ...nextSummary.filters.semesters]),
   ).sort((first, second) => Number(first) - Number(second))
@@ -98,6 +132,7 @@ async function loadSummary() {
 
   try {
     const result = await getAdvisorMilestoneSummary(advisorId, {
+      degreeLevel: selectedDegreeLevel.value,
       semester: selectedSemester.value,
       year: selectedYear.value,
     })
@@ -116,10 +151,12 @@ function segmentWidth(count: number, total: number) {
 }
 
 function selectedFilterValue(key: SummaryFilterKey) {
+  if (key === 'degreeLevel') return selectedDegreeLevel.value
   return key === 'semester' ? selectedSemester.value : selectedYear.value
 }
 
 function selectFilter(key: SummaryFilterKey, value: string) {
+  if (key === 'degreeLevel') selectedDegreeLevel.value = value as DegreeLevel
   if (key === 'semester') selectedSemester.value = value
   if (key === 'year') selectedYear.value = value
   openFilter.value = null
@@ -134,7 +171,7 @@ onMounted(() => {
   document.addEventListener('click', closeDropdown)
 })
 onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
-watch([selectedSemester, selectedYear], loadSummary)
+watch([selectedDegreeLevel, selectedSemester, selectedYear], loadSummary)
 </script>
 
 <template>
@@ -203,7 +240,7 @@ watch([selectedSemester, selectedYear], loadSummary)
         </div>
 
         <div
-          class="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:w-auto lg:min-w-[260px]"
+          class="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:w-auto lg:min-w-[390px] lg:grid-cols-3"
         >
           <div
             v-for="filter in filterDefinitions"
@@ -213,7 +250,7 @@ watch([selectedSemester, selectedYear], loadSummary)
           >
             <button
               type="button"
-              class="flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-[#eeeeee] bg-white px-4 text-left text-sm shadow-[0_2px_4px_rgba(0,0,0,0.08)] outline-none hover:border-[#dfcccc] focus:border-[#8a2b25] sm:h-9 sm:text-xs"
+              class="flex h-8 w-full items-center justify-between gap-2 rounded-lg border border-[#eeeeee] bg-white px-3 text-left text-xs shadow-[0_2px_4px_rgba(0,0,0,0.08)] outline-none hover:border-[#dfcccc] focus:border-[#8a2b25]"
               :class="{ 'border-[#8a2b25]': openFilter === filter.key }"
               :aria-expanded="openFilter === filter.key"
               @click="openFilter = openFilter === filter.key ? null : filter.key"
@@ -302,47 +339,101 @@ watch([selectedSemester, selectedYear], loadSummary)
             <span class="text-center">Total Students</span>
           </div>
 
-          <article
-            v-for="milestone in summary.milestones"
-            :key="milestone.milestoneId"
-            class="grid grid-cols-[minmax(220px,1.15fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_100px] items-center gap-x-5 border-b border-[#e4e4e4] py-4"
-          >
-            <div class="min-w-0">
-              <p class="text-sm font-semibold leading-snug text-[#111]">
-                {{ milestone.sequenceOrder }}. {{ milestone.title }}
-              </p>
-            </div>
-
-            <div class="col-span-3 min-w-0">
-              <div class="grid grid-cols-3 text-center text-xs font-semibold text-[#111]">
-                <span>{{ milestone.completed }}</span>
-                <span>{{ milestone.inProgress }}</span>
-                <span>{{ milestone.approved }}</span>
+          <template v-if="selectedSemester === 'all'">
+            <template v-for="group in milestoneGroups" :key="group.semester">
+              <div
+                class="mt-4 grid grid-cols-[minmax(220px,1.15fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_100px] items-center gap-x-5 rounded-lg bg-[#f8eeee] px-4 py-2 text-sm font-semibold text-[#8a2b25]"
+              >
+                <span class="col-span-5">Semester {{ group.semester }}</span>
               </div>
-              <div class="mt-2 flex h-2 overflow-hidden rounded-full bg-slate-200">
-                <span
-                  class="h-full bg-[#49b866]"
-                  :style="{ width: segmentWidth(milestone.completed, milestone.totalStudents) }"
-                ></span>
-                <span
-                  class="h-full bg-[#ffbd38]"
-                  :style="{ width: segmentWidth(milestone.inProgress, milestone.totalStudents) }"
-                ></span>
-                <span
-                  class="h-full bg-[#f97316]"
-                  :style="{ width: segmentWidth(milestone.approved, milestone.totalStudents) }"
-                ></span>
-                <span
-                  class="h-full bg-slate-300"
-                  :style="{ width: segmentWidth(milestone.missing, milestone.totalStudents) }"
-                ></span>
-              </div>
-            </div>
 
-            <div class="text-center text-sm font-semibold text-[#111]">
-              {{ milestone.totalStudents }}
-            </div>
-          </article>
+              <article
+                v-for="milestone in group.milestones"
+                :key="milestone.milestoneId"
+                class="grid grid-cols-[minmax(220px,1.15fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_100px] items-center gap-x-5 border-b border-[#e4e4e4] py-4"
+              >
+                <div class="min-w-0 pl-3">
+                  <p class="text-sm font-semibold leading-snug text-[#111]">
+                    {{ milestone.sequenceOrder }}. {{ milestone.title }}
+                  </p>
+                </div>
+
+                <div class="col-span-3 min-w-0">
+                  <div class="grid grid-cols-3 text-center text-xs font-semibold text-[#111]">
+                    <span>{{ milestone.completed }}</span>
+                    <span>{{ milestone.inProgress }}</span>
+                    <span>{{ milestone.approved }}</span>
+                  </div>
+                  <div class="mt-2 flex h-2 overflow-hidden rounded-full bg-slate-200">
+                    <span
+                      class="h-full bg-[#49b866]"
+                      :style="{ width: segmentWidth(milestone.completed, milestone.totalStudents) }"
+                    ></span>
+                    <span
+                      class="h-full bg-[#ffbd38]"
+                      :style="{ width: segmentWidth(milestone.inProgress, milestone.totalStudents) }"
+                    ></span>
+                    <span
+                      class="h-full bg-[#f97316]"
+                      :style="{ width: segmentWidth(milestone.approved, milestone.totalStudents) }"
+                    ></span>
+                    <span
+                      class="h-full bg-slate-300"
+                      :style="{ width: segmentWidth(milestone.missing, milestone.totalStudents) }"
+                    ></span>
+                  </div>
+                </div>
+
+                <div class="text-center text-sm font-semibold text-[#111]">
+                  {{ milestone.totalStudents }}
+                </div>
+              </article>
+            </template>
+          </template>
+
+          <template v-else>
+            <article
+              v-for="milestone in summary.milestones"
+              :key="milestone.milestoneId"
+              class="grid grid-cols-[minmax(220px,1.15fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(140px,1fr)_100px] items-center gap-x-5 border-b border-[#e4e4e4] py-4"
+            >
+              <div class="min-w-0">
+                <p class="text-sm font-semibold leading-snug text-[#111]">
+                  {{ milestone.sequenceOrder }}. {{ milestone.title }}
+                </p>
+              </div>
+
+              <div class="col-span-3 min-w-0">
+                <div class="grid grid-cols-3 text-center text-xs font-semibold text-[#111]">
+                  <span>{{ milestone.completed }}</span>
+                  <span>{{ milestone.inProgress }}</span>
+                  <span>{{ milestone.approved }}</span>
+                </div>
+                <div class="mt-2 flex h-2 overflow-hidden rounded-full bg-slate-200">
+                  <span
+                    class="h-full bg-[#49b866]"
+                    :style="{ width: segmentWidth(milestone.completed, milestone.totalStudents) }"
+                  ></span>
+                  <span
+                    class="h-full bg-[#ffbd38]"
+                    :style="{ width: segmentWidth(milestone.inProgress, milestone.totalStudents) }"
+                  ></span>
+                  <span
+                    class="h-full bg-[#f97316]"
+                    :style="{ width: segmentWidth(milestone.approved, milestone.totalStudents) }"
+                  ></span>
+                  <span
+                    class="h-full bg-slate-300"
+                    :style="{ width: segmentWidth(milestone.missing, milestone.totalStudents) }"
+                  ></span>
+                </div>
+              </div>
+
+              <div class="text-center text-sm font-semibold text-[#111]">
+                {{ milestone.totalStudents }}
+              </div>
+            </article>
+          </template>
         </div>
       </div>
     </section>
