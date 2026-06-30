@@ -8,6 +8,7 @@ import {
   downloadAdvisorTemplate,
   exportAdvisors,
   getAdvisor,
+  getAdvisorMilestoneSummaryReport,
   getAdvisorStudentMilestones,
   getAdvisorMilestoneSubmissions,
   getAdvisorStudents,
