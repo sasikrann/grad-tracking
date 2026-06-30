@@ -17,10 +17,16 @@ export function useStudentOverview(
     advisor: initialAdvisorFilter,
   })
 
+  const advisorScopedStudents = computed(() =>
+    filters.value.advisor === 'all'
+      ? students.value
+      : students.value.filter((student) => student.isAdvised),
+  )
+
   const statistics = computed(() => ({
-    total: students.value.length,
-    onTrack: students.value.filter((student) => student.status === 'On-track').length,
-    overdue: students.value.filter((student) => student.status === 'Overdue').length,
+    total: advisorScopedStudents.value.length,
+    onTrack: advisorScopedStudents.value.filter((student) => student.status === 'On-track').length,
+    overdue: advisorScopedStudents.value.filter((student) => student.status === 'Overdue').length,
   }))
 
   const filteredStudents = computed(() => {

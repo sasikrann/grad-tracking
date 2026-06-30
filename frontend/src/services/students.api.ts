@@ -64,6 +64,10 @@ export function getAdvisorStudents(advisorId: string) {
   return requestStudents(`/api/advisors/${advisorId}/students`, advisorId)
 }
 
+export function getAdvisorStudentOverview(advisorId: string) {
+  return requestStudents(`/api/advisors/${advisorId}/students?scope=all`, advisorId)
+}
+
 async function downloadStudentFile(path: string, fallbackName: string) {
   const response = await authenticatedFetch(`${apiBaseUrl}${path}`)
   if (!response.ok) throw new Error(`Unable to download file (${response.status})`)
