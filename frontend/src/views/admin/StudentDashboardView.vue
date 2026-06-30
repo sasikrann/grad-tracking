@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import DashboardActionCard from '@/components/admin/DashboardActionCard.vue'
 import ImportFileModal from '@/components/admin/ImportFileModal.vue'
@@ -13,6 +14,8 @@ import {
   getStudents,
   importStudents,
 } from '@/services/students.api'
+
+const router = useRouter()
 
 const {
   filteredStudents,
@@ -113,6 +116,10 @@ async function handleExport() {
     isExporting.value = false
   }
 }
+
+function viewStudentMilestones(studentId: string) {
+  void router.push({ name: 'admin-student-milestones', params: { studentId } })
+}
 </script>
 
 <template>
@@ -172,6 +179,7 @@ async function handleExport() {
       :error="loadError"
       :year-options="yearOptions"
       advisor-mode="all-only"
+      @view="viewStudentMilestones"
     />
 
     <ImportFileModal

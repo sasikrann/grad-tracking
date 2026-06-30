@@ -8,6 +8,7 @@ import {
   downloadAdvisorTemplate,
   exportAdvisors,
   getAdvisor,
+  getAdvisorStudentMilestones,
   getAdvisorMilestoneSubmissions,
   getAdvisorStudents,
   getAdvisors,
@@ -37,6 +38,7 @@ router.get('/', getAdvisors)
 router.get('/export', adminOnly, exportAdvisors)
 router.get('/template', adminOnly, downloadAdvisorTemplate)
 router.get('/milestone-submissions', getAdvisorMilestoneSubmissions)
+router.get('/students/:studentId/milestones', getAdvisorStudentMilestones)
 router.post('/import', adminOnly, upload.single('file'), importAdvisorFile)
 router.post('/', adminOnly, createAdvisor)
 router.get('/:advisorId', getAdvisor)

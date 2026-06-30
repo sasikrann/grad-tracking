@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import type { CurrentUser } from '@/types/user'
 
 defineOptions({ name: 'AppNavbar' })
@@ -12,6 +13,7 @@ interface MenuItem {
   label: string
   to: string
   icon: MenuIcon
+  activePaths?: string[]
 }
 
 // รับข้อมูลผู้ใช้ที่เข้าสู่ระบบมาจาก component แม่ เช่น App.vue
@@ -19,6 +21,7 @@ const props = defineProps<{
   user: CurrentUser
 }>()
 
+const route = useRoute()
 const isMobileMenuOpen = ref(false)
 const emit = defineEmits<{
   logout: []
@@ -27,13 +30,23 @@ const emit = defineEmits<{
 // รายการเมนูที่จะแสดงแยกตาม role
 const menus: Record<MenuRole, MenuItem[]> = {
   admin: [
-    { label: 'Student Dashboard', to: '/admin/student-dashboard', icon: 'dashboard' },
+    {
+      label: 'Student Dashboard',
+      to: '/admin/student-dashboard',
+      icon: 'dashboard',
+      activePaths: ['/admin/students/'],
+    },
     { label: 'Advisor Dashboard', to: '/admin/advisor-dashboard', icon: 'dashboard' },
     { label: 'Milestone Management', to: '/milestones', icon: 'milestone' },
     { label: 'Notification Management', to: '/notifications', icon: 'notification' },
   ],
   lecturer: [
-    { label: 'Student Overall', to: '/advisor/student-overall', icon: 'dashboard' },
+    {
+      label: 'Student Overall',
+      to: '/advisor/student-overall',
+      icon: 'dashboard',
+      activePaths: ['/advisor/students/'],
+    },
     { label: 'Milestone Summary', to: '/advisor/summary', icon: 'milestone' },
   ],
   student: [
@@ -65,6 +78,10 @@ const userInitials = computed(() => {
     .map((name) => name.charAt(0).toUpperCase())
     .join('')
 })
+
+function isActiveItem(item: MenuItem) {
+  return route.path === item.to || item.activePaths?.some((path) => route.path.startsWith(path))
+}
 </script>
 
 <template>
@@ -155,6 +172,7 @@ const userInitials = computed(() => {
           :key="item.to"
           :to="item.to"
           class="flex items-center gap-3 rounded-[5px] px-2 py-3 text-sm transition-colors hover:bg-[#720008]"
+          :class="{ 'bg-[#720008]': isActiveItem(item) }"
           exact-active-class="bg-[#720008]"
           @click="isMobileMenuOpen = false"
         >

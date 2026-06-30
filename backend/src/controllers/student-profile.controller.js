@@ -1,9 +1,12 @@
 // Controller สำหรับ Student Profile
 // เอาไว้ให้ student ดูข้อมูลของตัวเอง และเลือก/อัปเดต advisor พร้อมหลักฐาน
+import { unlink } from 'node:fs/promises'
+
 import { ApiError } from '../errors/api-error.js'
 import {
   clearStudentMilestoneEvidence,
   findStudentMilestonesByUserId,
+  hasReachedRejectedRevisionLimit,
   submitStudentMilestoneEvidence,
 } from '../services/milestones.service.js'
 import {
@@ -37,6 +40,11 @@ function requiredText(value, field) {
   const result = String(value ?? '').trim()
   if (!result) throw new ApiError(400, `${field} is required`)
   return result
+}
+
+function removeUploadedFile(file) {
+  if (!file?.path) return Promise.resolve()
+  return unlink(file.path).catch(() => {})
 }
 
 export async function getMyStudentProfile(request, response) {
@@ -79,6 +87,12 @@ export async function uploadMyMilestoneEvidence(request, response) {
   )
 
   if (!updated) {
+    await removeUploadedFile(request.file)
+
+    if (await hasReachedRejectedRevisionLimit(request.user.userId, request.params.milestoneId)) {
+      throw new ApiError(409, 'This milestone has reached the maximum of 3 rejected revision rounds')
+    }
+
     throw new ApiError(404, 'Milestone not found')
   }
 
