@@ -38,6 +38,13 @@ function optionalDate(value, field) {
   return result
 }
 
+function optionalYear(value) {
+  const year = optionalText(value)
+  if (!year || year === 'all') return null
+  if (!/^\d{4}$/.test(year)) throw new ApiError(400, 'year must be a 4 digit year')
+  return year
+}
+
 function requiredSemester(value) {
   const semester = requiredText(value, 'semester')
   if (!semesters.has(semester)) throw new ApiError(400, 'semester must be 1 or 2')
@@ -124,6 +131,7 @@ export async function copyMilestoneSet(request, response) {
   const toDegreeLevel = requiredText(request.body.toDegreeLevel, 'toDegreeLevel')
   const fromSemester = optionalSemester(request.body.fromSemester)
   const toSemester = requiredSemester(request.body.toSemester ?? '1')
+  const toYear = optionalYear(request.body.toYear)
   const milestoneIds = Array.isArray(request.body.milestoneIds) ? request.body.milestoneIds : []
   if (!degreeLevels.has(fromDegreeLevel) || !degreeLevels.has(toDegreeLevel)) {
     throw new ApiError(400, 'degree levels must be Master or Doctoral')
@@ -136,6 +144,7 @@ export async function copyMilestoneSet(request, response) {
         toDegreeLevel,
         fromSemester,
         toSemester,
+        toYear,
         milestoneIds,
       }),
     },
