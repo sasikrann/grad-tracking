@@ -10,8 +10,9 @@ const advisorColumns = `
   a.created_at AS "createdAt"
 `
 const duplicateAdvisorEmailMessage =
-  'Please enter a valid email address because this email is duplicated.'
-const unresolvedAdvisorConflictMessage = 'Please choose one advisor for each duplicated email.'
+  'Some advisor emails already exist. Please choose which advisor record to keep before importing.'
+const unresolvedAdvisorConflictMessage =
+  'Please choose one advisor record for each duplicated email.'
 
 function advisorConflictKey({ email }) {
   return String(email ?? '').trim().toLowerCase()

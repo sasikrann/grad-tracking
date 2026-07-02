@@ -27,6 +27,52 @@ interface ApiResponse<T> {
   data: T
 }
 
+interface ApiErrorResponse {
+  message?: string
+  errors?: Array<string | { row?: number; field?: string; message?: string }>
+  conflicts?: StudentImportConflict[]
+}
+
+export interface StudentImportConflictOption {
+  optionId: string
+  source: 'existing' | 'file'
+  rowNumber?: number
+  studentId: string
+  fullName: string
+  email: string | null
+  program: string
+  degreeLevel: 'Master' | 'Doctoral'
+  enrollmentAcademicYear: number
+  semester: string
+  expectedGraduationYear: number
+  advisorId: string | null
+  advisorName: string | null
+  advisorEmail: string | null
+}
+
+export interface StudentImportConflict {
+  key: string
+  studentId: string
+  options: StudentImportConflictOption[]
+}
+
+export interface StudentImportResult {
+  totalRecords: number
+  successRecords: number
+  failedRecords: number
+  errors: string[]
+}
+
+export class StudentImportConflictError extends Error {
+  conflicts: StudentImportConflict[]
+
+  constructor(message: string, conflicts: StudentImportConflict[]) {
+    super(message)
+    this.name = 'StudentImportConflictError'
+    this.conflicts = conflicts
+  }
+}
+
 export interface AdminStudentMilestones {
   student: {
     studentId: string
@@ -113,9 +159,7 @@ async function downloadStudentFile(path: string, fallbackName: string) {
 
 export function exportStudents(enrollmentYear = 'all') {
   const query =
-    enrollmentYear === 'all'
-      ? ''
-      : `?enrollmentYear=${encodeURIComponent(enrollmentYear)}`
+    enrollmentYear === 'all' ? '' : `?enrollmentYear=${encodeURIComponent(enrollmentYear)}`
   return downloadStudentFile(`/api/students/export${query}`, 'students.xlsx')
 }
 
@@ -123,21 +167,45 @@ export function downloadStudentTemplate() {
   return downloadStudentFile('/api/students/template', 'student_import_template.xlsx')
 }
 
-export async function importStudents(file: File) {
+export async function importStudents(file: File, resolutions?: Record<string, string>) {
   const formData = new FormData()
   formData.append('file', file)
+  if (resolutions) {
+    formData.append('resolutions', JSON.stringify(resolutions))
+  }
   const response = await authenticatedFetch(`${apiBaseUrl}/api/students/import`, {
     method: 'POST',
     body: formData,
   })
-  const result = await response.json().catch(() => null)
+  const result = (await response.json().catch(() => null)) as
+    | (ApiErrorResponse & {
+        data?: {
+          totalRecords: number
+          successRecords: number
+          failedRecords: number
+          errors: string[]
+        }
+      })
+    | null
   if (!response.ok) {
-    throw new Error(result?.message ?? `Unable to import students (${response.status})`)
+    if (response.status === 409 && Array.isArray(result?.conflicts)) {
+      throw new StudentImportConflictError(
+        result?.message ??
+          'Some student IDs already exist. Please choose which student record to keep before importing.',
+        result.conflicts,
+      )
+    }
+
+    const details = Array.isArray(result?.errors)
+      ? result.errors
+          .map((error) =>
+            typeof error === 'string'
+              ? error
+              : `Row ${error.row}: ${error.message ?? 'Invalid student data'}`,
+          )
+          .join('; ')
+      : ''
+    throw new Error(details || result?.message || `Unable to import students (${response.status})`)
   }
-  return result.data as {
-    totalRecords: number
-    successRecords: number
-    failedRecords: number
-    errors: string[]
-  }
+  return result?.data as StudentImportResult
 }

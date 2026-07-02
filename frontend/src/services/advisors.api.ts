@@ -3,7 +3,7 @@ import type { Advisor } from '@/types/advisor'
 
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 const duplicateAdvisorEmailMessage =
-  'Please enter a valid email address because this email is duplicated.'
+  'Some advisor emails already exist. Please choose which advisor record to keep before importing.'
 
 interface AdvisorsApiResponse {
   data?: Advisor[]

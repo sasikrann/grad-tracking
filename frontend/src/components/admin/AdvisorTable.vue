@@ -22,7 +22,7 @@ function initials(name: string) {
   <section class="mt-4 rounded-xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h2 class="text-base font-semibold">Advisor</h2>
+        <h2 class="text-lg font-semibold">Advisor</h2>
         <p class="text-xs text-slate-500">Showing {{ advisors.length }} users</p>
       </div>
     </div>
