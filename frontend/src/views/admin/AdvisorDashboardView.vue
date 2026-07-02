@@ -22,7 +22,7 @@ const operationMessage = ref('')
 const selectedImportFile = ref<File | null>(null)
 const isImportModalOpen = ref(false)
 const isExportModalOpen = ref(false)
-const isDuplicateEmailPopupOpen = ref(false)
+const isDuplicateEmailModalOpen = ref(false)
 const importConflicts = ref<AdvisorImportConflict[]>([])
 const importResolutions = ref<Record<string, string>>({})
 const isImporting = ref(false)
@@ -33,7 +33,8 @@ const exportCountLabel = computed(() => `${advisors.value.length} total advisor`
 const hasResolvedImportConflicts = computed(() =>
   importConflicts.value.every((conflict) => Boolean(importResolutions.value[conflict.key])),
 )
-const duplicateAdvisorMessage = 'Please enter a valid email address because this email is duplicated.'
+const duplicateAdvisorMessage =
+  'Please enter a valid email address because this email is duplicated.'
 
 function showOperationMessage(message: string) {
   operationMessage.value = message
@@ -55,20 +56,25 @@ async function loadAdvisors() {
   }
 }
 
-function openImportModal() {
-  selectedImportFile.value = null
-  isDuplicateEmailPopupOpen.value = false
+function resetImportConflicts() {
   importConflicts.value = []
   importResolutions.value = {}
+  isDuplicateEmailModalOpen.value = false
+}
+
+function resetImportState() {
+  selectedImportFile.value = null
+  resetImportConflicts()
+}
+
+function openImportModal() {
+  resetImportState()
   isImportModalOpen.value = true
 }
 
 function closeImportModal() {
   if (isImporting.value) return
-  selectedImportFile.value = null
-  isDuplicateEmailPopupOpen.value = false
-  importConflicts.value = []
-  importResolutions.value = {}
+  resetImportState()
   isImportModalOpen.value = false
 }
 
@@ -89,10 +95,7 @@ function advisorImportErrorMessage(error: unknown) {
 async function finishImport(result: AdvisorImportResult) {
   showImportResult(result)
   await loadAdvisors()
-  selectedImportFile.value = null
-  isDuplicateEmailPopupOpen.value = false
-  importConflicts.value = []
-  importResolutions.value = {}
+  resetImportState()
   isImportModalOpen.value = false
 }
 
@@ -109,7 +112,7 @@ async function handleImport(resolutions?: Record<string, string>) {
     if (error instanceof AdvisorImportConflictError) {
       importConflicts.value = error.conflicts
       importResolutions.value = {}
-      isDuplicateEmailPopupOpen.value = true
+      isDuplicateEmailModalOpen.value = true
       return
     }
     showOperationMessage(advisorImportErrorMessage(error))
@@ -125,9 +128,11 @@ async function handleImportConflictConfirm() {
 
 function handleImportFileSelect(file: File | null) {
   selectedImportFile.value = file
-  isDuplicateEmailPopupOpen.value = false
-  importConflicts.value = []
-  importResolutions.value = {}
+  resetImportConflicts()
+}
+
+function closeDuplicateEmailModal() {
+  isDuplicateEmailModalOpen.value = false
 }
 
 async function handleExport() {
@@ -188,14 +193,10 @@ onMounted(loadAdvisors)
       {{ operationMessage }}
     </p>
 
-    <AdvisorTable
-      :advisors="advisors"
-      :is-loading="isLoading"
-      :error="loadError"
-    />
+    <AdvisorTable :advisors="advisors" :is-loading="isLoading" :error="loadError" />
 
     <ImportFileModal
-      v-if="isImportModalOpen"
+      v-if="isImportModalOpen && !isDuplicateEmailModalOpen"
       title="Import Advisor"
       description="Upload an Excel or CSV file to import advisors in bulk"
       :selected-file="selectedImportFile"
@@ -206,7 +207,7 @@ onMounted(loadAdvisors)
     />
 
     <div
-      v-if="isDuplicateEmailPopupOpen"
+      v-if="isDuplicateEmailModalOpen"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4"
       role="dialog"
       aria-modal="true"
@@ -235,7 +236,11 @@ onMounted(loadAdvisors)
                 v-for="option in conflict.options"
                 :key="option.optionId"
                 class="flex cursor-pointer items-start gap-3 rounded border border-slate-200 p-3 text-sm transition hover:border-[#8b2a23] hover:bg-red-50/40"
-                :class="importResolutions[conflict.key] === option.optionId ? 'border-[#8b2a23] bg-red-50/60' : ''"
+                :class="
+                  importResolutions[conflict.key] === option.optionId
+                    ? 'border-[#8b2a23] bg-red-50/60'
+                    : ''
+                "
               >
                 <input
                   v-model="importResolutions[conflict.key]"
@@ -261,7 +266,7 @@ onMounted(loadAdvisors)
           <button
             type="button"
             class="rounded border border-slate-200 px-3 py-2 text-xs font-medium hover:bg-slate-50"
-            @click="isDuplicateEmailPopupOpen = false"
+            @click="closeDuplicateEmailModal"
           >
             Cancel
           </button>

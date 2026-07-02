@@ -9,6 +9,9 @@ const advisorColumns = `
   a.email,
   a.created_at AS "createdAt"
 `
+const duplicateAdvisorEmailMessage =
+  'Please enter a valid email address because this email is duplicated.'
+const unresolvedAdvisorConflictMessage = 'Please choose one advisor for each duplicated email.'
 
 function advisorConflictKey({ email }) {
   return String(email ?? '').trim().toLowerCase()
@@ -83,7 +86,7 @@ function applyAdvisorImportResolutions(records, conflicts, resolutions = {}) {
     const selectedOption = conflict.options.find((option) => option.optionId === selectedOptionId)
 
     if (!selectedOption) {
-      const error = new Error('Please choose one advisor for each duplicated email.')
+      const error = new Error(unresolvedAdvisorConflictMessage)
       error.statusCode = 409
       error.conflicts = conflicts
       throw error
@@ -340,7 +343,7 @@ export async function importAdvisors(records, { fileName, importedBy, resolution
     const conflicts = await findAdvisorImportConflicts(client, records)
 
     if (conflicts.length && !resolutions) {
-      const error = new Error('Please enter a valid email address because this email is duplicated.')
+      const error = new Error(duplicateAdvisorEmailMessage)
       error.statusCode = 409
       error.conflicts = conflicts
       throw error

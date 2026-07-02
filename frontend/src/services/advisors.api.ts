@@ -2,6 +2,8 @@ import { authenticatedFetch } from '@/services/auth'
 import type { Advisor } from '@/types/advisor'
 
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+const duplicateAdvisorEmailMessage =
+  'Please enter a valid email address because this email is duplicated.'
 
 interface AdvisorsApiResponse {
   data?: Advisor[]
@@ -83,12 +85,9 @@ export async function importAdvisors(file: File, resolutions?: Record<string, st
   })
   const result = await response.json().catch(() => null)
   if (!response.ok) {
-    if (
-      response.status === 409 &&
-      Array.isArray(result?.conflicts)
-    ) {
+    if (response.status === 409 && Array.isArray(result?.conflicts)) {
       throw new AdvisorImportConflictError(
-        result?.message ?? 'Please enter a valid email address because this email is duplicated.',
+        result?.message ?? duplicateAdvisorEmailMessage,
         result.conflicts,
       )
     }
