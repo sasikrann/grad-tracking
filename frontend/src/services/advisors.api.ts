@@ -88,7 +88,7 @@ export async function importAdvisors(file: File, resolutions?: Record<string, st
       Array.isArray(result?.conflicts)
     ) {
       throw new AdvisorImportConflictError(
-        result?.message ?? 'Duplicate advisor name and email found',
+        result?.message ?? 'Please enter a valid email address because this email is duplicated.',
         result.conflicts,
       )
     }

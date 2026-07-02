@@ -10,8 +10,8 @@ const advisorColumns = `
   a.created_at AS "createdAt"
 `
 
-function advisorConflictKey({ fullName, email }) {
-  return `${String(fullName ?? '').trim().toLowerCase()}|${String(email ?? '').trim().toLowerCase()}`
+function advisorConflictKey({ email }) {
+  return String(email ?? '').trim().toLowerCase()
 }
 
 function advisorNumber(advisorId) {
@@ -47,11 +47,10 @@ async function findAdvisorImportConflicts(client, records) {
         SELECT ${advisorColumns}
         FROM advisors a
         INNER JOIN users u ON u.user_id = a.user_id AND u.role = 'advisor'
-        WHERE LOWER(a.full_name) = LOWER($1)
-          AND LOWER(a.email) = LOWER($2)
+        WHERE LOWER(a.email) = LOWER($1)
         ORDER BY a.advisor_id
       `,
-      [group.fullName, group.email],
+      [group.email],
     )
     group.existingAdvisors = existing.rows.map((advisor) => ({
       optionId: `existing:${advisor.advisorId}`,
@@ -84,7 +83,7 @@ function applyAdvisorImportResolutions(records, conflicts, resolutions = {}) {
     const selectedOption = conflict.options.find((option) => option.optionId === selectedOptionId)
 
     if (!selectedOption) {
-      const error = new Error(`Please choose one advisor for ${conflict.fullName} (${conflict.email})`)
+      const error = new Error('Please choose one advisor for each duplicated email.')
       error.statusCode = 409
       error.conflicts = conflicts
       throw error
@@ -341,7 +340,7 @@ export async function importAdvisors(records, { fileName, importedBy, resolution
     const conflicts = await findAdvisorImportConflicts(client, records)
 
     if (conflicts.length && !resolutions) {
-      const error = new Error('Duplicate advisor name and email found. Please choose one advisor for each duplicate.')
+      const error = new Error('Please enter a valid email address because this email is duplicated.')
       error.statusCode = 409
       error.conflicts = conflicts
       throw error

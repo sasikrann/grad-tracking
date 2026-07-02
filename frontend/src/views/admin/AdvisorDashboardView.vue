@@ -22,6 +22,7 @@ const operationMessage = ref('')
 const selectedImportFile = ref<File | null>(null)
 const isImportModalOpen = ref(false)
 const isExportModalOpen = ref(false)
+const isDuplicateEmailPopupOpen = ref(false)
 const importConflicts = ref<AdvisorImportConflict[]>([])
 const importResolutions = ref<Record<string, string>>({})
 const isImporting = ref(false)
@@ -56,6 +57,7 @@ async function loadAdvisors() {
 
 function openImportModal() {
   selectedImportFile.value = null
+  isDuplicateEmailPopupOpen.value = false
   importConflicts.value = []
   importResolutions.value = {}
   isImportModalOpen.value = true
@@ -64,6 +66,7 @@ function openImportModal() {
 function closeImportModal() {
   if (isImporting.value) return
   selectedImportFile.value = null
+  isDuplicateEmailPopupOpen.value = false
   importConflicts.value = []
   importResolutions.value = {}
   isImportModalOpen.value = false
@@ -80,7 +83,6 @@ function showImportResult(result: AdvisorImportResult) {
 
 function advisorImportErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : ''
-  if (message.includes('A valid email is required')) return duplicateAdvisorMessage
   return message || 'Unable to import advisors'
 }
 
@@ -88,6 +90,7 @@ async function finishImport(result: AdvisorImportResult) {
   showImportResult(result)
   await loadAdvisors()
   selectedImportFile.value = null
+  isDuplicateEmailPopupOpen.value = false
   importConflicts.value = []
   importResolutions.value = {}
   isImportModalOpen.value = false
@@ -106,7 +109,7 @@ async function handleImport(resolutions?: Record<string, string>) {
     if (error instanceof AdvisorImportConflictError) {
       importConflicts.value = error.conflicts
       importResolutions.value = {}
-      showOperationMessage(duplicateAdvisorMessage)
+      isDuplicateEmailPopupOpen.value = true
       return
     }
     showOperationMessage(advisorImportErrorMessage(error))
@@ -122,6 +125,7 @@ async function handleImportConflictConfirm() {
 
 function handleImportFileSelect(file: File | null) {
   selectedImportFile.value = file
+  isDuplicateEmailPopupOpen.value = false
   importConflicts.value = []
   importResolutions.value = {}
 }
@@ -191,7 +195,7 @@ onMounted(loadAdvisors)
     />
 
     <ImportFileModal
-      v-if="isImportModalOpen && importConflicts.length === 0"
+      v-if="isImportModalOpen"
       title="Import Advisor"
       description="Upload an Excel or CSV file to import advisors in bulk"
       :selected-file="selectedImportFile"
@@ -202,28 +206,28 @@ onMounted(loadAdvisors)
     />
 
     <div
-      v-if="isImportModalOpen && importConflicts.length > 0"
+      v-if="isDuplicateEmailPopupOpen"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="advisor-conflict-title"
+      aria-labelledby="duplicate-email-title"
     >
-      <section class="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-5 shadow-xl">
-        <h2 id="advisor-conflict-title" class="text-base font-semibold">
-          Duplicate advisor name and email
+      <section class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
+        <h2 id="duplicate-email-title" class="text-base font-semibold text-slate-900">
+          Duplicate email
         </h2>
-        <p class="mt-1 text-xs text-slate-500">
-          ชื่อและอีเมล advisor ซ้ำกัน กรุณาเลือก advisor ที่ต้องการใช้สำหรับแต่ละรายการ
+        <p class="mt-2 text-sm text-slate-600">
+          {{ duplicateAdvisorMessage }}
         </p>
 
-        <div class="mt-4 space-y-4">
+        <div class="mt-4 max-h-[55vh] space-y-4 overflow-y-auto pr-1">
           <fieldset
             v-for="conflict in importConflicts"
             :key="conflict.key"
             class="rounded-lg border border-slate-200 p-4"
           >
             <legend class="px-1 text-sm font-semibold text-slate-900">
-              {{ conflict.fullName }} · {{ conflict.email }}
+              {{ conflict.email }}
             </legend>
 
             <div class="mt-3 space-y-2">
@@ -244,15 +248,8 @@ onMounted(loadAdvisors)
                   <span class="block font-medium text-slate-900">
                     {{ option.fullName }}
                   </span>
-                  <span class="block break-all text-xs text-slate-500">
-                    {{ option.email }}
-                  </span>
                   <span class="mt-1 block text-xs text-slate-500">
-                    {{
-                      option.source === 'existing'
-                        ? `Existing advisor ${option.advisorId}`
-                        : `Excel row ${option.rowNumber}`
-                    }}
+                    {{ option.source === 'existing' ? 'Existing data' : 'New data' }}
                   </span>
                 </span>
               </label>
@@ -264,7 +261,7 @@ onMounted(loadAdvisors)
           <button
             type="button"
             class="rounded border border-slate-200 px-3 py-2 text-xs font-medium hover:bg-slate-50"
-            @click="closeImportModal"
+            @click="isDuplicateEmailPopupOpen = false"
           >
             Cancel
           </button>
