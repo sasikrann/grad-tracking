@@ -36,24 +36,24 @@ const filteredMilestones = computed(() =>
       selectedSemester.value === 'all' || milestone.semester === selectedSemester.value
     const matchesDegree = milestone.degreeLevel === selectedDegreeLevel.value
     const matchesYear =
-      selectedYear.value === 'all' || new Date(milestone.deadline).getFullYear().toString() === selectedYear.value
+      selectedYear.value === 'all' ||
+      new Date(milestone.deadline).getFullYear().toString() === selectedYear.value
 
     return matchesSemester && matchesDegree && matchesYear
   }),
 )
 
 const yearOptions = computed(() => {
-  const years = new Set(milestones.value.map((milestone) => new Date(milestone.deadline).getFullYear().toString()))
+  const years = new Set(
+    milestones.value.map((milestone) => new Date(milestone.deadline).getFullYear().toString()),
+  )
   return Array.from(years).sort()
 })
 
 const filterDefinitions = computed(() => [
   {
     key: 'semester' as const,
-    label:
-      selectedSemester.value === 'all'
-        ? 'All Semester'
-        : selectedSemester.value,
+    label: selectedSemester.value === 'all' ? 'All Semester' : selectedSemester.value,
     options: [
       { label: 'All Semester', value: 'all' },
       { label: '1', value: '1' },
@@ -84,7 +84,10 @@ const nextOrder = computed(() => {
       0,
       ...milestones.value
         .filter((milestone) => milestone.degreeLevel === selectedDegreeLevel.value)
-        .filter((milestone) => selectedSemester.value === 'all' || milestone.semester === selectedSemester.value)
+        .filter(
+          (milestone) =>
+            selectedSemester.value === 'all' || milestone.semester === selectedSemester.value,
+        )
         .map((milestone) => milestone.sequenceOrder),
     ) + 1
   )
@@ -96,7 +99,7 @@ function showNotification(text: string, type: 'success' | 'error' = 'success') {
   message.value = type === 'success' ? text : ''
   errorMessage.value = type === 'error' ? text : ''
   notificationType.value = type
-// กำหนดเวลาให้ข้อความแจ้งเตือนหายไปหลังจาก 20 วินาที 
+  // กำหนดเวลาให้ข้อความแจ้งเตือนหายไปหลังจาก 20 วินาที
   if (notificationTimer) clearTimeout(notificationTimer)
   notificationTimer = setTimeout(() => {
     message.value = ''
@@ -180,7 +183,9 @@ async function setMilestoneStatus(milestone: Milestone, isEnabled: boolean) {
   errorMessage.value = ''
   try {
     await setMilestoneEnabled(milestone.milestoneId, isEnabled)
-    showNotification(isEnabled ? 'Milestone enabled successfully' : 'Milestone disabled successfully')
+    showNotification(
+      isEnabled ? 'Milestone enabled successfully' : 'Milestone disabled successfully',
+    )
     await loadMilestones()
   } catch (error) {
     showNotification(formatMilestoneError(error, 'Unable to update milestone'), 'error')
@@ -203,6 +208,7 @@ async function copyMilestoneTemplates(
   toDegreeLevel: DegreeLevel,
   fromSemester: string,
   toSemester: string,
+  toYear: string,
   milestoneIds: string[],
 ) {
   errorMessage.value = ''
@@ -212,11 +218,13 @@ async function copyMilestoneTemplates(
       toDegreeLevel,
       fromSemester,
       toSemester,
+      toYear,
       milestoneIds,
     )
     showNotification(`Copied ${result.copiedRecords} milestones successfully`)
     selectedDegreeLevel.value = toDegreeLevel
     selectedSemester.value = toSemester
+    selectedYear.value = toYear
     isCopyOpen.value = false
     await loadMilestones()
   } catch (error) {
@@ -277,20 +285,19 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <section class="mt-6 rounded-xl border border-slate-200 bg-white px-6 py-6 shadow-[0_2px_4px_rgba(0,0,0,0.18)]">
+    <section
+      class="mt-6 rounded-xl border border-slate-200 bg-white px-6 py-6 shadow-[0_2px_4px_rgba(0,0,0,0.18)]"
+    >
       <div class="flex items-start justify-between gap-4">
         <div>
           <h2 class="text-lg font-semibold">Milestones</h2>
-          <p class="mt-2 text-xs text-slate-500">{{ filteredMilestones.length }} milestones configured</p>
+          <p class="mt-2 text-xs text-slate-500">
+            {{ filteredMilestones.length }} milestones configured
+          </p>
         </div>
 
         <div class="flex gap-3">
-          <div
-            v-for="filter in filterDefinitions"
-            :key="filter.key"
-            class="relative"
-            @click.stop
-          >
+          <div v-for="filter in filterDefinitions" :key="filter.key" class="relative" @click.stop>
             <button
               type="button"
               class="flex h-9 min-w-32 items-center justify-between gap-3 rounded-lg border border-slate-100 bg-white px-4 text-left text-xs shadow-sm outline-none hover:border-[#dfcccc] focus:border-[#8a2b25]"
@@ -345,6 +352,7 @@ onBeforeUnmount(() => {
       <MilestoneTable
         :milestones="filteredMilestones"
         :is-loading="isLoading"
+        :group-by-semester="selectedSemester === 'all'"
         @edit="openEditModal"
         @remove="removeMilestone"
         @set-enabled="setMilestoneStatus"

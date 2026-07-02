@@ -503,10 +503,41 @@ export async function removeMilestone(milestoneId) {
 
   try {
     await client.query('BEGIN')
+
+    const current = await client.query(
+      'SELECT degree_level, semester FROM milestone_templates WHERE milestone_id = $1 FOR UPDATE',
+      [milestoneId],
+    )
+    const milestone = current.rows[0]
+    if (!milestone) {
+      await client.query('ROLLBACK')
+      return false
+    }
+
     await client.query('DELETE FROM student_milestones WHERE milestone_id = $1', [milestoneId])
     const result = await client.query('DELETE FROM milestone_templates WHERE milestone_id = $1', [
       milestoneId,
     ])
+
+    await client.query(
+      `
+        WITH ordered_milestones AS (
+          SELECT
+            milestone_id,
+            ROW_NUMBER() OVER (ORDER BY sequence_order, created_at) AS next_order
+          FROM milestone_templates
+          WHERE degree_level = $1 AND semester = $2
+        )
+        UPDATE milestone_templates mt
+        SET sequence_order = ordered_milestones.next_order,
+            updated_at = NOW()
+        FROM ordered_milestones
+        WHERE mt.milestone_id = ordered_milestones.milestone_id
+          AND mt.sequence_order <> ordered_milestones.next_order
+      `,
+      [milestone.degree_level, milestone.semester],
+    )
+
     await client.query('COMMIT')
     return result.rowCount > 0
   } catch (error) {
@@ -590,11 +621,22 @@ export async function moveMilestone(milestoneId, direction) {
   }
 }
 
+function shiftDateToYear(value, year) {
+  if (!value || !year) return value
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  date.setUTCFullYear(Number(year))
+  return date.toISOString().slice(0, 10)
+}
+
 export async function copyMilestones({
   fromDegreeLevel,
   toDegreeLevel,
   fromSemester = null,
   toSemester = '1',
+  toYear = null,
   milestoneIds = [],
 }) {
   await ensureMilestoneSchema()
@@ -625,6 +667,26 @@ export async function copyMilestones({
       values,
     )
 
+    await client.query(
+      `
+        SELECT milestone_id
+        FROM milestone_templates
+        WHERE degree_level = $1 AND semester = $2
+        FOR UPDATE
+      `,
+      [toDegreeLevel, toSemester],
+    )
+
+    const orderResult = await client.query(
+      `
+        SELECT COALESCE(MAX(sequence_order), 0) AS "maxOrder"
+        FROM milestone_templates
+        WHERE degree_level = $1 AND semester = $2
+      `,
+      [toDegreeLevel, toSemester],
+    )
+    let nextOrder = Number(orderResult.rows[0].maxOrder) + 1
+
     for (const row of source.rows) {
       await client.query(
         `
@@ -640,14 +702,15 @@ export async function copyMilestones({
           toSemester,
           row.title,
           row.description,
-          row.sequence_order,
-          row.open_date,
-          row.deadline,
-          row.first_reminder_date,
-          row.second_reminder_date,
+          nextOrder,
+          shiftDateToYear(row.open_date, toYear),
+          shiftDateToYear(row.deadline, toYear),
+          shiftDateToYear(row.first_reminder_date, toYear),
+          shiftDateToYear(row.second_reminder_date, toYear),
           row.is_enabled,
         ],
       )
+      nextOrder += 1
     }
 
     await client.query('COMMIT')

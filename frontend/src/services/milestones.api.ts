@@ -65,10 +65,18 @@ export function copyMilestones(
   toDegreeLevel: DegreeLevel,
   fromSemester: string,
   toSemester: string,
+  toYear: string,
   milestoneIds: string[],
 ) {
   return request<{ copiedRecords: number }>('/api/milestones/copy', {
     method: 'POST',
-    body: JSON.stringify({ fromDegreeLevel, toDegreeLevel, fromSemester, toSemester, milestoneIds }),
+    body: JSON.stringify({
+      fromDegreeLevel,
+      toDegreeLevel,
+      fromSemester,
+      toSemester,
+      toYear,
+      milestoneIds,
+    }),
   })
 }
