@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import AdvisorTable from '@/components/admin/AdvisorTable.vue'
 import DashboardActionCard from '@/components/admin/DashboardActionCard.vue'
@@ -18,7 +18,9 @@ import type { Advisor } from '@/types/advisor'
 const advisors = ref<Advisor[]>([])
 const isLoading = ref(false)
 const loadError = ref('')
-const operationMessage = ref('')
+const message = ref('')
+const errorMessage = ref('')
+const notificationType = ref<'success' | 'error'>('success')
 const selectedImportFile = ref<File | null>(null)
 const isImportModalOpen = ref(false)
 const isExportModalOpen = ref(false)
@@ -29,18 +31,22 @@ const isImporting = ref(false)
 const isExporting = ref(false)
 let messageTimer: ReturnType<typeof setTimeout> | undefined
 
+const notificationText = computed(() => errorMessage.value || message.value)
 const exportCountLabel = computed(() => `${advisors.value.length} total advisor`)
 const hasResolvedImportConflicts = computed(() =>
   importConflicts.value.every((conflict) => Boolean(importResolutions.value[conflict.key])),
 )
 const duplicateAdvisorMessage =
-  'Please enter a valid email address because this email is duplicated.'
+  'Some advisor emails already exist. Please choose which advisor record to keep before importing.'
 
-function showOperationMessage(message: string) {
-  operationMessage.value = message
-  window.clearTimeout(messageTimer)
-  messageTimer = window.setTimeout(() => {
-    operationMessage.value = ''
+function showNotification(text: string, type: 'success' | 'error' = 'success') {
+  message.value = type === 'success' ? text : ''
+  errorMessage.value = type === 'error' ? text : ''
+  notificationType.value = type
+  if (messageTimer) clearTimeout(messageTimer)
+  messageTimer = setTimeout(() => {
+    message.value = ''
+    errorMessage.value = ''
   }, 20_000)
 }
 
@@ -80,16 +86,23 @@ function closeImportModal() {
 
 function showImportResult(result: AdvisorImportResult) {
   const errorText = result.errors?.length ? ` ${result.errors.join('; ')}` : ''
-  showOperationMessage(
+  showNotification(
     result.failedRecords
       ? `Imported ${result.successRecords}/${result.totalRecords} advisors.${errorText}`
-      : `Imported ${result.successRecords} advisors successfully`,
+      : `Imported ${result.successRecords} advisors successfully.`,
+    result.failedRecords ? 'error' : 'success',
   )
 }
 
 function advisorImportErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : ''
-  return message || 'Unable to import advisors'
+  const readableMessages: Record<string, string> = {
+    'Please enter a valid email address because this email is duplicated.': duplicateAdvisorMessage,
+    'Please choose one advisor for each duplicated email.':
+      'Please choose one advisor record for each duplicated email.',
+  }
+
+  return (readableMessages[message] ?? message) || 'Unable to import advisors. Please try again.'
 }
 
 async function finishImport(result: AdvisorImportResult) {
@@ -103,7 +116,8 @@ async function handleImport(resolutions?: Record<string, string>) {
   const file = selectedImportFile.value
   if (!file) return
 
-  operationMessage.value = ''
+  message.value = ''
+  errorMessage.value = ''
   isImporting.value = true
   try {
     const result = await importAdvisors(file, resolutions)
@@ -115,7 +129,7 @@ async function handleImport(resolutions?: Record<string, string>) {
       isDuplicateEmailModalOpen.value = true
       return
     }
-    showOperationMessage(advisorImportErrorMessage(error))
+    showNotification(advisorImportErrorMessage(error), 'error')
   } finally {
     isImporting.value = false
   }
@@ -136,20 +150,27 @@ function closeDuplicateEmailModal() {
 }
 
 async function handleExport() {
-  operationMessage.value = ''
+  message.value = ''
+  errorMessage.value = ''
   isExporting.value = true
   try {
     await exportAdvisors()
-    showOperationMessage('Exported advisors successfully')
+    showNotification('Exported advisors successfully.')
     isExportModalOpen.value = false
   } catch (error) {
-    showOperationMessage(error instanceof Error ? error.message : 'Unable to export advisors')
+    showNotification(
+      error instanceof Error ? error.message : 'Unable to export advisors. Please try again.',
+      'error',
+    )
   } finally {
     isExporting.value = false
   }
 }
 
 onMounted(loadAdvisors)
+onBeforeUnmount(() => {
+  if (messageTimer) clearTimeout(messageTimer)
+})
 </script>
 
 <template>
@@ -188,10 +209,6 @@ onMounted(loadAdvisors)
         @click="isExportModalOpen = true"
       />
     </section>
-
-    <p v-if="operationMessage" class="mt-3 text-sm text-slate-600" role="status">
-      {{ operationMessage }}
-    </p>
 
     <AdvisorTable :advisors="advisors" :is-loading="isLoading" :error="loadError" />
 
@@ -291,5 +308,19 @@ onMounted(loadAdvisors)
       @close="isExportModalOpen = false"
       @export="handleExport"
     />
+
+    <div
+      v-if="notificationText"
+      class="fixed bottom-6 left-1/2 z-50 w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 rounded-xl border bg-white px-4 py-3 text-sm shadow-[0_8px_24px_rgba(0,0,0,0.16)]"
+      :class="
+        notificationType === 'success'
+          ? 'border-[#8b2a23]/30 text-[#8b2a23]'
+          : 'border-red-200 text-red-600'
+      "
+      role="status"
+      aria-live="polite"
+    >
+      {{ notificationText }}
+    </div>
   </div>
 </template>

@@ -20,6 +20,113 @@ const studentDetailColumns = `
   s.created_at AS "createdAt",
   s.updated_at AS "updatedAt"
 `
+const duplicateStudentIdMessage =
+  'Some student IDs already exist. Please choose which student record to keep before importing.'
+const unresolvedStudentConflictMessage =
+  'Please choose one student record for each duplicated student ID.'
+
+function studentConflictKey({ studentId }) {
+  return String(studentId ?? '').trim()
+}
+
+function studentConflictOption(record, { optionId, source, rowNumber } = {}) {
+  return {
+    optionId,
+    source,
+    rowNumber,
+    studentId: record.studentId,
+    fullName: record.fullName,
+    email: record.email || null,
+    program: record.program,
+    degreeLevel: record.degreeLevel,
+    enrollmentAcademicYear: record.enrollmentAcademicYear,
+    semester: record.semester,
+    expectedGraduationYear: record.expectedGraduationYear,
+    advisorId: record.advisorId || null,
+    advisorName: record.advisorName || null,
+    advisorEmail: record.advisorEmail || null,
+  }
+}
+
+async function findStudentImportConflicts(client, records) {
+  const groups = new Map()
+
+  records.forEach((record, index) => {
+    const key = studentConflictKey(record)
+    const group = groups.get(key) ?? {
+      key,
+      studentId: record.studentId,
+      fileRecords: [],
+      existingStudents: [],
+    }
+    group.fileRecords.push(
+      studentConflictOption(record, {
+        optionId: `file:${index}`,
+        source: 'file',
+        rowNumber: index + 2,
+      }),
+    )
+    groups.set(key, group)
+  })
+
+  for (const group of groups.values()) {
+    const existing = await client.query(
+      `
+        SELECT ${studentDetailColumns}
+        FROM students s
+        LEFT JOIN users u ON u.user_id = s.user_id
+        LEFT JOIN advisors a ON a.advisor_id = s.advisor_id
+        WHERE s.student_id = $1
+      `,
+      [group.studentId],
+    )
+    group.existingStudents = existing.rows.map((student) =>
+      studentConflictOption(student, {
+        optionId: `existing:${student.studentId}`,
+        source: 'existing',
+      }),
+    )
+  }
+
+  return Array.from(groups.values())
+    .filter((group) => group.fileRecords.length > 1 || group.existingStudents.length > 0)
+    .map((group) => ({
+      key: group.key,
+      studentId: group.studentId,
+      options: [...group.existingStudents, ...group.fileRecords],
+    }))
+}
+
+function applyStudentImportResolutions(records, conflicts, resolutions = {}) {
+  const conflictByKey = new Map(conflicts.map((conflict) => [conflict.key, conflict]))
+  const selectedFileRows = new Set()
+  const skippedKeys = new Set()
+
+  for (const conflict of conflicts) {
+    const selectedOptionId = resolutions[conflict.key]
+    const selectedOption = conflict.options.find((option) => option.optionId === selectedOptionId)
+
+    if (!selectedOption) {
+      const error = new Error(unresolvedStudentConflictMessage)
+      error.statusCode = 409
+      error.conflicts = conflicts
+      throw error
+    }
+
+    if (selectedOption.source === 'file') {
+      selectedFileRows.add(selectedOption.rowNumber)
+    } else {
+      skippedKeys.add(conflict.key)
+    }
+  }
+
+  return records.filter((record, index) => {
+    const key = studentConflictKey(record)
+    if (!conflictByKey.has(key)) return true
+    if (skippedKeys.has(key)) return false
+    return selectedFileRows.has(index + 2)
+  })
+}
 
 async function findStudents({ advisorId } = {}) {
   const values = advisorId ? [advisorId] : []
@@ -360,7 +467,7 @@ export async function findStudentsForExport({ enrollmentYear } = {}) {
   return result.rows
 }
 
-export async function importStudents(records, { fileName, importedBy }) {
+export async function importStudents(records, { fileName, importedBy, resolutions } = {}) {
   const client = await pool.connect()
   const importId = randomUUID()
   let successRecords = 0
@@ -368,14 +475,27 @@ export async function importStudents(records, { fileName, importedBy }) {
 
   try {
     await client.query('BEGIN')
+    const conflicts = await findStudentImportConflicts(client, records)
+
+    if (conflicts.length && !resolutions) {
+      const error = new Error(duplicateStudentIdMessage)
+      error.statusCode = 409
+      error.conflicts = conflicts
+      throw error
+    }
+
+    const recordsToImport = conflicts.length
+      ? applyStudentImportResolutions(records, conflicts, resolutions)
+      : records
+
     await client.query(
       `INSERT INTO import_logs
         (import_id, imported_by, import_type, file_name, total_records)
        VALUES ($1, $2, 'student', $3, $4)`,
-      [importId, importedBy, fileName, records.length],
+      [importId, importedBy, fileName, recordsToImport.length],
     )
 
-    for (const [index, record] of records.entries()) {
+    for (const [index, record] of recordsToImport.entries()) {
       const savepoint = `student_row_${index}`
       await client.query(`SAVEPOINT ${savepoint}`)
       try {
@@ -400,7 +520,7 @@ export async function importStudents(records, { fileName, importedBy }) {
 
     return {
       importId,
-      totalRecords: records.length,
+      totalRecords: recordsToImport.length,
       successRecords,
       failedRecords: errors.length,
       errors,

@@ -33,14 +33,18 @@ function requiredYear(value, field) {
 }
 
 function optionalEmail(value) {
-  const email = String(value ?? '').trim().toLowerCase()
+  const email = String(value ?? '')
+    .trim()
+    .toLowerCase()
   if (!email) return null
   if (!emailPattern.test(email)) throw new ApiError(400, 'A valid email is required')
   return email
 }
 
 function normalizeStudent(body, { studentId, requireEmail = true } = {}) {
-  const email = requireEmail ? requiredText(body.email, 'email').toLowerCase() : optionalEmail(body.email)
+  const email = requireEmail
+    ? requiredText(body.email, 'email').toLowerCase()
+    : optionalEmail(body.email)
   const degreeLevel = requiredText(body.degreeLevel, 'degreeLevel')
   if (email && !emailPattern.test(email)) throw new ApiError(400, 'A valid email is required')
   if (!degreeLevels.has(degreeLevel)) {
@@ -65,6 +69,52 @@ function normalizeStudent(body, { studentId, requireEmail = true } = {}) {
   }
 }
 
+function formatImportValidationError(error) {
+  if (error.message === 'email is required') {
+    return 'Email is missing. Please enter an email address.'
+  }
+
+  return error.message
+}
+
+function missingFieldMessage(field) {
+  const messages = {
+    studentId: 'Student ID is missing.',
+    email: 'Email is missing.',
+    fullName: 'Full Name is missing.',
+    program: 'Program is missing.',
+    degreeLevel: 'Degree Level is missing.',
+    enrollmentAcademicYear: 'Enrollment Academic Year is missing.',
+    semester: 'Semester is missing.',
+    expectedGraduationYear: 'Expected Graduation Year is missing.',
+  }
+
+  return messages[field] ?? `${field} is missing.`
+}
+
+function normalizeImportStudent(rawStudent) {
+  const rowErrors = []
+
+  for (const field of [
+    'studentId',
+    'email',
+    'fullName',
+    'program',
+    'degreeLevel',
+    'enrollmentAcademicYear',
+    'semester',
+    'expectedGraduationYear',
+  ]) {
+    if (String(rawStudent[field] ?? '').trim() === '') rowErrors.push(missingFieldMessage(field))
+  }
+
+  if (rowErrors.length) {
+    throw new ApiError(400, rowErrors.join('; '))
+  }
+
+  return normalizeStudent(rawStudent)
+}
+
 function cellValue(row, headerMap, names) {
   const key = names.find((name) => headerMap.has(name.toLowerCase()))
   if (!key) return ''
@@ -86,7 +136,12 @@ async function readImportFile(file) {
 
   const headerMap = new Map()
   sheet.getRow(1).eachCell((cell, column) => {
-    headerMap.set(String(cell.value ?? '').trim().toLowerCase(), column)
+    headerMap.set(
+      String(cell.value ?? '')
+        .trim()
+        .toLowerCase(),
+      column,
+    )
   })
 
   const records = []
@@ -94,21 +149,30 @@ async function readImportFile(file) {
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1 || !row.hasValues) return
     try {
-      records.push(normalizeStudent({
-        studentId: cellValue(row, headerMap, ['studentid', 'student id']),
-        email: cellValue(row, headerMap, ['email']),
-        fullName: cellValue(row, headerMap, ['fullname', 'full name', 'name']),
-        program: cellValue(row, headerMap, ['program']),
-        degreeLevel: cellValue(row, headerMap, ['degreelevel', 'degree level']),
-        enrollmentAcademicYear: cellValue(row, headerMap, ['enrollmentacademicyear', 'enrollment academic year']),
-        semester: cellValue(row, headerMap, ['semester']),
-        expectedGraduationYear: cellValue(row, headerMap, ['expectedgraduationyear', 'expected graduation year', 'year']),
-        advisorId: cellValue(row, headerMap, ['advisorid', 'advisor id']),
-        advisorEmail: cellValue(row, headerMap, ['advisoremail', 'advisor email']),
-        advisorName: cellValue(row, headerMap, ['advisorname', 'advisor name', 'advisor']),
-      }, { requireEmail: false }))
+      records.push(
+        normalizeImportStudent({
+          studentId: cellValue(row, headerMap, ['studentid', 'student id']),
+          email: cellValue(row, headerMap, ['email']),
+          fullName: cellValue(row, headerMap, ['fullname', 'full name', 'name']),
+          program: cellValue(row, headerMap, ['program']),
+          degreeLevel: cellValue(row, headerMap, ['degreelevel', 'degree level']),
+          enrollmentAcademicYear: cellValue(row, headerMap, [
+            'enrollmentacademicyear',
+            'enrollment academic year',
+          ]),
+          semester: cellValue(row, headerMap, ['semester']),
+          expectedGraduationYear: cellValue(row, headerMap, [
+            'expectedgraduationyear',
+            'expected graduation year',
+            'year',
+          ]),
+          advisorId: cellValue(row, headerMap, ['advisorid', 'advisor id']),
+          advisorEmail: cellValue(row, headerMap, ['advisoremail', 'advisor email']),
+          advisorName: cellValue(row, headerMap, ['advisorname', 'advisor name', 'advisor']),
+        }),
+      )
     } catch (error) {
-      validationErrors.push(`Row ${rowNumber}: ${error.message}`)
+      validationErrors.push(`Row ${rowNumber}: ${formatImportValidationError(error)}`)
     }
   })
 
@@ -158,14 +222,36 @@ export async function deleteStudent(request, response) {
 export async function importStudentFile(request, response) {
   if (!request.file) throw new ApiError(400, 'A CSV or XLSX file is required')
   const records = await readImportFile(request.file)
-  const result = await importStudents(records, {
-    fileName: request.file.originalname,
-    importedBy: request.user.userId,
-  })
+  let resolutions
+  try {
+    resolutions = request.body.resolutions ? JSON.parse(request.body.resolutions) : undefined
+  } catch (_error) {
+    throw new ApiError(400, 'Invalid student import resolutions')
+  }
+  let result
+
+  try {
+    result = await importStudents(records, {
+      fileName: request.file.originalname,
+      importedBy: request.user.userId,
+      resolutions,
+    })
+  } catch (error) {
+    if (error.statusCode === 409 && Array.isArray(error.conflicts)) {
+      response.status(409).json({
+        status: 'error',
+        message: error.message,
+        conflicts: error.conflicts,
+      })
+      return
+    }
+    throw error
+  }
+
   response.status(201).json({ data: result })
 }
 
-// template สำหรับการ import ข้อมูลนักศึกษา 
+// template สำหรับการ import ข้อมูลนักศึกษา
 const studentTemplateColumns = [
   { header: 'Student ID', key: 'studentId', width: 16 },
   { header: 'Email', key: 'email', width: 32 },
@@ -196,7 +282,10 @@ export async function exportStudents(request, response) {
   worksheet.addRows(await findStudentsForExport({ enrollmentYear: enrollmentYear || null }))
   const buffer = await workbook.xlsx.writeBuffer()
 
-  response.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  response.setHeader(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  )
   response.setHeader(
     'Content-Disposition',
     `attachment; filename="students${enrollmentYear ? `-enrollment-${enrollmentYear}` : ''}.xlsx"`,
@@ -204,7 +293,7 @@ export async function exportStudents(request, response) {
   response.send(Buffer.from(buffer))
 }
 
-// ตัวอย่าง template สำหรับการ import ข้อมูลนักศึกษา 
+// ตัวอย่าง template สำหรับการ import ข้อมูลนักศึกษา
 export async function downloadStudentTemplate(_request, response) {
   const workbook = new ExcelJS.Workbook()
   const worksheet = workbook.addWorksheet('Students')
@@ -220,7 +309,10 @@ export async function downloadStudentTemplate(_request, response) {
     expectedGraduationYear: 2026,
   })
   const buffer = await workbook.xlsx.writeBuffer()
-  response.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  response.setHeader(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  )
   response.setHeader('Content-Disposition', 'attachment; filename="student_import_template.xlsx"')
   response.send(Buffer.from(buffer))
 }
