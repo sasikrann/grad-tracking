@@ -156,20 +156,28 @@ onMounted(async () => {
         <p class="mt-2 text-center text-[10px] text-white/60">Available only in local development</p>
       </form>
 
-      <div
-        v-if="isLoading"
-        class="mt-3 flex items-center justify-center gap-2 text-sm text-white/80"
-      >
-        <span
-          aria-hidden="true"
-          class="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
-        ></span>
-        <span>Signing in...</span>
+      <div class="mx-auto mt-4 flex min-h-14 w-full max-w-75 flex-col justify-end gap-1.5 px-1">
+        <div
+          v-if="isLoading"
+          class="flex items-center justify-center gap-2 text-xs font-normal text-white/70"
+        >
+          <span
+            aria-hidden="true"
+            class="size-3.5 animate-spin rounded-full border-2 border-white/35 border-t-white/80"
+          ></span>
+          <span>Signing in...</span>
+        </div>
+        <p class="text-center text-[11px] font-normal leading-5 text-white/55">
+          Use your MFU Lamduan Mail account to sign in
+        </p>
+        <p
+          v-if="errorMessage"
+          role="alert"
+          class="text-center text-[15px] font-medium leading-5 text-white"
+        >
+          {{ errorMessage }}
+        </p>
       </div>
-      <p v-if="errorMessage" role="alert">
-        {{ errorMessage }}
-      </p>
-      <p class="text-center text-xs text-white/60">Use your MFU Lamduan Mail account to sign in</p>
     </section>
   </div>
 </template>
