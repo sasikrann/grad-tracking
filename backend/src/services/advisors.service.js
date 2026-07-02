@@ -10,9 +10,99 @@ const advisorColumns = `
   a.created_at AS "createdAt"
 `
 
+function advisorConflictKey({ fullName, email }) {
+  return `${String(fullName ?? '').trim().toLowerCase()}|${String(email ?? '').trim().toLowerCase()}`
+}
+
 function advisorNumber(advisorId) {
   const match = String(advisorId ?? '').trim().match(/^ADV0*(\d+)$/i)
   return match ? Number(match[1]) : null
+}
+
+async function findAdvisorImportConflicts(client, records) {
+  const groups = new Map()
+
+  records.forEach((record, index) => {
+    const key = advisorConflictKey(record)
+    const group = groups.get(key) ?? {
+      key,
+      fullName: record.fullName,
+      email: record.email,
+      fileRecords: [],
+      existingAdvisors: [],
+    }
+    group.fileRecords.push({
+      optionId: `file:${index}`,
+      rowNumber: index + 2,
+      advisorId: record.advisorId || null,
+      fullName: record.fullName,
+      email: record.email,
+    })
+    groups.set(key, group)
+  })
+
+  for (const group of groups.values()) {
+    const existing = await client.query(
+      `
+        SELECT ${advisorColumns}
+        FROM advisors a
+        INNER JOIN users u ON u.user_id = a.user_id AND u.role = 'advisor'
+        WHERE LOWER(a.full_name) = LOWER($1)
+          AND LOWER(a.email) = LOWER($2)
+        ORDER BY a.advisor_id
+      `,
+      [group.fullName, group.email],
+    )
+    group.existingAdvisors = existing.rows.map((advisor) => ({
+      optionId: `existing:${advisor.advisorId}`,
+      advisorId: advisor.advisorId,
+      fullName: advisor.fullName,
+      email: advisor.email,
+    }))
+  }
+
+  return Array.from(groups.values())
+    .filter((group) => group.fileRecords.length > 1 || group.existingAdvisors.length > 0)
+    .map((group) => ({
+      key: group.key,
+      fullName: group.fullName,
+      email: group.email,
+      options: [
+        ...group.existingAdvisors.map((advisor) => ({ ...advisor, source: 'existing' })),
+        ...group.fileRecords.map((record) => ({ ...record, source: 'file' })),
+      ],
+    }))
+}
+
+function applyAdvisorImportResolutions(records, conflicts, resolutions = {}) {
+  const conflictByKey = new Map(conflicts.map((conflict) => [conflict.key, conflict]))
+  const selectedFileRows = new Set()
+  const skippedKeys = new Set()
+
+  for (const conflict of conflicts) {
+    const selectedOptionId = resolutions[conflict.key]
+    const selectedOption = conflict.options.find((option) => option.optionId === selectedOptionId)
+
+    if (!selectedOption) {
+      const error = new Error(`Please choose one advisor for ${conflict.fullName} (${conflict.email})`)
+      error.statusCode = 409
+      error.conflicts = conflicts
+      throw error
+    }
+
+    if (selectedOption.source === 'file') {
+      selectedFileRows.add(selectedOption.rowNumber)
+    } else {
+      skippedKeys.add(conflict.key)
+    }
+  }
+
+  return records.filter((record, index) => {
+    const key = advisorConflictKey(record)
+    if (!conflictByKey.has(key)) return true
+    if (skippedKeys.has(key)) return false
+    return selectedFileRows.has(index + 2)
+  })
 }
 
 export async function findAllAdvisors() {
@@ -240,7 +330,7 @@ export async function removeAdvisor(advisorId) {
   }
 }
 
-export async function importAdvisors(records, { fileName, importedBy }) {
+export async function importAdvisors(records, { fileName, importedBy, resolutions } = {}) {
   const client = await pool.connect()
   const importId = randomUUID()
   let successRecords = 0
@@ -248,14 +338,27 @@ export async function importAdvisors(records, { fileName, importedBy }) {
 
   try {
     await client.query('BEGIN')
+    const conflicts = await findAdvisorImportConflicts(client, records)
+
+    if (conflicts.length && !resolutions) {
+      const error = new Error('Duplicate advisor name and email found. Please choose one advisor for each duplicate.')
+      error.statusCode = 409
+      error.conflicts = conflicts
+      throw error
+    }
+
+    const recordsToImport = conflicts.length
+      ? applyAdvisorImportResolutions(records, conflicts, resolutions)
+      : records
+
     await client.query(
       `INSERT INTO import_logs
         (import_id, imported_by, import_type, file_name, total_records)
        VALUES ($1, $2, 'advisor', $3, $4)`,
-      [importId, importedBy, fileName, records.length],
+      [importId, importedBy, fileName, recordsToImport.length],
     )
 
-    for (const [index, record] of records.entries()) {
+    for (const [index, record] of recordsToImport.entries()) {
       const savepoint = `advisor_row_${index}`
       await client.query(`SAVEPOINT ${savepoint}`)
       try {
@@ -280,7 +383,7 @@ export async function importAdvisors(records, { fileName, importedBy }) {
 
     return {
       importId,
-      totalRecords: records.length,
+      totalRecords: recordsToImport.length,
       successRecords,
       failedRecords: errors.length,
       errors,
