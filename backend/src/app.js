@@ -10,6 +10,7 @@ import { errorHandler, notFoundHandler } from './middleware/error.middleware.js'
 import authRouter from './routes/auth.routes.js'
 import advisorsRouter from './routes/advisors.routes.js'
 import milestonesRouter from './routes/milestones.routes.js'
+import notificationsRouter from './routes/notifications.routes.js'
 import studentProfileRouter from './routes/student-profile.routes.js'
 import studentsRouter from './routes/students.routes.js'
 import usersRouter from './routes/users.routes.js'
@@ -22,6 +23,7 @@ app.use('/uploads', express.static(path.resolve('uploads')))
 app.use('/api/auth', authRouter)
 app.use('/api/advisors', requireAuth, requireRole('advisor', 'admin', 'student'), advisorsRouter)
 app.use('/api/milestones', requireAuth, requireRole('admin'), milestonesRouter)
+app.use('/api/notifications', requireAuth, requireRole('admin', 'student'), notificationsRouter)
 app.use('/api/student-profile', requireAuth, requireRole('student'), studentProfileRouter)
 app.use('/api/students', requireAuth, requireRole('admin'), studentsRouter)
 
