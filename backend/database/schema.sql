@@ -97,10 +97,21 @@ CREATE TABLE notifications (
   message TEXT NOT NULL,
   attachment_url TEXT,
   target_audience target_audience NOT NULL,
+  send_email BOOLEAN NOT NULL DEFAULT FALSE,
+  email_sent_at TIMESTAMP,
   created_by UUID REFERENCES users(user_id),
   created_at TIMESTAMP DEFAULT NOW(),
   sent_at TIMESTAMP
 );
+
+CREATE TABLE notification_reads (
+  notification_id UUID REFERENCES notifications(notification_id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
+  read_at TIMESTAMP DEFAULT NOW(),
+  PRIMARY KEY (notification_id, user_id)
+);
+
+CREATE INDEX notification_reads_user_id_idx ON notification_reads(user_id);
 
 CREATE TABLE import_logs (
   import_id UUID PRIMARY KEY,
