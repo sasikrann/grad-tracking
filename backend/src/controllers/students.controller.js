@@ -102,6 +102,20 @@ function missingFieldMessage(field) {
   return messages[field] ?? `${field} is missing.`
 }
 
+function missingFieldLabel(message) {
+  return message.replace(/\s+is missing\.$/i, '')
+}
+
+function formatMissingFieldsMessage(messages) {
+  const labels = messages.map(missingFieldLabel)
+
+  if (labels.length === 0) return ''
+  if (labels.length === 1) return `${labels[0]} is missing.`
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]} are missing.`
+
+  return `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)} are missing.`
+}
+
 function normalizeCellText(value) {
   if (value === null || value === undefined) return ''
   if (typeof value === 'object') {
@@ -220,7 +234,10 @@ async function readImportFile(file) {
     }
   })
 
-  const allValidationErrors = [...missingFieldErrors, ...validationErrors].filter(Boolean)
+  const allValidationErrors = [
+    formatMissingFieldsMessage([...missingFieldErrors]),
+    ...validationErrors,
+  ].filter(Boolean)
   if (allValidationErrors.length) {
     throw new ApiError(400, allValidationErrors.join('; '))
   }

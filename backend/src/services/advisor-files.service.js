@@ -4,6 +4,10 @@ import { Readable } from 'node:stream'
 import { ApiError } from '../errors/api-error.js'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const importRequiredFields = [
+  { key: 'fullName', label: 'Full Name' },
+  { key: 'email', label: 'Email' },
+]
 
 function optionalText(value) {
   return String(value ?? '').trim()
@@ -19,6 +23,24 @@ function requiredEmail(value) {
   const email = requiredText(normalizeEmailText(value), 'email').toLowerCase()
   if (!emailPattern.test(email)) throw new ApiError(400, 'A valid email is required')
   return email
+}
+
+function missingFieldMessage(label) {
+  return `${label} is missing.`
+}
+
+function missingFieldLabel(message) {
+  return message.replace(/\s+is missing\.$/i, '')
+}
+
+function formatMissingFieldsMessage(messages) {
+  const labels = messages.map(missingFieldLabel)
+
+  if (labels.length === 0) return ''
+  if (labels.length === 1) return `${labels[0]} is missing.`
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]} are missing.`
+
+  return `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)} are missing.`
 }
 
 export function normalizeAdvisor(body, { advisorId } = {}) {
@@ -84,25 +106,39 @@ export async function readAdvisorImportFile(file) {
 
   const records = []
   const validationErrors = new Set()
+  const missingFieldErrors = new Set()
 
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1 || !row.hasValues) return
 
+    const rawAdvisor = {
+      advisorId: cellValue(row, headerMap, ['advisorid', 'advisor id']),
+      fullName: cellValue(row, headerMap, ['fullname', 'full name', 'name', 'advisor name']),
+      email: cellValue(row, headerMap, ['email', 'advisor email']),
+    }
+    const rowMissingFields = importRequiredFields
+      .filter((field) => !optionalText(rawAdvisor[field.key]))
+      .map((field) => missingFieldMessage(field.label))
+
+    if (rowMissingFields.length) {
+      rowMissingFields.forEach((message) => missingFieldErrors.add(message))
+      return
+    }
+
     try {
-      records.push(
-        normalizeAdvisor({
-          advisorId: cellValue(row, headerMap, ['advisorid', 'advisor id']),
-          fullName: cellValue(row, headerMap, ['fullname', 'full name', 'name', 'advisor name']),
-          email: cellValue(row, headerMap, ['email', 'advisor email']),
-        }),
-      )
+      records.push(normalizeAdvisor(rawAdvisor))
     } catch (error) {
       validationErrors.add(error.message)
     }
   })
 
-  if (validationErrors.size) {
-    throw new ApiError(400, Array.from(validationErrors).join('; '))
+  const allValidationErrors = [
+    formatMissingFieldsMessage([...missingFieldErrors]),
+    ...validationErrors,
+  ].filter(Boolean)
+
+  if (allValidationErrors.length) {
+    throw new ApiError(400, allValidationErrors.join('; '))
   }
 
   if (!records.length) throw new ApiError(400, 'No data found.')
