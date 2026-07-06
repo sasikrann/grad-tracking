@@ -17,6 +17,16 @@ import {
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const degreeLevels = new Set(['Master', 'Doctoral'])
+const importRequiredFields = [
+  'studentId',
+  'email',
+  'fullName',
+  'program',
+  'degreeLevel',
+  'enrollmentAcademicYear',
+  'semester',
+  'expectedGraduationYear',
+]
 
 function requiredText(value, field) {
   const result = String(value ?? '').trim()
@@ -33,7 +43,7 @@ function requiredYear(value, field) {
 }
 
 function optionalEmail(value) {
-  const email = String(value ?? '')
+  const email = normalizeEmailText(value)
     .trim()
     .toLowerCase()
   if (!email) return null
@@ -43,7 +53,7 @@ function optionalEmail(value) {
 
 function normalizeStudent(body, { studentId, requireEmail = true } = {}) {
   const email = requireEmail
-    ? requiredText(body.email, 'email').toLowerCase()
+    ? requiredText(normalizeEmailText(body.email), 'email').toLowerCase()
     : optionalEmail(body.email)
   const degreeLevel = requiredText(body.degreeLevel, 'degreeLevel')
   if (email && !emailPattern.test(email)) throw new ApiError(400, 'A valid email is required')
@@ -92,19 +102,38 @@ function missingFieldMessage(field) {
   return messages[field] ?? `${field} is missing.`
 }
 
+function normalizeCellText(value) {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'object') {
+    if ('text' in value) return normalizeCellText(value.text)
+    if ('hyperlink' in value) return normalizeCellText(value.hyperlink)
+    if ('richText' in value && Array.isArray(value.richText)) {
+      return value.richText.map((part) => normalizeCellText(part.text)).join('')
+    }
+    if ('result' in value) return normalizeCellText(value.result)
+  }
+  return String(value).trim()
+}
+
+function normalizeEmailText(value) {
+  const text = [
+    value && typeof value === 'object' && 'hyperlink' in value ? value.hyperlink : '',
+    normalizeCellText(value),
+  ]
+    .join(' ')
+    .replace(/^mailto:/i, '')
+    .replace(/\bmailto:/gi, ' ')
+    .split('?')[0]
+    .trim()
+
+  const match = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
+  return match?.[0] ?? text
+}
+
 function normalizeImportStudent(rawStudent) {
   const rowErrors = []
 
-  for (const field of [
-    'studentId',
-    'email',
-    'fullName',
-    'program',
-    'degreeLevel',
-    'enrollmentAcademicYear',
-    'semester',
-    'expectedGraduationYear',
-  ]) {
+  for (const field of importRequiredFields) {
     if (String(rawStudent[field] ?? '').trim() === '') rowErrors.push(missingFieldMessage(field))
   }
 
@@ -119,8 +148,7 @@ function cellValue(row, headerMap, names) {
   const key = names.find((name) => headerMap.has(name.toLowerCase()))
   if (!key) return ''
   const value = row.getCell(headerMap.get(key.toLowerCase())).value
-  if (value && typeof value === 'object' && 'text' in value) return value.text
-  return value ?? ''
+  return normalizeCellText(value)
 }
 
 async function readImportFile(file) {
@@ -146,6 +174,7 @@ async function readImportFile(file) {
 
   const records = []
   const validationErrors = []
+  const missingFieldErrors = new Set()
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1 || !row.hasValues) return
     try {
@@ -172,12 +201,28 @@ async function readImportFile(file) {
         }),
       )
     } catch (error) {
-      validationErrors.push(`Row ${rowNumber}: ${formatImportValidationError(error)}`)
+      const message = formatImportValidationError(error)
+      const missingMessages = message
+        .split(';')
+        .map((item) => item.trim())
+        .filter((item) => importRequiredFields.some((field) => item === missingFieldMessage(field)))
+
+      if (missingMessages.length) {
+        missingMessages.forEach((item) => missingFieldErrors.add(item))
+        const otherMessages = message
+          .split(';')
+          .map((item) => item.trim())
+          .filter((item) => !missingMessages.includes(item))
+        validationErrors.push(...otherMessages.map((item) => `Row ${rowNumber}: ${item}`))
+      } else {
+        validationErrors.push(`Row ${rowNumber}: ${message}`)
+      }
     }
   })
 
-  if (validationErrors.length) {
-    throw new ApiError(400, validationErrors.join('; '))
+  const allValidationErrors = [...missingFieldErrors, ...validationErrors].filter(Boolean)
+  if (allValidationErrors.length) {
+    throw new ApiError(400, allValidationErrors.join('; '))
   }
   return records
 }

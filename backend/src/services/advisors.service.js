@@ -23,6 +23,28 @@ function advisorNumber(advisorId) {
   return match ? Number(match[1]) : null
 }
 
+function normalizeComparableValue(value) {
+  return value === null || value === undefined ? '' : String(value).trim().toLowerCase()
+}
+
+function advisorRecordsMatch(left, right) {
+  return ['fullName', 'email'].every(
+    (field) => normalizeComparableValue(left[field]) === normalizeComparableValue(right[field]),
+  )
+}
+
+function uniqueAdvisorOptions(options) {
+  const unique = []
+
+  for (const option of options) {
+    if (!unique.some((current) => advisorRecordsMatch(current, option))) {
+      unique.push(option)
+    }
+  }
+
+  return unique
+}
+
 async function findAdvisorImportConflicts(client, records) {
   const groups = new Map()
 
@@ -65,7 +87,22 @@ async function findAdvisorImportConflicts(client, records) {
   }
 
   return Array.from(groups.values())
-    .filter((group) => group.fileRecords.length > 1 || group.existingAdvisors.length > 0)
+    .map((group) => {
+      const fileRecords = uniqueAdvisorOptions(group.fileRecords)
+      const existingAdvisors = uniqueAdvisorOptions(group.existingAdvisors)
+      const hasDuplicateFileRecords = fileRecords.length > 1
+      const hasChangedExistingRecord = existingAdvisors.some(
+        (existing) => !fileRecords.some((fileRecord) => advisorRecordsMatch(existing, fileRecord)),
+      )
+
+      return {
+        ...group,
+        fileRecords,
+        existingAdvisors,
+        hasConflict: hasDuplicateFileRecords || hasChangedExistingRecord,
+      }
+    })
+    .filter((group) => group.hasConflict)
     .map((group) => ({
       key: group.key,
       fullName: group.fullName,

@@ -72,7 +72,7 @@ function showNotification(text: string, type: 'success' | 'error' = 'success') {
   messageTimer = setTimeout(() => {
     message.value = ''
     errorMessage.value = ''
-  }, 20_000)
+  }, 10_000)
 }
 
 function showNotificationAfterImportModalCloses(

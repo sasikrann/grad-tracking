@@ -104,7 +104,7 @@ function showNotification(text: string, type: 'success' | 'error' = 'success') {
   notificationTimer = setTimeout(() => {
     message.value = ''
     errorMessage.value = ''
-  }, 20000)
+  }, 10000)
 }
 
 function formatMilestoneError(error: unknown, fallback: string) {
