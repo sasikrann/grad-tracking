@@ -88,6 +88,7 @@ export async function findStudentMilestonesByUserId(userId) {
         mt.deadline,
         mt.first_reminder_date AS "firstReminderDate",
         mt.second_reminder_date AS "secondReminderDate",
+        mt.open_date > CURRENT_DATE AS "isLocked",
         COALESCE(
           sm.status,
           CASE
@@ -255,6 +256,7 @@ export async function submitStudentMilestoneEvidence(userId, milestoneId, eviden
         ON mt.milestone_id = $2
         AND mt.degree_level = s.degree_level
         AND mt.is_enabled = TRUE
+        AND mt.open_date <= CURRENT_DATE
       LEFT JOIN student_milestones existing_sm
         ON existing_sm.student_id = s.student_id
         AND existing_sm.milestone_id = mt.milestone_id

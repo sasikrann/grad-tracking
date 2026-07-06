@@ -40,6 +40,7 @@ export interface StudentMilestone {
   deadline: string
   firstReminderDate: string | null
   secondReminderDate: string | null
+  isLocked?: boolean
   status: StudentMilestoneStatus
   evidenceUrl: string | null
   advisorComment: string | null

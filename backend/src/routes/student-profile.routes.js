@@ -13,6 +13,7 @@ import {
 
 const router = Router()
 const evidenceDirectory = path.resolve('uploads/evidence')
+const milestoneEvidenceMaxFileSize = 2 * 1024 * 1024
 const upload = multer({
   storage: multer.diskStorage({
     destination: (_request, _file, callback) => {
@@ -24,7 +25,7 @@ const upload = multer({
       callback(null, `${Date.now()}-${safeName}`)
     },
   }),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: milestoneEvidenceMaxFileSize },
   fileFilter: (_request, file, callback) => {
     if (/^image\/(png|jpeg)$/.test(file.mimetype)) {
       callback(null, true)
@@ -37,10 +38,19 @@ const upload = multer({
   },
 })
 
+function uploadMilestoneEvidence(request, response, next) {
+  upload.single('file')(request, response, (error) => {
+    if (error?.code === 'LIMIT_FILE_SIZE') {
+      error.clientMessage = 'Milestone evidence must not exceed 2 MB'
+    }
+    next(error)
+  })
+}
+
 router.get('/me', getMyStudentProfile)
 router.get('/me/milestones', getMyStudentMilestones)
 router.put('/me/advisor', updateMyAdvisor)
-router.put('/me/milestones/:milestoneId/evidence', upload.single('file'), uploadMyMilestoneEvidence)
+router.put('/me/milestones/:milestoneId/evidence', uploadMilestoneEvidence, uploadMyMilestoneEvidence)
 router.delete('/me/milestones/:milestoneId/evidence', removeMyMilestoneEvidence)
 
 export default router

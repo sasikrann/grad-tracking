@@ -13,6 +13,8 @@ const props = defineProps<{
   canReview?: boolean
   isReviewing?: boolean
   readonly?: boolean
+  canUpload?: boolean
+  uploadError?: string
 }>()
 
 const emit = defineEmits<{
@@ -36,15 +38,24 @@ const needsEvidence = computed(() =>
     ['Missing', 'In Progress'].includes(props.milestone.status) &&
     !props.milestone.evidenceUrl,
 )
+const isLocked = computed(() => Boolean(props.milestone.isLocked))
 const hasReachedRevisionLimit = computed(
   () =>
     needsEvidence.value &&
     (props.milestone.rejectionCount ?? 0) >= (props.milestone.maxRejectedRevisionRounds ?? 3),
 )
-const canUploadEvidence = computed(() => needsEvidence.value && !hasReachedRevisionLimit.value)
+const canUploadEvidence = computed(
+  () =>
+    needsEvidence.value &&
+    !hasReachedRevisionLimit.value &&
+    !isLocked.value &&
+    (props.canUpload ?? true),
+)
 
 const isDeadlineUrgent = computed(() =>
-  ['Missing', 'In Progress'].includes(props.milestone.status) && !props.milestone.evidenceUrl,
+  !isLocked.value &&
+    ['Missing', 'In Progress'].includes(props.milestone.status) &&
+    !props.milestone.evidenceUrl,
 )
 const evidenceHref = computed(() => {
   if (!props.milestone.evidenceUrl) return ''
@@ -55,6 +66,11 @@ const evidenceName = computed(() => {
   const fileName = decodeURIComponent(value.split('/').pop() || value)
   return fileName.replace(/^\d+-/, '')
 })
+const fallbackDescription = computed(() =>
+  `Complete course registration for ${
+    props.milestone.semester === '2' ? 'second' : 'first'
+  } semester`,
+)
 const canRemoveEvidence = computed(() =>
   !props.readonly && Boolean(props.milestone.evidenceUrl) && props.milestone.status !== 'Approved',
 )
@@ -86,7 +102,13 @@ function handleFileChange(event: Event) {
     <div class="relative flex justify-center">
       <div
         class="relative z-10 flex size-6 items-center justify-center rounded-full text-xs font-semibold text-white shadow-sm"
-        :class="milestone.status === 'Missing' || milestone.status === 'In Progress' ? 'bg-[#ffbb2a]' : 'bg-[#49b866]'"
+        :class="
+          isLocked
+            ? 'bg-slate-300 text-slate-600'
+            : milestone.status === 'Missing' || milestone.status === 'In Progress'
+              ? 'bg-[#ffbb2a]'
+              : 'bg-[#49b866]'
+        "
       >
         {{ index }}
       </div>
@@ -94,12 +116,15 @@ function handleFileChange(event: Event) {
 
     <div
       class="rounded-lg border border-slate-200 bg-white px-4 pb-4 pt-3 shadow-sm sm:px-5 sm:pb-4 sm:pt-3"
+      :class="{ 'border-slate-200 bg-slate-100 text-slate-400 shadow-none': isLocked }"
     >
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="min-w-0">
-          <h3 class="text-base font-semibold text-black">{{ milestone.title }}</h3>
+          <h3 class="text-base font-semibold" :class="isLocked ? 'text-slate-500' : 'text-black'">
+            {{ milestone.title }}
+          </h3>
           <p class="mt-0.5 text-sm text-slate-500">
-            {{ milestone.description || 'Complete course registration for first semester' }}
+            {{ milestone.description || fallbackDescription }}
           </p>
         </div>
 
@@ -196,6 +221,13 @@ function handleFileChange(event: Event) {
           {{ isUploading ? 'Uploading...' : 'Upload Evidence' }}
         </button>
       </div>
+
+      <p
+        v-if="uploadError"
+        class="mt-4 rounded-lg bg-[#feecec] px-3 py-2 text-xs text-[#8a2b25]"
+      >
+        {{ uploadError }}
+      </p>
 
       <p
         v-if="!readonly && milestone.status === 'Missing'"

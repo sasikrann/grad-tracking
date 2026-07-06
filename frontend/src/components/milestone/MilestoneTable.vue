@@ -12,7 +12,7 @@ const props = defineProps<{
 
 defineEmits<{
   edit: [milestone: Milestone]
-  remove: [milestoneId: string]
+  remove: [milestone: Milestone]
   setEnabled: [milestone: Milestone, isEnabled: boolean]
   move: [milestoneId: string, direction: 'up' | 'down']
 }>()
@@ -215,7 +215,7 @@ const tableRows = computed(() => {
                     type="button"
                     class="rounded-md border border-red-100 p-1.5 text-red-500 hover:bg-red-50"
                     aria-label="Delete milestone"
-                    @click="$emit('remove', row.milestone.milestoneId)"
+                    @click="$emit('remove', row.milestone)"
                   >
                     <svg
                       class="size-4"

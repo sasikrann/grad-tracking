@@ -8,12 +8,17 @@ import {
   removeMyMilestoneEvidence,
   uploadMyMilestoneEvidence,
 } from '@/services/student-milestones.api'
+import { getMyStudentProfile, type StudentProfile } from '@/services/student-profile.api'
 import type { StudentMilestone } from '@/types/milestone'
 
 const milestones = ref<StudentMilestone[]>([])
+const profile = ref<StudentProfile | null>(null)
 const isLoading = ref(false)
 const errorMessage = ref('')
 const uploadingMilestoneId = ref<string | null>(null)
+const uploadErrorMilestoneId = ref<string | null>(null)
+const uploadErrorMessage = ref('')
+const maxMilestoneEvidenceFileSize = 2 * 1024 * 1024
 let refreshTimer: ReturnType<typeof window.setInterval> | undefined
 
 const completedCount = computed(
@@ -24,6 +29,7 @@ const progressPercentage = computed(() => {
   if (!milestones.value.length) return 0
   return Math.round((completedCount.value / milestones.value.length) * 100)
 })
+const hasAdvisor = computed(() => Boolean(profile.value?.advisorId))
 
 async function loadMilestones({ silent = false } = {}) {
   if (!silent) {
@@ -31,7 +37,12 @@ async function loadMilestones({ silent = false } = {}) {
   }
   errorMessage.value = ''
   try {
-    milestones.value = await getMyStudentMilestones()
+    const [studentMilestones, studentProfile] = await Promise.all([
+      getMyStudentMilestones(),
+      getMyStudentProfile(),
+    ])
+    milestones.value = studentMilestones
+    profile.value = studentProfile
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Unable to load milestones'
   } finally {
@@ -50,12 +61,27 @@ function refreshWhenVisible() {
 }
 
 async function uploadEvidence(milestoneId: string, file: File) {
+  uploadErrorMilestoneId.value = milestoneId
+  uploadErrorMessage.value = ''
+
+  if (!hasAdvisor.value) {
+    uploadErrorMessage.value = 'Please select an advisor before uploading milestone evidence'
+    return
+  }
+
+  if (file.size > maxMilestoneEvidenceFileSize) {
+    uploadErrorMessage.value = 'Milestone evidence must not exceed 2 MB'
+    return
+  }
+
   uploadingMilestoneId.value = milestoneId
   errorMessage.value = ''
   try {
     milestones.value = await uploadMyMilestoneEvidence(milestoneId, file)
+    uploadErrorMilestoneId.value = null
+    uploadErrorMessage.value = ''
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Unable to upload evidence'
+    uploadErrorMessage.value = error instanceof Error ? error.message : 'Unable to upload evidence'
   } finally {
     uploadingMilestoneId.value = null
   }
@@ -100,6 +126,14 @@ onBeforeUnmount(() => {
       {{ errorMessage }}
     </p>
 
+    <p
+      v-if="!isLoading && profile && !hasAdvisor"
+      class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+      role="status"
+    >
+      Please select an advisor in Student Information before uploading milestone evidence.
+    </p>
+
     <div v-if="isLoading" class="mt-5 rounded-lg bg-white px-5 py-4 text-sm text-slate-500">
       Loading milestones...
     </div>
@@ -128,6 +162,10 @@ onBeforeUnmount(() => {
           :milestone="milestone"
           :index="index + 1"
           :is-uploading="uploadingMilestoneId === milestone.milestoneId"
+          :can-upload="hasAdvisor"
+          :upload-error="
+            uploadErrorMilestoneId === milestone.milestoneId ? uploadErrorMessage : ''
+          "
           @upload="uploadEvidence"
           @remove-evidence="removeEvidence"
         />

@@ -8,7 +8,7 @@ export function errorHandler(error, _request, response, _next) {
   if (error.code === 'LIMIT_FILE_SIZE') {
     return response.status(413).json({
       status: 'error',
-      message: 'The import file must not exceed 5 MB',
+      message: error.clientMessage ?? 'The import file must not exceed 5 MB',
     })
   }
 

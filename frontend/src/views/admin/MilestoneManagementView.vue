@@ -27,6 +27,9 @@ const selectedYear = ref('all')
 const isFormOpen = ref(false)
 const isCopyOpen = ref(false)
 const editingMilestone = ref<Milestone | null>(null)
+const deletingMilestone = ref<Milestone | null>(null)
+const isDeleteConfirmed = ref(false)
+const isDeleting = ref(false)
 type MilestoneFilterKey = 'semester' | 'year' | 'degreeLevel'
 const openFilter = ref<MilestoneFilterKey | null>(null)
 
@@ -147,6 +150,17 @@ function openEditModal(milestone: Milestone) {
   isFormOpen.value = true
 }
 
+function openDeleteModal(milestone: Milestone) {
+  deletingMilestone.value = milestone
+  isDeleteConfirmed.value = false
+}
+
+function closeDeleteModal(force = false) {
+  if (isDeleting.value && !force) return
+  deletingMilestone.value = null
+  isDeleteConfirmed.value = false
+}
+
 async function saveMilestone(input: MilestoneInput) {
   errorMessage.value = ''
   try {
@@ -167,15 +181,19 @@ async function saveMilestone(input: MilestoneInput) {
   }
 }
 
-async function removeMilestone(milestoneId: string) {
-  if (!confirm('Delete this milestone?')) return
+async function removeMilestone() {
+  if (!deletingMilestone.value || !isDeleteConfirmed.value) return
   errorMessage.value = ''
+  isDeleting.value = true
   try {
-    await deleteMilestone(milestoneId)
+    await deleteMilestone(deletingMilestone.value.milestoneId)
     showNotification('Milestone deleted successfully')
+    closeDeleteModal(true)
     await loadMilestones()
   } catch (error) {
     showNotification(formatMilestoneError(error, 'Unable to delete milestone'), 'error')
+  } finally {
+    isDeleting.value = false
   }
 }
 
@@ -354,7 +372,7 @@ onBeforeUnmount(() => {
         :is-loading="isLoading"
         :group-by-semester="selectedSemester === 'all'"
         @edit="openEditModal"
-        @remove="removeMilestone"
+        @remove="openDeleteModal"
         @set-enabled="setMilestoneStatus"
         @move="moveMilestoneOrder"
       />
@@ -377,6 +395,53 @@ onBeforeUnmount(() => {
       @close="isCopyOpen = false"
       @copy="copyMilestoneTemplates"
     />
+
+    <div
+      v-if="deletingMilestone"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-milestone-title"
+    >
+      <section class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+        <h2 id="delete-milestone-title" class="text-xl font-semibold text-slate-900">
+          Delete Milestone
+        </h2>
+        <p class="mt-2 text-sm text-slate-600">
+          Do you want to delete milestone
+          <span class="font-semibold text-slate-900">"{{ deletingMilestone.title }}"</span>?
+        </p>
+
+        <label class="mt-5 flex items-center gap-3 text-sm text-slate-700">
+          <input
+            v-model="isDeleteConfirmed"
+            type="checkbox"
+            class="size-4 rounded-full accent-[#7D2923]"
+            :disabled="isDeleting"
+          />
+          <span>Yes, I want to delete this milestone.</span>
+        </label>
+
+        <div class="mt-6 flex justify-end gap-3">
+          <button
+            type="button"
+            class="rounded-md border border-slate-200 px-4 py-2 text-xs"
+            :disabled="isDeleting"
+            @click="closeDeleteModal()"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="rounded-md bg-[#7D2923] px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+            :disabled="!isDeleteConfirmed || isDeleting"
+            @click="removeMilestone"
+          >
+            {{ isDeleting ? 'Deleting...' : 'Delete' }}
+          </button>
+        </div>
+      </section>
+    </div>
 
     <div
       v-if="notificationText"
