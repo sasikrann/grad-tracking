@@ -150,22 +150,43 @@ function handleFileChange(event: Event) {
         </span>
       </div>
 
-      <div
-        class="mt-2 flex items-center gap-2 text-sm"
-        :class="isDeadlineUrgent ? 'text-red-600' : 'text-slate-500'"
-      >
-        <svg
-          class="size-4 shrink-0"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.7"
-          aria-hidden="true"
+      <div class="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+        <span class="flex items-center gap-1.5">
+          <svg
+            class="size-4 shrink-0 text-black"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            aria-hidden="true"
+          >
+            <rect x="3" y="5" width="18" height="16" rx="2" />
+            <path d="M16 3v4M8 3v4M3 11h18" />
+          </svg>
+          <span :class="isLocked ? 'text-slate-500' : 'text-green-600'">
+            Start Date : {{ formatDate(milestone.openDate) }}
+          </span>
+        </span>
+
+        <span
+          class="flex items-center gap-1.5"
+          :class="
+            isLocked ? 'text-slate-500' : isDeadlineUrgent ? 'text-red-600' : 'text-slate-500'
+          "
         >
-          <rect x="3" y="5" width="18" height="16" rx="2" />
-          <path d="M16 3v4M8 3v4M3 11h18" />
-        </svg>
-        <span>Deadline : {{ formatDate(milestone.deadline) }}</span>
+          <svg
+            class="size-4 shrink-0 text-black"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            aria-hidden="true"
+          >
+            <rect x="3" y="5" width="18" height="16" rx="2" />
+            <path d="M16 3v4M8 3v4M3 11h18" />
+          </svg>
+          <span>Deadline : {{ formatDate(milestone.deadline) }}</span>
+        </span>
       </div>
 
       <div v-if="milestone.evidenceUrl" class="mt-3 flex flex-wrap items-center gap-2">
