@@ -19,7 +19,9 @@ const uploadingMilestoneId = ref<string | null>(null)
 const uploadErrorMilestoneId = ref<string | null>(null)
 const uploadErrorMessage = ref('')
 const maxMilestoneEvidenceFileSize = 2 * 1024 * 1024
+const notificationMessage = ref('')
 let refreshTimer: ReturnType<typeof window.setInterval> | undefined
+let notificationTimer: ReturnType<typeof window.setTimeout> | undefined
 
 const completedCount = computed(
   () => milestones.value.filter((milestone) => ['Approved', 'Completed'].includes(milestone.status)).length,
@@ -30,6 +32,12 @@ const progressPercentage = computed(() => {
   return Math.round((completedCount.value / milestones.value.length) * 100)
 })
 const hasAdvisor = computed(() => Boolean(profile.value?.advisorId))
+const visibleMilestones = computed(() =>
+  milestones.value.map((milestone) => ({
+    ...milestone,
+    isLocked: milestone.isLocked || milestone.semester === '2',
+  })),
+)
 
 async function loadMilestones({ silent = false } = {}) {
   if (!silent) {
@@ -60,12 +68,35 @@ function refreshWhenVisible() {
   }
 }
 
+function showUploadBlockedMessage(milestoneId: string, message: string) {
+  if (message === advisorRequiredMessage) {
+    showNotification(message)
+    return
+  }
+
+  uploadErrorMilestoneId.value = milestoneId
+  uploadErrorMessage.value = message
+}
+
+const advisorRequiredMessage =
+  'Please select an advisor in Student Information before uploading milestone evidence.'
+
+function showNotification(message: string) {
+  notificationMessage.value = message
+  if (notificationTimer) window.clearTimeout(notificationTimer)
+  notificationTimer = window.setTimeout(() => {
+    notificationMessage.value = ''
+  }, 5000)
+}
+
 async function uploadEvidence(milestoneId: string, file: File) {
   uploadErrorMilestoneId.value = milestoneId
   uploadErrorMessage.value = ''
 
   if (!hasAdvisor.value) {
-    uploadErrorMessage.value = 'Please select an advisor before uploading milestone evidence'
+    uploadErrorMilestoneId.value = null
+    uploadErrorMessage.value = ''
+    showNotification(advisorRequiredMessage)
     return
   }
 
@@ -108,6 +139,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (refreshTimer) window.clearInterval(refreshTimer)
+  if (notificationTimer) window.clearTimeout(notificationTimer)
   window.removeEventListener('focus', refreshWhenVisible)
   document.removeEventListener('visibilitychange', refreshWhenVisible)
 })
@@ -126,14 +158,6 @@ onBeforeUnmount(() => {
       {{ errorMessage }}
     </p>
 
-    <p
-      v-if="!isLoading && profile && !hasAdvisor"
-      class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
-      role="status"
-    >
-      Please select an advisor in Student Information before uploading milestone evidence.
-    </p>
-
     <div v-if="isLoading" class="mt-5 rounded-lg bg-white px-5 py-4 text-sm text-slate-500">
       Loading milestones...
     </div>
@@ -147,17 +171,17 @@ onBeforeUnmount(() => {
       />
 
       <div
-        v-if="milestones.length"
+        v-if="visibleMilestones.length"
         class="relative mt-5 space-y-4 pb-10"
       >
         <div
-          v-if="milestones.length > 1"
+          v-if="visibleMilestones.length > 1"
           class="absolute bottom-3 left-3 top-3 w-px bg-slate-200 md:left-4"
           aria-hidden="true"
         ></div>
 
         <StudentMilestoneCard
-          v-for="(milestone, index) in milestones"
+          v-for="(milestone, index) in visibleMilestones"
           :key="milestone.milestoneId"
           :milestone="milestone"
           :index="index + 1"
@@ -166,6 +190,7 @@ onBeforeUnmount(() => {
           :upload-error="
             uploadErrorMilestoneId === milestone.milestoneId ? uploadErrorMessage : ''
           "
+          @upload-blocked="showUploadBlockedMessage"
           @upload="uploadEvidence"
           @remove-evidence="removeEvidence"
         />
@@ -178,5 +203,14 @@ onBeforeUnmount(() => {
         No milestones are currently assigned.
       </section>
     </template>
+
+    <div
+      v-if="notificationMessage"
+      class="fixed bottom-6 left-1/2 z-50 w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-red-600 shadow-[0_8px_24px_rgba(0,0,0,0.16)]"
+      role="status"
+      aria-live="polite"
+    >
+      {{ notificationMessage }}
+    </div>
   </div>
 </template>

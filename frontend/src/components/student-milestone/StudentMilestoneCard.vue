@@ -19,6 +19,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   upload: [milestoneId: string, file: File]
+  uploadBlocked: [milestoneId: string, message: string]
   removeEvidence: [milestoneId: string]
   approve: [milestone: StudentMilestone]
   reject: [milestone: StudentMilestone]
@@ -44,10 +45,10 @@ const hasReachedRevisionLimit = computed(
     needsEvidence.value &&
     (props.milestone.rejectionCount ?? 0) >= (props.milestone.maxRejectedRevisionRounds ?? 3),
 )
+const showUploadEvidence = computed(() => needsEvidence.value && !hasReachedRevisionLimit.value)
 const canUploadEvidence = computed(
   () =>
-    needsEvidence.value &&
-    !hasReachedRevisionLimit.value &&
+    showUploadEvidence.value &&
     !isLocked.value &&
     (props.canUpload ?? true),
 )
@@ -84,6 +85,19 @@ function formatDate(value: string) {
 }
 
 function openUploadPicker() {
+  if (isLocked.value) {
+    return
+  }
+
+  if (!(props.canUpload ?? true)) {
+    emit(
+      'uploadBlocked',
+      props.milestone.milestoneId,
+      'Please select an advisor in Student Information before uploading milestone evidence.',
+    )
+    return
+  }
+
   fileInput.value?.click()
 }
 
@@ -194,7 +208,7 @@ function handleFileChange(event: Event) {
         </button>
       </div>
 
-      <div v-if="canUploadEvidence" class="mt-3 flex flex-wrap items-center gap-3">
+      <div v-if="showUploadEvidence" class="mt-3 flex flex-wrap items-center gap-3">
         <input
           ref="fileInput"
           class="hidden"
@@ -204,7 +218,8 @@ function handleFileChange(event: Event) {
         <button
           type="button"
           class="inline-flex h-7 items-center gap-2 rounded border border-slate-300 bg-white px-3 text-xs font-semibold text-black shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="isUploading"
+          :aria-disabled="!canUploadEvidence || isUploading"
+          :disabled="isUploading || isLocked"
           @click="openUploadPicker"
         >
           <svg
