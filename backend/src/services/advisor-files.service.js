@@ -16,7 +16,7 @@ function requiredText(value, field) {
 }
 
 function requiredEmail(value) {
-  const email = requiredText(value, 'email').toLowerCase()
+  const email = requiredText(normalizeEmailText(value), 'email').toLowerCase()
   if (!emailPattern.test(email)) throw new ApiError(400, 'A valid email is required')
   return email
 }
@@ -34,9 +34,35 @@ function cellValue(row, headerMap, names) {
   if (!key) return ''
 
   const value = row.getCell(headerMap.get(key.toLowerCase())).value
-  if (value && typeof value === 'object' && 'text' in value) return value.text
+  return normalizeCellText(value)
+}
 
-  return value ?? ''
+function normalizeCellText(value) {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'object') {
+    if ('text' in value) return normalizeCellText(value.text)
+    if ('hyperlink' in value) return normalizeCellText(value.hyperlink)
+    if ('richText' in value && Array.isArray(value.richText)) {
+      return value.richText.map((part) => normalizeCellText(part.text)).join('')
+    }
+    if ('result' in value) return normalizeCellText(value.result)
+  }
+  return String(value).trim()
+}
+
+function normalizeEmailText(value) {
+  const text = [
+    value && typeof value === 'object' && 'hyperlink' in value ? value.hyperlink : '',
+    normalizeCellText(value),
+  ]
+    .join(' ')
+    .replace(/^mailto:/i, '')
+    .replace(/\bmailto:/gi, ' ')
+    .split('?')[0]
+    .trim()
+
+  const match = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
+  return match?.[0] ?? text
 }
 
 export async function readAdvisorImportFile(file) {
@@ -57,7 +83,7 @@ export async function readAdvisorImportFile(file) {
   })
 
   const records = []
-  const validationErrors = []
+  const validationErrors = new Set()
 
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1 || !row.hasValues) return
@@ -71,12 +97,12 @@ export async function readAdvisorImportFile(file) {
         }),
       )
     } catch (error) {
-      validationErrors.push(`Row ${rowNumber}: ${error.message}`)
+      validationErrors.add(error.message)
     }
   })
 
-  if (validationErrors.length) {
-    throw new ApiError(400, validationErrors.join('; '))
+  if (validationErrors.size) {
+    throw new ApiError(400, Array.from(validationErrors).join('; '))
   }
 
   return records
