@@ -158,7 +158,7 @@ async function saveMilestone(input: MilestoneInput) {
       showNotification('Milestone added successfully')
     }
     selectedDegreeLevel.value = input.degreeLevel
-    selectedSemester.value = input.semester
+    selectedSemester.value = 'all'
     selectedYear.value = new Date(input.deadline).getFullYear().toString()
     isFormOpen.value = false
     await loadMilestones()
@@ -363,6 +363,7 @@ onBeforeUnmount(() => {
     <MilestoneFormModal
       v-if="isFormOpen"
       :milestone="editingMilestone"
+      :milestones="milestones"
       :default-degree-level="selectedDegreeLevel"
       :default-semester="selectedSemester"
       :default-order="nextOrder"

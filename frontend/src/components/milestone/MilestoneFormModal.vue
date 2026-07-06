@@ -6,6 +6,7 @@ import type { DegreeLevel, Milestone, MilestoneInput } from '@/types/milestone'
 
 const props = defineProps<{
   milestone: Milestone | null
+  milestones: Milestone[]
   defaultDegreeLevel: DegreeLevel
   defaultSemester: string
   defaultOrder: number
@@ -31,6 +32,22 @@ const form = reactive<MilestoneInput>({
 
 const isEditing = computed(() => Boolean(props.milestone))
 
+const nextOrderForFormSelection = computed(() => {
+  return (
+    Math.max(
+      0,
+      ...props.milestones
+        .filter((milestone) => milestone.degreeLevel === form.degreeLevel)
+        .filter((milestone) => milestone.semester === form.semester)
+        .map((milestone) => milestone.sequenceOrder),
+    ) + 1
+  )
+})
+
+function saveForm() {
+  emit('save', { ...form })
+}
+
 watch(
   () => props.milestone,
   (milestone) => {
@@ -48,6 +65,16 @@ watch(
   },
   { immediate: true },
 )
+
+watch(
+  () => [form.degreeLevel, form.semester, props.milestones] as const,
+  () => {
+    if (!isEditing.value) {
+      form.sequenceOrder = nextOrderForFormSelection.value
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -57,12 +84,11 @@ watch(
       <p class="mt-1 text-xs text-slate-500">Fill in detail for the new milestone.</p>
       <p class="mt-1 text-xs text-red-600">** Adding this milestone will notify the student immediately. **</p>
 
-      <form class="mt-5 space-y-3" @submit.prevent="emit('save', { ...form })">
+      <form class="mt-5 space-y-3" novalidate @submit.prevent="saveForm">
         <label class="block text-xs font-semibold">
           Title
           <input
             v-model="form.title"
-            required
             placeholder="e.g., Research Proposal"
             class="mt-1 h-10 w-full rounded-md border border-[#c9827c] px-3 text-xs outline-none focus:border-[#7D2923]"
           />
