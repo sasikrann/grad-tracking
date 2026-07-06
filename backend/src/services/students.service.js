@@ -48,6 +48,38 @@ function studentConflictOption(record, { optionId, source, rowNumber } = {}) {
   }
 }
 
+function normalizeComparableValue(value) {
+  return value === null || value === undefined ? '' : String(value).trim().toLowerCase()
+}
+
+function studentRecordsMatch(left, right) {
+  return [
+    'studentId',
+    'fullName',
+    'email',
+    'program',
+    'degreeLevel',
+    'enrollmentAcademicYear',
+    'semester',
+    'expectedGraduationYear',
+    'advisorId',
+    'advisorName',
+    'advisorEmail',
+  ].every((field) => normalizeComparableValue(left[field]) === normalizeComparableValue(right[field]))
+}
+
+function uniqueStudentOptions(options) {
+  const unique = []
+
+  for (const option of options) {
+    if (!unique.some((current) => studentRecordsMatch(current, option))) {
+      unique.push(option)
+    }
+  }
+
+  return unique
+}
+
 async function findStudentImportConflicts(client, records) {
   const groups = new Map()
 
@@ -89,7 +121,22 @@ async function findStudentImportConflicts(client, records) {
   }
 
   return Array.from(groups.values())
-    .filter((group) => group.fileRecords.length > 1 || group.existingStudents.length > 0)
+    .map((group) => {
+      const fileRecords = uniqueStudentOptions(group.fileRecords)
+      const existingStudents = uniqueStudentOptions(group.existingStudents)
+      const hasDuplicateFileRecords = fileRecords.length > 1
+      const hasChangedExistingRecord = existingStudents.some(
+        (existing) => !fileRecords.some((fileRecord) => studentRecordsMatch(existing, fileRecord)),
+      )
+
+      return {
+        ...group,
+        fileRecords,
+        existingStudents,
+        hasConflict: hasDuplicateFileRecords || hasChangedExistingRecord,
+      }
+    })
+    .filter((group) => group.hasConflict)
     .map((group) => ({
       key: group.key,
       studentId: group.studentId,
@@ -158,7 +205,7 @@ async function findStudents({ advisorId } = {}) {
             WHERE mt.deadline < CURRENT_DATE
               AND COALESCE(sm.status, 'Missing') NOT IN ('Completed', 'Approved')
           ) > 0 THEN 'Overdue'
-          WHEN EXTRACT(YEAR FROM CURRENT_DATE)::INT > s.expected_graduation_year
+          WHEN EXTRACT(YEAR FROM CURRENT_DATE)::INT > (s.enrollment_academic_year + 2)
             AND COALESCE(
               ROUND(
                 100.0 * COUNT(sm.student_milestone_id)

@@ -107,7 +107,7 @@ function showNotification(text: string, type: 'success' | 'error' = 'success') {
   notificationTimer = setTimeout(() => {
     message.value = ''
     errorMessage.value = ''
-  }, 20000)
+  }, 10000)
 }
 
 function formatMilestoneError(error: unknown, fallback: string) {
@@ -172,7 +172,7 @@ async function saveMilestone(input: MilestoneInput) {
       showNotification('Milestone added successfully')
     }
     selectedDegreeLevel.value = input.degreeLevel
-    selectedSemester.value = input.semester
+    selectedSemester.value = 'all'
     selectedYear.value = new Date(input.deadline).getFullYear().toString()
     isFormOpen.value = false
     await loadMilestones()
@@ -381,6 +381,7 @@ onBeforeUnmount(() => {
     <MilestoneFormModal
       v-if="isFormOpen"
       :milestone="editingMilestone"
+      :milestones="milestones"
       :default-degree-level="selectedDegreeLevel"
       :default-semester="selectedSemester"
       :default-order="nextOrder"

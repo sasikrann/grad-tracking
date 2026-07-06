@@ -47,7 +47,7 @@ function showNotification(text: string, type: 'success' | 'error' = 'success') {
   messageTimer = setTimeout(() => {
     message.value = ''
     errorMessage.value = ''
-  }, 20_000)
+  }, 10_000)
 }
 
 async function loadAdvisors() {
@@ -85,7 +85,9 @@ function closeImportModal() {
 }
 
 function showImportResult(result: AdvisorImportResult) {
-  const errorText = result.errors?.length ? ` ${result.errors.join('; ')}` : ''
+  const errorText = result.errors?.length
+    ? ` ${result.errors.map((error) => removeRowPrefix(error)).join('; ')}`
+    : ''
   showNotification(
     result.failedRecords
       ? `Imported ${result.successRecords}/${result.totalRecords} advisors.${errorText}`
@@ -94,8 +96,12 @@ function showImportResult(result: AdvisorImportResult) {
   )
 }
 
+function removeRowPrefix(text: string) {
+  return text.replace(/\bRow\s+\d+:\s*/gi, '')
+}
+
 function advisorImportErrorMessage(error: unknown) {
-  const message = error instanceof Error ? error.message : ''
+  const message = removeRowPrefix(error instanceof Error ? error.message : '')
   const readableMessages: Record<string, string> = {
     'Please enter a valid email address because this email is duplicated.': duplicateAdvisorMessage,
     'Please choose one advisor for each duplicated email.':
