@@ -80,6 +80,13 @@ export async function uploadMyMilestoneEvidence(request, response) {
   const evidenceUrl = request.file
     ? `/uploads/evidence/${request.file.filename}`
     : requiredText(request.body.evidenceUrl, 'evidenceUrl')
+  const student = await findStudentByUserId(request.user.userId)
+
+  if (!student?.advisorId) {
+    await removeUploadedFile(request.file)
+    throw new ApiError(409, 'Please select an advisor before uploading milestone evidence')
+  }
+
   const updated = await submitStudentMilestoneEvidence(
     request.user.userId,
     request.params.milestoneId,

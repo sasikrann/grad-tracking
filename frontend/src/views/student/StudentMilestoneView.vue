@@ -8,13 +8,20 @@ import {
   removeMyMilestoneEvidence,
   uploadMyMilestoneEvidence,
 } from '@/services/student-milestones.api'
+import { getMyStudentProfile, type StudentProfile } from '@/services/student-profile.api'
 import type { StudentMilestone } from '@/types/milestone'
 
 const milestones = ref<StudentMilestone[]>([])
+const profile = ref<StudentProfile | null>(null)
 const isLoading = ref(false)
 const errorMessage = ref('')
 const uploadingMilestoneId = ref<string | null>(null)
+const uploadErrorMilestoneId = ref<string | null>(null)
+const uploadErrorMessage = ref('')
+const maxMilestoneEvidenceFileSize = 2 * 1024 * 1024
+const notificationMessage = ref('')
 let refreshTimer: ReturnType<typeof window.setInterval> | undefined
+let notificationTimer: ReturnType<typeof window.setTimeout> | undefined
 
 const completedCount = computed(
   () => milestones.value.filter((milestone) => ['Approved', 'Completed'].includes(milestone.status)).length,
@@ -24,6 +31,13 @@ const progressPercentage = computed(() => {
   if (!milestones.value.length) return 0
   return Math.round((completedCount.value / milestones.value.length) * 100)
 })
+const hasAdvisor = computed(() => Boolean(profile.value?.advisorId))
+const visibleMilestones = computed(() =>
+  milestones.value.map((milestone) => ({
+    ...milestone,
+    isLocked: milestone.isLocked || milestone.semester === '2',
+  })),
+)
 
 async function loadMilestones({ silent = false } = {}) {
   if (!silent) {
@@ -31,7 +45,12 @@ async function loadMilestones({ silent = false } = {}) {
   }
   errorMessage.value = ''
   try {
-    milestones.value = await getMyStudentMilestones()
+    const [studentMilestones, studentProfile] = await Promise.all([
+      getMyStudentMilestones(),
+      getMyStudentProfile(),
+    ])
+    milestones.value = studentMilestones
+    profile.value = studentProfile
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Unable to load milestones'
   } finally {
@@ -49,13 +68,51 @@ function refreshWhenVisible() {
   }
 }
 
+function showUploadBlockedMessage(milestoneId: string, message: string) {
+  if (message === advisorRequiredMessage) {
+    showNotification(message)
+    return
+  }
+
+  uploadErrorMilestoneId.value = milestoneId
+  uploadErrorMessage.value = message
+}
+
+const advisorRequiredMessage =
+  'Please select an advisor in Student Information before uploading milestone evidence.'
+
+function showNotification(message: string) {
+  notificationMessage.value = message
+  if (notificationTimer) window.clearTimeout(notificationTimer)
+  notificationTimer = window.setTimeout(() => {
+    notificationMessage.value = ''
+  }, 5000)
+}
+
 async function uploadEvidence(milestoneId: string, file: File) {
+  uploadErrorMilestoneId.value = milestoneId
+  uploadErrorMessage.value = ''
+
+  if (!hasAdvisor.value) {
+    uploadErrorMilestoneId.value = null
+    uploadErrorMessage.value = ''
+    showNotification(advisorRequiredMessage)
+    return
+  }
+
+  if (file.size > maxMilestoneEvidenceFileSize) {
+    uploadErrorMessage.value = 'Milestone evidence must not exceed 2 MB'
+    return
+  }
+
   uploadingMilestoneId.value = milestoneId
   errorMessage.value = ''
   try {
     milestones.value = await uploadMyMilestoneEvidence(milestoneId, file)
+    uploadErrorMilestoneId.value = null
+    uploadErrorMessage.value = ''
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Unable to upload evidence'
+    uploadErrorMessage.value = error instanceof Error ? error.message : 'Unable to upload evidence'
   } finally {
     uploadingMilestoneId.value = null
   }
@@ -82,6 +139,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (refreshTimer) window.clearInterval(refreshTimer)
+  if (notificationTimer) window.clearTimeout(notificationTimer)
   window.removeEventListener('focus', refreshWhenVisible)
   document.removeEventListener('visibilitychange', refreshWhenVisible)
 })
@@ -113,21 +171,26 @@ onBeforeUnmount(() => {
       />
 
       <div
-        v-if="milestones.length"
+        v-if="visibleMilestones.length"
         class="relative mt-5 space-y-4 pb-10"
       >
         <div
-          v-if="milestones.length > 1"
+          v-if="visibleMilestones.length > 1"
           class="absolute bottom-3 left-3 top-3 w-px bg-slate-200 md:left-4"
           aria-hidden="true"
         ></div>
 
         <StudentMilestoneCard
-          v-for="(milestone, index) in milestones"
+          v-for="(milestone, index) in visibleMilestones"
           :key="milestone.milestoneId"
           :milestone="milestone"
           :index="index + 1"
           :is-uploading="uploadingMilestoneId === milestone.milestoneId"
+          :can-upload="hasAdvisor"
+          :upload-error="
+            uploadErrorMilestoneId === milestone.milestoneId ? uploadErrorMessage : ''
+          "
+          @upload-blocked="showUploadBlockedMessage"
           @upload="uploadEvidence"
           @remove-evidence="removeEvidence"
         />
@@ -140,5 +203,14 @@ onBeforeUnmount(() => {
         No milestones are currently assigned.
       </section>
     </template>
+
+    <div
+      v-if="notificationMessage"
+      class="fixed bottom-6 left-1/2 z-50 w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-red-600 shadow-[0_8px_24px_rgba(0,0,0,0.16)]"
+      role="status"
+      aria-live="polite"
+    >
+      {{ notificationMessage }}
+    </div>
   </div>
 </template>

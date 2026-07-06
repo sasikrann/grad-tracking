@@ -13,10 +13,13 @@ const props = defineProps<{
   canReview?: boolean
   isReviewing?: boolean
   readonly?: boolean
+  canUpload?: boolean
+  uploadError?: string
 }>()
 
 const emit = defineEmits<{
   upload: [milestoneId: string, file: File]
+  uploadBlocked: [milestoneId: string, message: string]
   removeEvidence: [milestoneId: string]
   approve: [milestone: StudentMilestone]
   reject: [milestone: StudentMilestone]
@@ -36,15 +39,24 @@ const needsEvidence = computed(() =>
     ['Missing', 'In Progress'].includes(props.milestone.status) &&
     !props.milestone.evidenceUrl,
 )
+const isLocked = computed(() => Boolean(props.milestone.isLocked))
 const hasReachedRevisionLimit = computed(
   () =>
     needsEvidence.value &&
     (props.milestone.rejectionCount ?? 0) >= (props.milestone.maxRejectedRevisionRounds ?? 3),
 )
-const canUploadEvidence = computed(() => needsEvidence.value && !hasReachedRevisionLimit.value)
+const showUploadEvidence = computed(() => needsEvidence.value && !hasReachedRevisionLimit.value)
+const canUploadEvidence = computed(
+  () =>
+    showUploadEvidence.value &&
+    !isLocked.value &&
+    (props.canUpload ?? true),
+)
 
 const isDeadlineUrgent = computed(() =>
-  ['Missing', 'In Progress'].includes(props.milestone.status) && !props.milestone.evidenceUrl,
+  !isLocked.value &&
+    ['Missing', 'In Progress'].includes(props.milestone.status) &&
+    !props.milestone.evidenceUrl,
 )
 const evidenceHref = computed(() => {
   if (!props.milestone.evidenceUrl) return ''
@@ -55,6 +67,11 @@ const evidenceName = computed(() => {
   const fileName = decodeURIComponent(value.split('/').pop() || value)
   return fileName.replace(/^\d+-/, '')
 })
+const fallbackDescription = computed(() =>
+  `Complete course registration for ${
+    props.milestone.semester === '2' ? 'second' : 'first'
+  } semester`,
+)
 const canRemoveEvidence = computed(() =>
   !props.readonly && Boolean(props.milestone.evidenceUrl) && props.milestone.status !== 'Approved',
 )
@@ -68,6 +85,19 @@ function formatDate(value: string) {
 }
 
 function openUploadPicker() {
+  if (isLocked.value) {
+    return
+  }
+
+  if (!(props.canUpload ?? true)) {
+    emit(
+      'uploadBlocked',
+      props.milestone.milestoneId,
+      'Please select an advisor in Student Information before uploading milestone evidence.',
+    )
+    return
+  }
+
   fileInput.value?.click()
 }
 
@@ -86,7 +116,13 @@ function handleFileChange(event: Event) {
     <div class="relative flex justify-center">
       <div
         class="relative z-10 flex size-6 items-center justify-center rounded-full text-xs font-semibold text-white shadow-sm"
-        :class="milestone.status === 'Missing' || milestone.status === 'In Progress' ? 'bg-[#ffbb2a]' : 'bg-[#49b866]'"
+        :class="
+          isLocked
+            ? 'bg-slate-300 text-slate-600'
+            : milestone.status === 'Missing' || milestone.status === 'In Progress'
+              ? 'bg-[#ffbb2a]'
+              : 'bg-[#49b866]'
+        "
       >
         {{ index }}
       </div>
@@ -94,12 +130,15 @@ function handleFileChange(event: Event) {
 
     <div
       class="rounded-lg border border-slate-200 bg-white px-4 pb-4 pt-3 shadow-sm sm:px-5 sm:pb-4 sm:pt-3"
+      :class="{ 'border-slate-200 bg-slate-100 text-slate-400 shadow-none': isLocked }"
     >
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="min-w-0">
-          <h3 class="text-base font-semibold text-black">{{ milestone.title }}</h3>
+          <h3 class="text-base font-semibold" :class="isLocked ? 'text-slate-500' : 'text-black'">
+            {{ milestone.title }}
+          </h3>
           <p class="mt-0.5 text-sm text-slate-500">
-            {{ milestone.description || 'Complete course registration for first semester' }}
+            {{ milestone.description || fallbackDescription }}
           </p>
         </div>
 
@@ -169,7 +208,7 @@ function handleFileChange(event: Event) {
         </button>
       </div>
 
-      <div v-if="canUploadEvidence" class="mt-3 flex flex-wrap items-center gap-3">
+      <div v-if="showUploadEvidence" class="mt-3 flex flex-wrap items-center gap-3">
         <input
           ref="fileInput"
           class="hidden"
@@ -179,7 +218,8 @@ function handleFileChange(event: Event) {
         <button
           type="button"
           class="inline-flex h-7 items-center gap-2 rounded border border-slate-300 bg-white px-3 text-xs font-semibold text-black shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="isUploading"
+          :aria-disabled="!canUploadEvidence || isUploading"
+          :disabled="isUploading || isLocked"
           @click="openUploadPicker"
         >
           <svg
@@ -196,6 +236,13 @@ function handleFileChange(event: Event) {
           {{ isUploading ? 'Uploading...' : 'Upload Evidence' }}
         </button>
       </div>
+
+      <p
+        v-if="uploadError"
+        class="mt-4 rounded-lg bg-[#feecec] px-3 py-2 text-xs text-[#8a2b25]"
+      >
+        {{ uploadError }}
+      </p>
 
       <p
         v-if="!readonly && milestone.status === 'Missing'"

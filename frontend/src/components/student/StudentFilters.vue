@@ -71,20 +71,27 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
   },
 ])
 
-const filterDefinitions = computed<FilterDefinition[]>(() => [
-  ...baseFilterDefinitions.value,
-  {
-    key: 'advisor',
-    defaultLabel: props.advisorMode === 'all-only' ? 'All View' : 'Advisor (Default)',
-    options:
-      props.advisorMode === 'all-only'
-        ? [{ label: 'All View', value: 'all' }]
-        : [
-            { label: 'Advisor (Default)', value: 'default' },
-            { label: 'All View', value: 'all' },
-          ],
-  },
-])
+const filterDefinitions = computed<FilterDefinition[]>(() => {
+  if (props.advisorMode === 'all-only') return baseFilterDefinitions.value
+
+  return [
+    ...baseFilterDefinitions.value,
+    {
+      key: 'advisor',
+      defaultLabel: 'Advisor (Default)',
+      options: [
+        { label: 'Advisor (Default)', value: 'default' },
+        { label: 'All View', value: 'all' },
+      ],
+    },
+  ]
+})
+
+const filterGridClass = computed(() =>
+  props.advisorMode === 'all-only'
+    ? 'sm:grid-cols-2 lg:col-span-7 lg:grid-cols-4'
+    : 'sm:grid-cols-2 lg:col-span-7 lg:grid-cols-[0.9fr_0.9fr_1.1fr_1fr_1.35fr]',
+)
 
 function selectedFilterLabel(filter: FilterDefinition) {
   return (
@@ -134,9 +141,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
       />
     </label>
 
-    <div
-      class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:col-span-7 lg:grid-cols-[0.9fr_0.9fr_1.1fr_1fr_1.35fr]"
-    >
+    <div class="grid grid-cols-1 gap-2" :class="filterGridClass">
       <div v-for="filter in filterDefinitions" :key="filter.key" class="relative" @click.stop>
         <button
           type="button"
