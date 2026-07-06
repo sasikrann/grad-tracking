@@ -241,7 +241,7 @@ async function copyMilestoneTemplates(
     )
     showNotification(`Copied ${result.copiedRecords} milestones successfully`)
     selectedDegreeLevel.value = toDegreeLevel
-    selectedSemester.value = toSemester
+    selectedSemester.value = 'all'
     selectedYear.value = toYear
     isCopyOpen.value = false
     await loadMilestones()
