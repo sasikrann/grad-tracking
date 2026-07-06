@@ -1,5 +1,4 @@
-// ไฟล์ตั้งค่าหลักของ backend
-// ใช้รวม middleware, routes, health check และ error handler
+// Main backend app configuration for middleware, routes, health check, and error handling.
 import cors from 'cors'
 import express from 'express'
 import path from 'node:path'
