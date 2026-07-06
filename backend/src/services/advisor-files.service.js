@@ -49,7 +49,7 @@ export async function readAdvisorImportFile(file) {
   }
 
   const sheet = workbook.worksheets[0]
-  if (!sheet || sheet.rowCount < 2) throw new ApiError(400, 'The import file has no advisor rows')
+  if (!sheet || sheet.rowCount < 2) throw new ApiError(400, 'No data found.')
 
   const headerMap = new Map()
   sheet.getRow(1).eachCell((cell, column) => {
@@ -78,6 +78,8 @@ export async function readAdvisorImportFile(file) {
   if (validationErrors.length) {
     throw new ApiError(400, validationErrors.join('; '))
   }
+
+  if (!records.length) throw new ApiError(400, 'No data found.')
 
   return records
 }
