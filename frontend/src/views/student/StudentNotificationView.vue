@@ -125,7 +125,7 @@ onMounted(() => {
     <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <h1 class="text-3xl font-bold tracking-tight text-black">Notification</h1>
-        <p class="mt-1 text-sm font-semibold text-slate-500">
+        <p class="mt-1 text-sm text-slate-500">
           Stay updated with your milestones and advisor messages.
         </p>
       </div>
@@ -133,11 +133,11 @@ onMounted(() => {
       <button
         type="button"
         :disabled="isMarkingAll || unreadCount === 0"
-        class="inline-flex h-12 items-center justify-center gap-3 rounded-lg bg-[#8b2a23] px-5 text-sm font-semibold text-white shadow-sm hover:bg-[#7a211c] disabled:cursor-not-allowed disabled:opacity-60"
+        class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#8b2a23] px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#7a211c] disabled:cursor-not-allowed disabled:opacity-60"
         @click="markAllAsRead"
       >
         <svg
-          class="size-5"
+          class="size-4"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -240,18 +240,7 @@ onMounted(() => {
             {{ formatNotificationTime(notification.sentAt ?? notification.createdAt) }}
           </time>
 
-          <div class="flex flex-wrap items-center gap-2 md:flex-col md:items-end">
-            <span
-              class="inline-flex h-7 min-w-24 items-center justify-center rounded-lg px-4 text-xs font-semibold"
-              :class="
-                notification.isRead
-                  ? 'bg-slate-200 text-slate-500'
-                  : 'bg-[#f7e8ea] text-[#b12a24]'
-              "
-            >
-              {{ notification.isRead ? 'Read' : 'Unread' }}
-            </span>
-
+          <div class="flex flex-wrap items-center gap-2 md:justify-end">
             <button
               v-if="!notification.isRead"
               type="button"

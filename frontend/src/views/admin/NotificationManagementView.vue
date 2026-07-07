@@ -245,7 +245,7 @@ onBeforeUnmount(() => {
 
       <button
         type="button"
-        class="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#8b2a23] px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#7a211c]"
+        class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#8b2a23] px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#7a211c]"
         @click="openAddPanel"
       >
         <svg
