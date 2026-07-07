@@ -78,8 +78,8 @@ watch(
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
-    <section class="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+  <div class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/35 px-4 py-4 sm:items-center sm:py-6">
+    <section class="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:max-h-[calc(100vh-3rem)] sm:p-6">
       <h2 class="text-xl font-semibold">{{ isEditing ? 'Edit Milestone' : 'Add Milestone' }}</h2>
       <p class="mt-1 text-xs text-slate-500">Fill in detail for the new milestone.</p>
       <p class="mt-1 text-xs text-red-600">** Adding this milestone will notify the student immediately. **</p>
@@ -104,7 +104,7 @@ watch(
           ></textarea>
         </label>
 
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label class="block text-xs font-semibold">
             Program
             <select
@@ -128,7 +128,7 @@ watch(
           </label>
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label class="block text-xs font-semibold">
             Order
             <input
@@ -143,7 +143,7 @@ watch(
         <DateInput v-model="form.openDate" label="Date" />
         <DateInput v-model="form.deadline" label="Deadline" />
 
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <DateInput v-model="form.firstReminderDate" label="First Reminder" />
           <DateInput v-model="form.secondReminderDate" label="Second Reminder" />
         </div>
@@ -153,7 +153,7 @@ watch(
           Enable this milestone for students
         </label>
 
-        <div class="flex justify-end gap-3 pt-2">
+        <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
           <button type="button" class="rounded-md border border-slate-200 px-4 py-2 text-xs" @click="emit('close')">
             Cancel
           </button>

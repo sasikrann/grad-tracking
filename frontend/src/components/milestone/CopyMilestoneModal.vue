@@ -124,18 +124,18 @@ function confirmCopy() {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
-    <section class="w-full max-w-4xl rounded-lg bg-white p-6 shadow-xl">
+  <div class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/35 px-4 py-4 sm:items-center sm:py-6">
+    <section class="max-h-[calc(100vh-2rem)] w-full max-w-4xl overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:max-h-[calc(100vh-3rem)] sm:p-6">
       <h2 class="text-lg font-semibold">Copy Milestone</h2>
       <p class="mt-1 text-xs text-slate-500">
         Copy milestone from one semester/program to another.
       </p>
 
       <!-- From (Source) -->
-      <div class="mt-7 grid grid-cols-[1fr_auto_1fr] items-end gap-8">
+      <div class="mt-7 grid grid-cols-1 items-end gap-5 lg:grid-cols-[1fr_auto_1fr] lg:gap-8">
         <section>
           <h3 class="text-xs font-semibold text-[#8b0000]">1. From (Source)</h3>
-          <div class="mt-4 grid grid-cols-3 gap-3">
+          <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <label class="text-xs font-semibold">
               Semester
               <select
@@ -172,7 +172,7 @@ function confirmCopy() {
         </section>
 
         <svg
-          class="mb-3 size-8 text-[#8b0000]"
+          class="size-8 rotate-90 justify-self-center text-[#8b0000] lg:mb-3 lg:rotate-0"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -186,7 +186,7 @@ function confirmCopy() {
         <!-- To (Destination) -->
         <section>
           <h3 class="text-xs font-semibold text-[#8b0000]">2. To (Destination)</h3>
-          <div class="mt-4 grid grid-cols-3 gap-3">
+          <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <label class="text-xs font-semibold">
               Semester
               <select
@@ -224,7 +224,7 @@ function confirmCopy() {
       </div>
 
       <section class="mt-7 border-t border-slate-200 pt-5">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 class="text-xs font-semibold text-[#8b0000]">3. Select Milestones to Copy</h3>
             <label class="mt-3 flex items-center gap-2 text-xs font-semibold">
@@ -246,7 +246,7 @@ function confirmCopy() {
           <label
             v-for="milestone in sourceMilestones"
             :key="milestone.milestoneId"
-            class="flex items-center gap-4 rounded-md px-4 py-3 text-sm font-semibold"
+            class="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-semibold sm:gap-4 sm:px-4"
             :class="
               selectedMilestoneIds.includes(milestone.milestoneId) ? 'bg-[#f8e7e7]' : 'bg-slate-50'
             "
@@ -261,7 +261,7 @@ function confirmCopy() {
             <span class="min-w-6 text-center text-xs font-bold text-[#8b2a23]">
               {{ milestone.sequenceOrder }}.
             </span>
-            {{ milestone.title }}
+            <span class="min-w-0 break-words">{{ milestone.title }}</span>
           </label>
 
           <p v-if="sourceMilestones.length === 0" class="py-8 text-center text-sm text-slate-500">
@@ -270,7 +270,7 @@ function confirmCopy() {
         </div>
       </section>
 
-      <div class="mt-6 flex justify-end gap-3">
+      <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button
           type="button"
           class="rounded-md border border-slate-200 px-4 py-2 text-xs"
@@ -291,9 +291,9 @@ function confirmCopy() {
 
     <section
       v-if="isDuplicateWarningOpen"
-      class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4"
+      class="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-4 sm:items-center sm:py-6"
     >
-      <div class="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+      <div class="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:max-h-[calc(100vh-3rem)] sm:p-6">
         <h3 class="text-base font-semibold text-[#8b0000]">Duplicate milestone titles found</h3>
         <p class="mt-2 text-sm text-slate-600">
           The destination already has milestones with the same title. If you continue, new
@@ -310,7 +310,7 @@ function confirmCopy() {
           </div>
         </div>
 
-        <div class="mt-6 flex justify-end gap-3">
+        <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button
             type="button"
             class="rounded-md border border-slate-200 px-4 py-2 text-xs"

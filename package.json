@@ -1,0 +1,13 @@
+{
+  "name": "grad-tracking-workspace",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:users": "npm --prefix backend run dev:users",
+    "build": "npm --prefix frontend run build",
+    "test": "npm --prefix backend test && npm --prefix frontend run test:unit"
+  }
+}
