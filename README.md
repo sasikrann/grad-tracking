@@ -18,33 +18,6 @@ This project is a web application for tracking graduate thesis progress. The sys
 
 - PostgreSQL
 
-## Development
-
-Install dependencies for each app if needed:
-
-```sh
-npm --prefix frontend install
-npm --prefix backend install
-```
-
-Run the frontend from the repository root:
-
-```sh
-npm run dev
-```
-
-Run the backend from the repository root in a separate terminal:
-
-```sh
-npm run dev:backend
-```
-
-Create development users:
-
-```sh
-npm run dev:users
-```
-
 ## Main Features
 
 - Track graduate thesis progress
