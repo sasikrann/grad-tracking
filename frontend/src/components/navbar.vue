@@ -38,7 +38,7 @@ const menus: Record<MenuRole, MenuItem[]> = {
     },
     { label: 'Advisor Dashboard', to: '/admin/advisor-dashboard', icon: 'dashboard' },
     { label: 'Milestone Management', to: '/milestones', icon: 'milestone' },
-    { label: 'Notification Management', to: '/notifications', icon: 'notification' },
+    { label: 'Notification Management', to: '/admin/notifications', icon: 'notification' },
   ],
   lecturer: [
     {

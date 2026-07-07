@@ -1,6 +1,9 @@
-export type NotificationTargetAudience = 'All Students' | 'Master Students' | 'Doctoral Students'
+export type NotificationTargetAudience =
+  | 'All Students'
+  | 'Master Students'
+  | 'Doctoral Students'
 
-export interface StudentNotification {
+export interface Notification {
   notificationId: string
   title: string
   message: string
@@ -11,8 +14,19 @@ export interface StudentNotification {
   createdBy: string
   createdAt: string
   sentAt: string | null
+}
+
+export interface StudentNotification extends Notification {
   readAt: string | null
   isRead: boolean
+}
+
+export interface NotificationInput {
+  title: string
+  message: string
+  targetAudience: NotificationTargetAudience
+  attachmentUrl?: string | null
+  sendEmail: boolean
 }
 
 export interface NotificationReadRecord {

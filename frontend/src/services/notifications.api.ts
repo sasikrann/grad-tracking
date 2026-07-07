@@ -1,5 +1,11 @@
 import { authenticatedFetch } from '@/services/auth'
-import type { NotificationReadRecord, StudentNotification } from '@/types/notification'
+import type {
+  Notification,
+  NotificationInput,
+  NotificationReadRecord,
+  NotificationTargetAudience,
+  StudentNotification,
+} from '@/types/notification'
 
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
@@ -21,6 +27,18 @@ async function request<T>(path: string, options?: RequestInit) {
 
   const result = (await response.json()) as ApiResponse<T>
   return result.data
+}
+
+export function getNotifications(targetAudience?: NotificationTargetAudience) {
+  const query = targetAudience ? `?targetAudience=${encodeURIComponent(targetAudience)}` : ''
+  return request<Notification[]>(`/api/notifications${query}`)
+}
+
+export function createNotification(input: NotificationInput) {
+  return request<Notification>('/api/notifications', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
 }
 
 export function getMyNotifications() {
