@@ -41,6 +41,32 @@ export function createNotification(input: NotificationInput) {
   })
 }
 
+export async function uploadNotificationAttachment(file: File) {
+  const body = new FormData()
+  body.append('file', file)
+
+  const response = await authenticatedFetch(`${apiBaseUrl}/api/notifications/attachments`, {
+    method: 'POST',
+    body,
+  })
+
+  if (!response.ok) {
+    const result = await response.json().catch(() => null)
+    throw new Error(result?.message ?? `Notification request failed (${response.status})`)
+  }
+
+  const result = (await response.json()) as ApiResponse<{ fileName: string; url: string }>
+  return result.data
+}
+
+export function resolveNotificationAttachmentUrl(attachmentUrl: string) {
+  if (attachmentUrl.startsWith('http://') || attachmentUrl.startsWith('https://')) {
+    return attachmentUrl
+  }
+
+  return `${apiBaseUrl}${attachmentUrl}`
+}
+
 export function getMyNotifications() {
   return request<StudentNotification[]>('/api/notifications')
 }

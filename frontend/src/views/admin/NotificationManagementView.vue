@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef, onBeforeUnmount, onMounted } from 'vue'
 
-import { createNotification, getNotifications } from '@/services/notifications.api'
+import {
+  createNotification,
+  getNotifications,
+  resolveNotificationAttachmentUrl,
+  uploadNotificationAttachment,
+} from '@/services/notifications.api'
 import type { Notification, NotificationInput, NotificationTargetAudience } from '@/types/notification'
 
 type AudienceFilter = NotificationTargetAudience | 'all'
@@ -13,6 +18,7 @@ const isPanelOpen = ref(false)
 const isDetailOpen = ref(false)
 const selectedNotification = ref<Notification | null>(null)
 const selectedFilter = ref<AudienceFilter>('all')
+const isFilterOpen = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 const formError = ref('')
@@ -69,6 +75,39 @@ function formatDateTime(value: string | null) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value))
+}
+
+function attachmentName(value: string | null) {
+  if (!value) return ''
+
+  const path = value.split('?')[0] ?? value
+  const rawName = decodeURIComponent(path.split('/').pop() ?? value)
+  return rawName.replace(/^\d+-/, '')
+}
+
+function canOpenAttachment(value: string | null) {
+  return Boolean(
+    value &&
+      (value.startsWith('/uploads/') ||
+        value.startsWith('http://') ||
+        value.startsWith('https://') ||
+        value.startsWith('data:image/')),
+  )
+}
+
+function attachmentHref(value: string) {
+  if (value.startsWith('data:image/')) return value
+  return resolveNotificationAttachmentUrl(value)
+}
+
+function selectFilter(value: AudienceFilter) {
+  selectedFilter.value = value
+  isFilterOpen.value = false
+  void loadNotifications()
+}
+
+function closeDropdown() {
+  isFilterOpen.value = false
 }
 
 async function loadNotifications() {
@@ -137,27 +176,30 @@ async function submitNotification() {
   }
 
   if (!trimmedMessage) {
-    formError.value = 'Message is required'
+    formError.value = 'Description is required'
     return
   }
 
   if (message.value.length > 5000) {
-    formError.value = 'Message must not exceed 5000 characters'
+    formError.value = 'Description must not exceed 5000 characters'
     return
-  }
-
-  const input: NotificationInput = {
-    title: trimmedTitle,
-    message: trimmedMessage,
-    targetAudience: targetAudience.value,
-    attachmentUrl: attachmentFile.value?.name ?? null,
-    sendEmail: sendEmail.value,
   }
 
   isSubmitting.value = true
   formError.value = ''
 
   try {
+    const uploadedAttachment = attachmentFile.value
+      ? await uploadNotificationAttachment(attachmentFile.value)
+      : null
+    const input: NotificationInput = {
+      title: trimmedTitle,
+      message: trimmedMessage,
+      targetAudience: targetAudience.value,
+      attachmentUrl: uploadedAttachment?.url ?? null,
+      sendEmail: sendEmail.value,
+    }
+
     await createNotification(input)
     isPanelOpen.value = false
     resetForm()
@@ -182,9 +224,11 @@ function closeDetail() {
 
 onMounted(() => {
   void loadNotifications()
+  document.addEventListener('click', closeDropdown)
 })
 
 onBeforeUnmount(() => {
+  document.removeEventListener('click', closeDropdown)
   if (toastTimer) window.clearTimeout(toastTimer)
 })
 </script>
@@ -229,17 +273,55 @@ onBeforeUnmount(() => {
           </p>
         </div>
 
-        <label class="sr-only" for="notification-filter">Filter notification audience</label>
-        <select
-          id="notification-filter"
-          v-model="selectedFilter"
-          class="h-9 rounded-lg border border-slate-100 bg-white px-3 text-xs text-slate-700 shadow-sm outline-none focus:border-[#8a2b25]"
-          @change="loadNotifications"
-        >
-          <option v-for="option in filterOptions" :key="option.value" :value="option.value">
-            {{ option.label }}
-          </option>
-        </select>
+        <div class="relative" @click.stop>
+          <button
+            type="button"
+            class="flex h-9 min-w-32 items-center justify-between gap-3 rounded-lg border border-slate-100 bg-white px-4 text-left text-xs shadow-sm outline-none hover:border-[#dfcccc] focus:border-[#8a2b25]"
+            :class="{ 'border-[#8a2b25]': isFilterOpen }"
+            :aria-expanded="isFilterOpen"
+            @click="isFilterOpen = !isFilterOpen"
+          >
+            <span class="whitespace-nowrap">{{ selectedFilterLabel }}</span>
+            <svg
+              class="size-4 shrink-0 text-slate-500 transition-transform"
+              :class="{ 'rotate-180': isFilterOpen }"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              aria-hidden="true"
+            >
+              <path d="m7 10 5 5 5-5" />
+            </svg>
+          </button>
+
+          <div
+            v-if="isFilterOpen"
+            class="absolute right-0 top-[calc(100%+8px)] z-30 min-w-full overflow-hidden rounded-lg border border-slate-100 bg-white p-1.5 shadow-[0_5px_12px_rgba(0,0,0,0.12)]"
+          >
+            <button
+              v-for="option in filterOptions"
+              :key="option.value"
+              type="button"
+              class="flex w-full items-center justify-between gap-4 whitespace-nowrap rounded-md px-3 py-2 text-left text-xs hover:bg-[#f8eeee]"
+              :class="{ 'bg-[#f8eeee]': selectedFilter === option.value }"
+              @click="selectFilter(option.value)"
+            >
+              {{ option.label }}
+              <svg
+                v-if="selectedFilter === option.value"
+                class="size-4 text-slate-500"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="m5 12 4 4L19 6" />
+              </svg>
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="mt-5 overflow-x-auto">
@@ -249,18 +331,17 @@ onBeforeUnmount(() => {
               <th class="px-1 py-3 font-semibold">Title</th>
               <th class="px-1 py-3 text-center font-semibold">Program</th>
               <th class="px-1 py-3 text-center font-semibold">Scheduled Date</th>
-              <th class="px-1 py-3 text-center font-semibold">Email</th>
               <th class="px-1 py-3 text-center font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="isLoading">
-              <td colspan="5" class="px-1 py-8 text-center text-sm text-slate-500">
+              <td colspan="4" class="px-1 py-8 text-center text-sm text-slate-500">
                 Loading notifications...
               </td>
             </tr>
             <tr v-else-if="!notifications.length">
-              <td colspan="5" class="px-1 py-8 text-center text-sm text-slate-500">
+              <td colspan="4" class="px-1 py-8 text-center text-sm text-slate-500">
                 No notifications found for {{ selectedFilterLabel }}.
               </td>
             </tr>
@@ -281,18 +362,6 @@ onBeforeUnmount(() => {
               </td>
               <td class="px-1 py-4 text-center text-xs text-slate-700">
                 {{ formatDateTime(notification.sentAt ?? notification.createdAt) }}
-              </td>
-              <td class="px-1 py-4 text-center text-xs">
-                <span
-                  class="inline-flex rounded-full px-2.5 py-1 font-medium"
-                  :class="
-                    notification.sendEmail
-                      ? 'bg-[#F4EAEA] text-[#8b2a23]'
-                      : 'bg-slate-100 text-slate-500'
-                  "
-                >
-                  {{ notification.sendEmail ? 'Enabled' : 'Off' }}
-                </span>
               </td>
               <td class="px-1 py-4 text-center">
                 <button
@@ -357,7 +426,7 @@ onBeforeUnmount(() => {
               />
 
               <label class="mt-4 block text-sm font-medium text-slate-900" for="notification-message">
-                Message <span class="text-[#8b2a23]">*</span>
+                Description <span class="text-[#8b2a23]">*</span>
               </label>
               <div class="mt-1 overflow-hidden rounded-md border border-slate-200">
                 <div class="flex h-8 items-center gap-4 border-b border-slate-100 px-3 text-xs font-semibold text-slate-500">
@@ -373,7 +442,7 @@ onBeforeUnmount(() => {
                   v-model="message"
                   maxlength="5000"
                   class="h-32 w-full resize-none px-4 py-3 text-sm outline-none"
-                  placeholder="Type your message here..."
+                  placeholder="Type your description here..."
                 ></textarea>
                 <p class="px-3 pb-2 text-right text-xs text-slate-500">{{ messageLength }}/5000</p>
               </div>
@@ -470,45 +539,59 @@ onBeforeUnmount(() => {
       aria-labelledby="notification-detail-title"
       @click.self="closeDetail"
     >
-      <section class="w-full max-w-xl rounded-lg bg-white p-6 shadow-xl">
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <h2 id="notification-detail-title" class="text-xl font-semibold text-slate-950">
-              {{ selectedNotification.title }}
-            </h2>
-            <p class="mt-2 text-xs text-slate-500">
-              {{ audienceLabel(selectedNotification.targetAudience) }} ·
-              {{ formatDateTime(selectedNotification.sentAt ?? selectedNotification.createdAt) }}
-            </p>
-          </div>
-          <button
-            type="button"
-            class="rounded p-1 text-slate-500 hover:bg-slate-100"
-            aria-label="Close notification detail"
-            @click="closeDetail"
+      <section class="relative w-full max-w-[480px] rounded-lg bg-white px-6 py-8 shadow-xl">
+        <button
+          type="button"
+          class="absolute right-4 top-4 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          aria-label="Close notification detail"
+          @click="closeDetail"
+        >
+          <svg
+            class="size-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            aria-hidden="true"
           >
-            <svg
-              class="size-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-              aria-hidden="true"
-            >
-              <path d="m6 6 12 12M18 6 6 18" />
-            </svg>
-          </button>
+            <path d="m6 6 12 12M18 6 6 18" />
+          </svg>
+        </button>
+
+        <div class="pr-8">
+          <h2 id="notification-detail-title" class="text-xl font-semibold leading-tight text-slate-950">
+            {{ selectedNotification.title }}
+          </h2>
+          <p class="mt-1 text-xs text-slate-500">
+            {{ formatDateTime(selectedNotification.sentAt ?? selectedNotification.createdAt) }}
+          </p>
         </div>
 
-        <p class="mt-5 whitespace-pre-line text-sm leading-6 text-slate-700">
-          {{ selectedNotification.message }}
-        </p>
+        <div class="mt-5 space-y-5 text-sm leading-6 text-slate-900">
+          <div class="grid gap-2 sm:grid-cols-[auto_1fr]">
+            <p class="font-semibold">Description :</p>
+            <p class="whitespace-pre-line break-words">
+              {{ selectedNotification.message }}
+            </p>
+          </div>
 
-        <div class="mt-5 space-y-2 text-sm text-slate-600">
-          <p>Email: {{ selectedNotification.sendEmail ? 'Enabled' : 'Off' }}</p>
-          <p v-if="selectedNotification.attachmentUrl">
-            Attachment: {{ selectedNotification.attachmentUrl }}
-          </p>
+          <div v-if="selectedNotification.attachmentUrl" class="grid gap-2 sm:grid-cols-[auto_1fr]">
+            <p class="font-semibold">Attachment :</p>
+            <div>
+              <a
+                v-if="canOpenAttachment(selectedNotification.attachmentUrl)"
+                :href="attachmentHref(selectedNotification.attachmentUrl)"
+                target="_blank"
+                rel="noreferrer"
+                class="break-words text-black underline-offset-2 hover:underline"
+              >
+                {{ attachmentName(selectedNotification.attachmentUrl) }}
+              </a>
+              <span v-else class="break-words">
+                {{ attachmentName(selectedNotification.attachmentUrl) }}
+              </span>
+            </div>
+          </div>
         </div>
       </section>
     </div>

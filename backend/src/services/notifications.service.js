@@ -15,6 +15,19 @@ const notificationColumns = `
   n.sent_at AS "sentAt"
 `
 
+const returningNotificationColumns = `
+  notification_id AS "notificationId",
+  title,
+  message,
+  attachment_url AS "attachmentUrl",
+  target_audience AS "targetAudience",
+  send_email AS "sendEmail",
+  email_sent_at AS "emailSentAt",
+  created_by AS "createdBy",
+  created_at AS "createdAt",
+  sent_at AS "sentAt"
+`
+
 function audienceFilterForStudent(alias = 'n') {
   return `
     (
@@ -138,7 +151,7 @@ export async function createNotification(input, createdBy) {
         sent_at
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-      RETURNING ${notificationColumns}
+      RETURNING ${returningNotificationColumns}
     `,
     [
       notificationId,

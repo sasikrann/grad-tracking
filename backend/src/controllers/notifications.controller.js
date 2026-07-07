@@ -83,6 +83,23 @@ export async function addNotification(request, response) {
   response.status(201).json({ data: notification })
 }
 
+export async function uploadNotificationAttachment(request, response) {
+  if (request.user.role !== 'admin') {
+    throw new ApiError(403, 'Only admins can upload notification attachments')
+  }
+
+  if (!request.file) {
+    throw new ApiError(400, 'Attachment file is required')
+  }
+
+  response.status(201).json({
+    data: {
+      fileName: request.file.originalname,
+      url: `/uploads/notifications/${request.file.filename}`,
+    },
+  })
+}
+
 export async function getUnreadNotificationCount(request, response) {
   requireStudent(request)
   response.json({
