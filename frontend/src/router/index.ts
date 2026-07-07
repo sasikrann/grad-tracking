@@ -85,6 +85,12 @@ const router = createRouter({
       meta: { requiresAuth: true, role: 'student' },
     },
     {
+      path: '/notifications',
+      name: 'student-notifications',
+      component: () => import('../views/student/StudentNotificationView.vue'),
+      meta: { requiresAuth: true, role: 'student' },
+    },
+    {
       path: '/advisor/student-overall',
       alias: '/advisor',
       name: 'advisor-student-overall',
