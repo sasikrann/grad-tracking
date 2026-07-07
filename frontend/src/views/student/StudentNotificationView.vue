@@ -5,6 +5,7 @@ import {
   getMyNotifications,
   markAllNotificationsAsRead,
   markNotificationAsRead,
+  resolveNotificationAttachmentUrl,
 } from '@/services/notifications.api'
 import type { StudentNotification } from '@/types/notification'
 
@@ -13,6 +14,8 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 const markingNotificationId = ref<string | null>(null)
 const isMarkingAll = ref(false)
+const isDetailOpen = ref(false)
+const selectedNotification = ref<StudentNotification | null>(null)
 
 const unreadCount = computed(
   () => notifications.value.filter((notification) => !notification.isRead).length,
@@ -42,6 +45,41 @@ function formatNotificationTime(value: string | null) {
     month: 'short',
     day: 'numeric',
   })
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return '-'
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value))
+}
+
+function attachmentName(value: string | null) {
+  if (!value) return ''
+
+  const path = value.split('?')[0] ?? value
+  const rawName = decodeURIComponent(path.split('/').pop() ?? value)
+  return rawName.replace(/^\d+-/, '')
+}
+
+function canOpenAttachment(value: string | null) {
+  return Boolean(
+    value &&
+      (value.startsWith('/uploads/') ||
+        value.startsWith('http://') ||
+        value.startsWith('https://') ||
+        value.startsWith('data:image/')),
+  )
+}
+
+function attachmentHref(value: string) {
+  if (value.startsWith('data:image/')) return value
+  return resolveNotificationAttachmentUrl(value)
 }
 
 function notificationTone(notification: StudentNotification) {
@@ -81,6 +119,7 @@ async function markOneAsRead(notification: StudentNotification) {
 
   markingNotificationId.value = notification.notificationId
   errorMessage.value = ''
+  updateNotificationReadStatus(notification.notificationId)
 
   try {
     const result = await markNotificationAsRead(notification.notificationId)
@@ -113,6 +152,20 @@ async function markAllAsRead() {
   } finally {
     isMarkingAll.value = false
   }
+}
+
+function openDetail(notification: StudentNotification) {
+  selectedNotification.value = notification
+  isDetailOpen.value = true
+
+  if (!notification.isRead) {
+    void markOneAsRead(notification)
+  }
+}
+
+function closeDetail() {
+  isDetailOpen.value = false
+  selectedNotification.value = null
 }
 
 onMounted(() => {
@@ -173,7 +226,12 @@ onMounted(() => {
         <article
           v-for="notification in notifications"
           :key="notification.notificationId"
-          class="grid gap-3 border-b border-slate-200 py-4 last:border-b-0 md:grid-cols-[1fr_auto_auto] md:items-center md:gap-8"
+          class="grid cursor-pointer gap-3 border-b border-slate-200 py-4 last:border-b-0 hover:bg-slate-50 md:grid-cols-[1fr_auto_auto] md:items-center md:gap-8"
+          role="button"
+          tabindex="0"
+          @click="openDetail(notification)"
+          @keydown.enter.prevent="openDetail(notification)"
+          @keydown.space.prevent="openDetail(notification)"
         >
           <div class="flex min-w-0 items-start gap-3">
             <span
@@ -246,7 +304,7 @@ onMounted(() => {
               type="button"
               :disabled="markingNotificationId === notification.notificationId"
               class="inline-flex h-7 items-center justify-center rounded-lg border border-[#ead0d0] px-3 text-xs font-semibold text-[#8b2a23] hover:bg-[#f8eeee] disabled:cursor-not-allowed disabled:opacity-60"
-              @click="markOneAsRead(notification)"
+              @click.stop="markOneAsRead(notification)"
             >
               Mark as read
             </button>
@@ -258,5 +316,70 @@ onMounted(() => {
         </p>
       </template>
     </section>
+
+    <div
+      v-if="isDetailOpen && selectedNotification"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="notification-detail-title"
+      @click.self="closeDetail"
+    >
+      <section class="relative w-full max-w-[480px] rounded-lg bg-white px-6 py-8 shadow-xl">
+        <button
+          type="button"
+          class="absolute right-4 top-4 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          aria-label="Close notification detail"
+          @click="closeDetail"
+        >
+          <svg
+            class="size-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            aria-hidden="true"
+          >
+            <path d="m6 6 12 12M18 6 6 18" />
+          </svg>
+        </button>
+
+        <div class="pr-8">
+          <h2 id="notification-detail-title" class="text-xl font-semibold leading-tight text-slate-950">
+            {{ selectedNotification.title }}
+          </h2>
+          <p class="mt-1 text-xs text-slate-500">
+            {{ formatDateTime(selectedNotification.sentAt ?? selectedNotification.createdAt) }}
+          </p>
+        </div>
+
+        <div class="mt-5 space-y-5 text-sm leading-6 text-slate-900">
+          <div class="grid gap-2 sm:grid-cols-[auto_1fr]">
+            <p class="font-semibold">Description :</p>
+            <p class="whitespace-pre-line break-words">
+              {{ selectedNotification.message }}
+            </p>
+          </div>
+
+          <div v-if="selectedNotification.attachmentUrl" class="grid gap-2 sm:grid-cols-[auto_1fr]">
+            <p class="font-semibold">Attachment :</p>
+            <div>
+              <a
+                v-if="canOpenAttachment(selectedNotification.attachmentUrl)"
+                :href="attachmentHref(selectedNotification.attachmentUrl)"
+                target="_blank"
+                rel="noreferrer"
+                class="break-words text-black underline-offset-2 hover:underline"
+              >
+                {{ attachmentName(selectedNotification.attachmentUrl) }}
+              </a>
+              <span v-else class="break-words">
+                {{ attachmentName(selectedNotification.attachmentUrl) }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
   </div>
 </template>
