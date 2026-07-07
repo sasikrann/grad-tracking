@@ -1,5 +1,11 @@
 import { authenticatedFetch } from '@/services/auth'
-import type { Notification, NotificationInput, NotificationTargetAudience } from '@/types/notification'
+import type {
+  Notification,
+  NotificationInput,
+  NotificationReadRecord,
+  NotificationTargetAudience,
+  StudentNotification,
+} from '@/types/notification'
 
 const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
@@ -32,5 +38,21 @@ export function createNotification(input: NotificationInput) {
   return request<Notification>('/api/notifications', {
     method: 'POST',
     body: JSON.stringify(input),
+  })
+}
+
+export function getMyNotifications() {
+  return request<StudentNotification[]>('/api/notifications')
+}
+
+export function markNotificationAsRead(notificationId: string) {
+  return request<NotificationReadRecord>(`/api/notifications/${notificationId}/read`, {
+    method: 'PATCH',
+  })
+}
+
+export function markAllNotificationsAsRead() {
+  return request<{ updatedRecords: number }>('/api/notifications/read-all', {
+    method: 'PATCH',
   })
 }

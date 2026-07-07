@@ -16,10 +16,21 @@ export interface Notification {
   sentAt: string | null
 }
 
+export interface StudentNotification extends Notification {
+  readAt: string | null
+  isRead: boolean
+}
+
 export interface NotificationInput {
   title: string
   message: string
   targetAudience: NotificationTargetAudience
   attachmentUrl?: string | null
   sendEmail: boolean
+}
+
+export interface NotificationReadRecord {
+  notificationId: string
+  userId: string
+  readAt: string
 }

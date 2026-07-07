@@ -79,7 +79,7 @@ const router = createRouter({
       meta: { requiresAuth: true, role: 'admin' },
     },
     {
-      path: '/notifications',
+      path: '/admin/notifications',
       name: 'admin-notification-management',
       component: () => import('../views/admin/NotificationManagementView.vue'),
       meta: { requiresAuth: true, role: 'admin' },
@@ -88,6 +88,12 @@ const router = createRouter({
       path: '/student/milestones',
       name: 'student-milestones',
       component: () => import('../views/student/StudentMilestoneView.vue'),
+      meta: { requiresAuth: true, role: 'student' },
+    },
+    {
+      path: '/notifications',
+      name: 'student-notifications',
+      component: () => import('../views/student/StudentNotificationView.vue'),
       meta: { requiresAuth: true, role: 'student' },
     },
     {
