@@ -79,6 +79,12 @@ const router = createRouter({
       meta: { requiresAuth: true, role: 'admin' },
     },
     {
+      path: '/notifications',
+      name: 'admin-notification-management',
+      component: () => import('../views/admin/NotificationManagementView.vue'),
+      meta: { requiresAuth: true, role: 'admin' },
+    },
+    {
       path: '/student/milestones',
       name: 'student-milestones',
       component: () => import('../views/student/StudentMilestoneView.vue'),
