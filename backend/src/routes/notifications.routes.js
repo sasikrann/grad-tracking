@@ -28,16 +28,6 @@ const upload = multer({
     },
   }),
   limits: { fileSize: notificationAttachmentMaxFileSize },
-  fileFilter: (_request, file, callback) => {
-    if (/^image\/(png|jpeg|gif|webp)$/.test(file.mimetype)) {
-      callback(null, true)
-      return
-    }
-
-    const error = new Error('Notification attachment must be an image file')
-    error.statusCode = 400
-    callback(error)
-  },
 })
 
 function uploadNotificationFile(request, response, next) {
