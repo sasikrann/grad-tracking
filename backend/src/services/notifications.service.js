@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto'
 
 import pool from '../config/database.js'
 
+let notificationSchemaReady
+
 const notificationColumns = `
   n.notification_id AS "notificationId",
   n.title,
@@ -11,6 +13,8 @@ const notificationColumns = `
   n.send_email AS "sendEmail",
   n.email_sent_at AS "emailSentAt",
   n.created_by AS "createdBy",
+  n.milestone_id AS "milestoneId",
+  n.reminder_stage AS "reminderStage",
   n.created_at AS "createdAt",
   n.sent_at AS "sentAt"
 `
@@ -24,9 +28,28 @@ const returningNotificationColumns = `
   send_email AS "sendEmail",
   email_sent_at AS "emailSentAt",
   created_by AS "createdBy",
+  milestone_id AS "milestoneId",
+  reminder_stage AS "reminderStage",
   created_at AS "createdAt",
   sent_at AS "sentAt"
 `
+
+export async function ensureNotificationSchema() {
+  notificationSchemaReady ??= pool.query(`
+    ALTER TABLE notifications
+    ADD COLUMN IF NOT EXISTS milestone_id UUID REFERENCES milestone_templates(milestone_id) ON DELETE CASCADE
+  `)
+    .then(() => pool.query(`
+      ALTER TABLE notifications
+      ADD COLUMN IF NOT EXISTS reminder_stage VARCHAR
+    `))
+    .then(() => pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS notifications_milestone_reminder_unique
+      ON notifications(milestone_id, reminder_stage)
+    `))
+
+  await notificationSchemaReady
+}
 
 function audienceFilterForStudent(alias = 'n') {
   return `
@@ -39,6 +62,8 @@ function audienceFilterForStudent(alias = 'n') {
 }
 
 export async function findNotificationsForAdmin({ targetAudience } = {}) {
+  await ensureNotificationSchema()
+
   const values = []
   const filters = []
 
@@ -61,6 +86,8 @@ export async function findNotificationsForAdmin({ targetAudience } = {}) {
 }
 
 export async function findNotificationsForStudent(userId) {
+  await ensureNotificationSchema()
+
   const result = await pool.query(
     `
       SELECT
@@ -83,6 +110,8 @@ export async function findNotificationsForStudent(userId) {
 }
 
 export async function countUnreadNotificationsForStudent(userId) {
+  await ensureNotificationSchema()
+
   const result = await pool.query(
     `
       SELECT COUNT(*)::INT AS count
@@ -102,6 +131,8 @@ export async function countUnreadNotificationsForStudent(userId) {
 }
 
 export async function findNotificationByIdForUser(notificationId, user) {
+  await ensureNotificationSchema()
+
   if (user.role === 'admin') {
     const result = await pool.query(
       `
@@ -137,6 +168,8 @@ export async function findNotificationByIdForUser(notificationId, user) {
 }
 
 export async function createNotification(input, createdBy) {
+  await ensureNotificationSchema()
+
   const notificationId = randomUUID()
   const result = await pool.query(
     `
@@ -148,9 +181,11 @@ export async function createNotification(input, createdBy) {
         target_audience,
         send_email,
         created_by,
+        milestone_id,
+        reminder_stage,
         sent_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
       RETURNING ${returningNotificationColumns}
     `,
     [
@@ -161,13 +196,92 @@ export async function createNotification(input, createdBy) {
       input.targetAudience,
       input.sendEmail,
       createdBy,
+      input.milestoneId ?? null,
+      input.reminderStage ?? null,
     ],
   )
 
   return result.rows[0]
 }
 
+function targetAudienceForDegreeLevel(degreeLevel) {
+  return degreeLevel === 'Doctoral' ? 'Doctoral Students' : 'Master Students'
+}
+
+function formatDate(value) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function milestoneReminderContent(milestone, reminderStage) {
+  const deadline = formatDate(milestone.deadline)
+  const title = String(milestone.title ?? '').trim()
+  const deadlineText = deadline ? ` Deadline: ${deadline}.` : ''
+
+  if (reminderStage === 'created') {
+    return {
+      title: `New Milestone Added: ${title}`,
+      message: `A new milestone "${title}" has been added.${deadlineText} Please review the milestone details and prepare the required documents.`,
+    }
+  }
+
+  if (reminderStage === 'first') {
+    return {
+      title: `First Reminder: ${title}`,
+      message: `This is the first reminder for milestone "${title}".${deadlineText} Please review your progress and prepare your submission.`,
+    }
+  }
+
+  return {
+    title: `Second Reminder: ${title}`,
+    message: `This is the second reminder for milestone "${title}".${deadlineText} Please review your progress and prepare your submission.`,
+  }
+}
+
+export async function createMilestoneReminderNotification(milestone, reminderStage) {
+  await ensureNotificationSchema()
+
+  const content = milestoneReminderContent(milestone, reminderStage)
+  const notificationId = randomUUID()
+  const result = await pool.query(
+    `
+      INSERT INTO notifications (
+        notification_id,
+        title,
+        message,
+        attachment_url,
+        target_audience,
+        send_email,
+        created_by,
+        milestone_id,
+        reminder_stage,
+        sent_at
+      )
+      VALUES ($1, $2, $3, NULL, $4, FALSE, NULL, $5, $6, NOW())
+      ON CONFLICT (milestone_id, reminder_stage) DO NOTHING
+      RETURNING ${returningNotificationColumns}
+    `,
+    [
+      notificationId,
+      content.title,
+      content.message,
+      targetAudienceForDegreeLevel(milestone.degreeLevel),
+      milestone.milestoneId,
+      reminderStage,
+    ],
+  )
+
+  return result.rows[0] || null
+}
+
 export async function markNotificationAsRead(notificationId, userId) {
+  await ensureNotificationSchema()
+
   const visible = await pool.query(
     `
       SELECT 1
@@ -200,6 +314,8 @@ export async function markNotificationAsRead(notificationId, userId) {
 }
 
 export async function markAllNotificationsAsRead(userId) {
+  await ensureNotificationSchema()
+
   const result = await pool.query(
     `
       INSERT INTO notification_reads (notification_id, user_id, read_at)

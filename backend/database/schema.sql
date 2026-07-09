@@ -100,9 +100,14 @@ CREATE TABLE notifications (
   send_email BOOLEAN NOT NULL DEFAULT FALSE,
   email_sent_at TIMESTAMP,
   created_by UUID REFERENCES users(user_id),
+  milestone_id UUID REFERENCES milestone_templates(milestone_id) ON DELETE CASCADE,
+  reminder_stage VARCHAR,
   created_at TIMESTAMP DEFAULT NOW(),
   sent_at TIMESTAMP
 );
+
+CREATE UNIQUE INDEX notifications_milestone_reminder_unique
+  ON notifications(milestone_id, reminder_stage);
 
 CREATE TABLE notification_reads (
   notification_id UUID REFERENCES notifications(notification_id) ON DELETE CASCADE,
