@@ -385,17 +385,17 @@ watch(totalPages, (nextTotalPages) => {
 
             <div class="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3">
               <div class="min-w-0">
-                <h2 class="truncate text-base font-bold leading-snug text-black">
+                <h2 class="truncate text-sm font-medium leading-snug text-slate-950">
                   {{ notification.title }}
                 </h2>
 
-                <p class="mt-1 truncate text-sm leading-snug text-slate-500">
+                <p class="mt-1 truncate text-xs leading-snug text-slate-500">
                   {{ notification.message }}
                 </p>
               </div>
 
               <div class="flex w-[12.5rem] shrink-0 items-center justify-end gap-3">
-                <time class="whitespace-nowrap text-xs text-slate-500 sm:text-sm">
+                <time class="whitespace-nowrap text-xs text-slate-700">
                   {{ formatNotificationTime(notification.sentAt ?? notification.createdAt) }}
                 </time>
 
