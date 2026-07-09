@@ -100,6 +100,33 @@ function attachmentHref(value: string) {
   return resolveNotificationAttachmentUrl(value)
 }
 
+async function downloadAttachment(value: string) {
+  const href = attachmentHref(value)
+  const fileName = attachmentName(value) || 'attachment'
+
+  try {
+    const link = document.createElement('a')
+    link.download = fileName
+
+    if (href.startsWith('data:image/')) {
+      link.href = href
+    } else {
+      const response = await fetch(href)
+      if (!response.ok) throw new Error('Unable to download attachment')
+
+      const blobUrl = URL.createObjectURL(await response.blob())
+      link.href = blobUrl
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+    }
+
+    document.body.append(link)
+    link.click()
+    link.remove()
+  } catch {
+    window.open(href, '_blank', 'noreferrer')
+  }
+}
+
 function selectFilter(value: AudienceFilter) {
   selectedFilter.value = value
   isFilterOpen.value = false
@@ -539,10 +566,10 @@ onBeforeUnmount(() => {
       aria-labelledby="notification-detail-title"
       @click.self="closeDetail"
     >
-      <section class="relative w-full max-w-[480px] rounded-lg bg-white px-6 py-8 shadow-xl">
+      <section class="relative w-full max-w-[480px] overflow-hidden rounded-[18px] bg-white shadow-xl">
         <button
           type="button"
-          class="absolute right-4 top-4 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          class="absolute right-5 top-5 rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
           aria-label="Close notification detail"
           @click="closeDetail"
         >
@@ -558,39 +585,122 @@ onBeforeUnmount(() => {
           </svg>
         </button>
 
-        <div class="pr-8">
-          <h2 id="notification-detail-title" class="text-xl font-semibold leading-tight text-slate-950">
-            {{ selectedNotification.title }}
-          </h2>
-          <p class="mt-1 text-xs text-slate-500">
-            {{ formatDateTime(selectedNotification.sentAt ?? selectedNotification.createdAt) }}
-          </p>
-        </div>
+        <div class="flex gap-4 px-6 pb-3 pt-5 pr-12">
+          <span
+            class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-[#f9eeee] text-[#8b2a23]"
+            aria-hidden="true"
+          >
+            <svg
+              class="size-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+            >
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+              <path d="M10 21h4" />
+            </svg>
+          </span>
 
-        <div class="mt-5 space-y-5 text-sm leading-6 text-slate-900">
-          <div class="grid gap-2 sm:grid-cols-[auto_1fr]">
-            <p class="font-semibold">Description :</p>
-            <p class="whitespace-pre-line break-words">
-              {{ selectedNotification.message }}
+          <div class="min-w-0">
+            <h2 id="notification-detail-title" class="break-words text-xl font-semibold leading-tight text-slate-950">
+              {{ selectedNotification.title }}
+            </h2>
+            <p class="mt-0.5 inline-flex max-w-full items-center gap-1.5 text-xs text-slate-500">
+              <svg
+                class="size-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                aria-hidden="true"
+              >
+                <path d="M8 2v4M16 2v4M3 10h18" />
+                <rect x="3" y="4" width="18" height="18" rx="3" />
+              </svg>
+              {{ formatDateTime(selectedNotification.sentAt ?? selectedNotification.createdAt) }}
             </p>
           </div>
+        </div>
 
-          <div v-if="selectedNotification.attachmentUrl" class="grid gap-2 sm:grid-cols-[auto_1fr]">
-            <p class="font-semibold">Attachment :</p>
-            <div>
-              <a
+        <div class="px-6 pb-6 pt-0">
+          <p class="text-xs font-semibold text-black">Description</p>
+          <p class="mt-2 whitespace-pre-line break-words text-xs leading-5 text-slate-900">
+            {{ selectedNotification.message }}
+          </p>
+
+          <div v-if="selectedNotification.attachmentUrl" class="mt-5">
+            <p class="text-xs font-semibold text-black">Attachment</p>
+              <div
                 v-if="canOpenAttachment(selectedNotification.attachmentUrl)"
-                :href="attachmentHref(selectedNotification.attachmentUrl)"
-                target="_blank"
-                rel="noreferrer"
-                class="break-words text-black underline-offset-2 hover:underline"
+                class="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 transition-colors hover:border-[#dfcccc] hover:bg-[#fff8f8]"
               >
-                {{ attachmentName(selectedNotification.attachmentUrl) }}
-              </a>
-              <span v-else class="break-words">
-                {{ attachmentName(selectedNotification.attachmentUrl) }}
-              </span>
-            </div>
+                <a
+                  :href="attachmentHref(selectedNotification.attachmentUrl)"
+                  target="_blank"
+                  rel="noreferrer"
+                  class="flex min-w-0 flex-1 items-center gap-3"
+                >
+                  <span class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600">
+                    <svg
+                      class="size-5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.7"
+                      aria-hidden="true"
+                    >
+                      <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7Z" />
+                      <path d="M14 2v5h5" />
+                      <path d="M9 13h6M9 17h6M9 9h1" />
+                    </svg>
+                  </span>
+                  <span class="min-w-0 flex-1 truncate text-xs font-medium text-slate-950">
+                    {{ attachmentName(selectedNotification.attachmentUrl) }}
+                  </span>
+                </a>
+                <button
+                  type="button"
+                  class="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-[#dfcccc] hover:text-[#8b2a23]"
+                  aria-label="Download attachment"
+                  @click="downloadAttachment(selectedNotification.attachmentUrl)"
+                >
+                  <svg
+                    class="size-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.9"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 3v12" />
+                    <path d="m7 10 5 5 5-5" />
+                    <path d="M5 21h14" />
+                  </svg>
+                </button>
+              </div>
+              <div
+                v-else
+                class="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3"
+              >
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-600">
+                  <svg
+                    class="size-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    aria-hidden="true"
+                  >
+                    <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7Z" />
+                    <path d="M14 2v5h5" />
+                    <path d="M9 13h6M9 17h6M9 9h1" />
+                  </svg>
+                </span>
+                <span class="min-w-0 flex-1 truncate text-xs font-medium text-slate-950">
+                  {{ attachmentName(selectedNotification.attachmentUrl) }}
+                </span>
+              </div>
           </div>
         </div>
       </section>
