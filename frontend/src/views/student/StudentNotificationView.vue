@@ -114,6 +114,43 @@ function attachmentHref(value: string) {
   return resolveNotificationAttachmentUrl(value)
 }
 
+function plainNotificationMessage(value: string) {
+  return value
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<li[^>]*>/gi, ' ')
+    .replace(/<\/(p|div)>/gi, ' ')
+    .replace(/<[^>]*>/g, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function formattedNotificationMessage(value: string) {
+  return escapeHtml(value)
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/&lt;(strong|b)&gt;(.*?)&lt;\/\1&gt;/g, '<strong>$2</strong>')
+    .replace(/&lt;(em|i)&gt;(.*?)&lt;\/\1&gt;/g, '<em>$2</em>')
+    .replace(/&lt;(strike|s)&gt;(.*?)&lt;\/\1&gt;/g, '<s>$2</s>')
+    .replace(/&lt;u&gt;(.*?)&lt;\/u&gt;/g, '<u>$1</u>')
+    .replace(/&lt;(ul|ol)&gt;/g, '<$1>')
+    .replace(/&lt;\/(ul|ol)&gt;/g, '</$1>')
+    .replace(/&lt;li&gt;/g, '<li>')
+    .replace(/&lt;\/li&gt;/g, '</li>')
+    .replace(/&lt;br\s*\/?&gt;/g, '<br>')
+    .replace(/\n/g, '<br>')
+}
+
 async function downloadAttachment(value: string) {
   const href = attachmentHref(value)
   const fileName = attachmentName(value) || 'attachment'
@@ -142,7 +179,7 @@ async function downloadAttachment(value: string) {
 }
 
 function notificationTone(notification: StudentNotification) {
-  const text = `${notification.title} ${notification.message}`.toLowerCase()
+  const text = `${notification.title} ${plainNotificationMessage(notification.message)}`.toLowerCase()
 
   if (text.includes('deadline') || text.includes('reminder')) return 'deadline'
   if (text.includes('complete') || text.includes('approved')) return 'success'
@@ -390,7 +427,7 @@ watch(totalPages, (nextTotalPages) => {
                 </h2>
 
                 <p class="mt-1 truncate text-xs leading-snug text-slate-500">
-                  {{ notification.message }}
+                  {{ plainNotificationMessage(notification.message) }}
                 </p>
               </div>
 
@@ -513,9 +550,10 @@ watch(totalPages, (nextTotalPages) => {
 
         <div class="px-6 pb-6 pt-0">
           <p class="text-xs font-semibold text-black">Description</p>
-          <p class="mt-2 whitespace-pre-line break-words text-xs leading-5 text-slate-900">
-            {{ selectedNotification.message }}
-          </p>
+          <div
+            class="mt-2 break-words text-xs leading-5 text-slate-900 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+            v-html="formattedNotificationMessage(selectedNotification.message)"
+          ></div>
 
           <div v-if="selectedNotification.attachmentUrl" class="mt-5">
             <p class="text-xs font-semibold text-black">Attachment</p>
