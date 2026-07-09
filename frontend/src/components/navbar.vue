@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { getUnreadNotificationCount } from '@/services/notifications.api'
 import type { CurrentUser } from '@/types/user'
 
 defineOptions({ name: 'AppNavbar' })
@@ -23,6 +24,8 @@ const props = defineProps<{
 
 const route = useRoute()
 const isMobileMenuOpen = ref(false)
+const notificationUnreadCount = ref(0)
+let unreadCountTimer: number | undefined
 const emit = defineEmits<{
   logout: []
 }>()
@@ -63,6 +66,10 @@ const menuRole = computed<MenuRole>(() =>
 
 // เลือกรายการเมนูให้ตรงกับ role ของผู้ใช้
 const menuItems = computed(() => menus[menuRole.value])
+const routePath = computed(() => route?.path ?? '')
+const shouldShowNotificationBadge = computed(
+  () => menuRole.value === 'student' && notificationUnreadCount.value > 0,
+)
 
 // ใช้ initials ที่ส่งมา หรือสร้างจากชื่อผู้ใช้ให้อัตโนมัติ เช่น John Doe เป็น JD
 const userInitials = computed(() => {
@@ -80,8 +87,54 @@ const userInitials = computed(() => {
 })
 
 function isActiveItem(item: MenuItem) {
-  return route.path === item.to || item.activePaths?.some((path) => route.path.startsWith(path))
+  return (
+    routePath.value === item.to || item.activePaths?.some((path) => routePath.value.startsWith(path))
+  )
 }
+
+async function loadNotificationUnreadCount() {
+  if (menuRole.value !== 'student') {
+    notificationUnreadCount.value = 0
+    return
+  }
+
+  try {
+    const result = await getUnreadNotificationCount()
+    notificationUnreadCount.value = result.count
+  } catch {
+    notificationUnreadCount.value = 0
+  }
+}
+
+function handleNotificationUnreadCountChanged(event: Event) {
+  const count = (event as CustomEvent<{ count?: unknown }>).detail?.count
+  if (typeof count === 'number') {
+    notificationUnreadCount.value = Math.max(0, count)
+  }
+}
+
+onMounted(() => {
+  void loadNotificationUnreadCount()
+  unreadCountTimer = window.setInterval(() => {
+    void loadNotificationUnreadCount()
+  }, 3_000)
+  window.addEventListener('notifications:unread-count-changed', handleNotificationUnreadCountChanged)
+})
+
+onBeforeUnmount(() => {
+  if (unreadCountTimer) window.clearInterval(unreadCountTimer)
+  window.removeEventListener(
+    'notifications:unread-count-changed',
+    handleNotificationUnreadCountChanged,
+  )
+})
+
+watch(
+  () => [menuRole.value, routePath.value],
+  () => {
+    void loadNotificationUnreadCount()
+  },
+)
 </script>
 
 <template>
@@ -177,36 +230,45 @@ function isActiveItem(item: MenuItem) {
           @click="isMobileMenuOpen = false"
         >
           <!-- เลือกไอคอนให้ตรงกับประเภทของเมนู -->
-          <svg
-            class="size-4 shrink-0"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.7"
-          >
-            <template v-if="item.icon === 'dashboard'">
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-            </template>
+          <span class="relative flex size-4 shrink-0 items-center justify-center">
+            <svg
+              class="size-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+            >
+              <template v-if="item.icon === 'dashboard'">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+              </template>
 
-            <template v-else-if="item.icon === 'student'">
-              <path d="M5 3h12a2 2 0 0 1 2 2v16H7a2 2 0 0 1-2-2V3Z" />
-              <path d="M7 17h12M9 7h6" />
-            </template>
+              <template v-else-if="item.icon === 'student'">
+                <path d="M5 3h12a2 2 0 0 1 2 2v16H7a2 2 0 0 1-2-2V3Z" />
+                <path d="M7 17h12M9 7h6" />
+              </template>
 
-            <template v-else-if="item.icon === 'milestone'">
-              <rect x="4" y="3" width="16" height="18" rx="4" />
-              <path d="m8 12 2 2 5-5M8 7h8M14 16h2" />
-            </template>
+              <template v-else-if="item.icon === 'milestone'">
+                <rect x="4" y="3" width="16" height="18" rx="4" />
+                <path d="m8 12 2 2 5-5M8 7h8M14 16h2" />
+              </template>
 
-            <template v-else>
-              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
-            </template>
-          </svg>
+              <template v-else>
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+              </template>
+            </svg>
+            <span
+              v-if="item.icon === 'notification' && shouldShowNotificationBadge"
+              class="absolute -right-1 -top-1 size-2 rounded-full border border-[#7D2923] bg-[#f6c35b]"
+              aria-label="Unread notifications"
+            ></span>
+          </span>
 
-          <span class="-translate-y-0.5 leading-none">{{ item.label }}</span>
+          <span class="flex min-w-0 flex-1 items-center gap-2">
+            <span class="-translate-y-0.5 truncate leading-none">{{ item.label }}</span>
+          </span>
         </RouterLink>
       </nav>
     </div>

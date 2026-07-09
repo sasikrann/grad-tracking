@@ -71,6 +71,10 @@ export function getMyNotifications() {
   return request<StudentNotification[]>('/api/notifications')
 }
 
+export function getUnreadNotificationCount() {
+  return request<{ count: number }>('/api/notifications/unread-count')
+}
+
 export function markNotificationAsRead(notificationId: string) {
   return request<NotificationReadRecord>(`/api/notifications/${notificationId}/read`, {
     method: 'PATCH',

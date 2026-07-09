@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import {
   getMyNotifications,
@@ -16,10 +16,42 @@ const markingNotificationId = ref<string | null>(null)
 const isMarkingAll = ref(false)
 const isDetailOpen = ref(false)
 const selectedNotification = ref<StudentNotification | null>(null)
+const currentPage = ref(1)
+const notificationsPerPage = 10
+let notificationRefreshTimer: number | undefined
 
 const unreadCount = computed(
   () => notifications.value.filter((notification) => !notification.isRead).length,
 )
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(notifications.value.length / notificationsPerPage)),
+)
+const pageNumbers = computed(() =>
+  Array.from({ length: totalPages.value }, (_, index) => index + 1),
+)
+const paginatedNotifications = computed(() => {
+  const startIndex = (currentPage.value - 1) * notificationsPerPage
+  return notifications.value.slice(startIndex, startIndex + notificationsPerPage)
+})
+const currentPageStart = computed(() => {
+  if (!notifications.value.length) return 0
+  return (currentPage.value - 1) * notificationsPerPage + 1
+})
+const currentPageEnd = computed(() =>
+  Math.min(currentPage.value * notificationsPerPage, notifications.value.length),
+)
+
+function syncUnreadCountBadge() {
+  window.dispatchEvent(
+    new CustomEvent('notifications:unread-count-changed', {
+      detail: { count: unreadCount.value },
+    }),
+  )
+}
+
+function goToPage(page: number) {
+  currentPage.value = Math.min(Math.max(page, 1), totalPages.value)
+}
 
 function formatNotificationTime(value: string | null) {
   if (!value) return '-'
@@ -157,16 +189,31 @@ function notificationTone(notification: StudentNotification) {
   return 'milestone'
 }
 
-async function loadNotifications() {
-  isLoading.value = true
-  errorMessage.value = ''
+async function loadNotifications({ silent = false } = {}) {
+  if (!silent) {
+    isLoading.value = true
+    errorMessage.value = ''
+  }
 
   try {
-    notifications.value = await getMyNotifications()
+    const nextNotifications = await getMyNotifications()
+    notifications.value = nextNotifications
+    if (selectedNotification.value) {
+      selectedNotification.value =
+        nextNotifications.find(
+          (notification) =>
+            notification.notificationId === selectedNotification.value?.notificationId,
+        ) ?? selectedNotification.value
+    }
+    syncUnreadCountBadge()
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Unable to load notifications'
+    if (!silent) {
+      errorMessage.value = error instanceof Error ? error.message : 'Unable to load notifications'
+    }
   } finally {
-    isLoading.value = false
+    if (!silent) {
+      isLoading.value = false
+    }
   }
 }
 
@@ -176,6 +223,7 @@ function updateNotificationReadStatus(notificationId: string, readAt = new Date(
       ? { ...notification, isRead: true, readAt }
       : notification,
   )
+  syncUnreadCountBadge()
 }
 
 async function markOneAsRead(notification: StudentNotification) {
@@ -210,6 +258,7 @@ async function markAllAsRead() {
       isRead: true,
       readAt: notification.readAt ?? readAt,
     }))
+    syncUnreadCountBadge()
   } catch (error) {
     errorMessage.value =
       error instanceof Error ? error.message : 'Unable to mark all notifications as read'
@@ -232,8 +281,31 @@ function closeDetail() {
   selectedNotification.value = null
 }
 
+function refreshNotificationsSilently() {
+  void loadNotifications({ silent: true })
+}
+
+function handleVisibilityChange() {
+  if (document.visibilityState === 'visible') refreshNotificationsSilently()
+}
+
 onMounted(() => {
   void loadNotifications()
+  notificationRefreshTimer = window.setInterval(refreshNotificationsSilently, 3_000)
+  window.addEventListener('focus', refreshNotificationsSilently)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+})
+
+onBeforeUnmount(() => {
+  if (notificationRefreshTimer) window.clearInterval(notificationRefreshTimer)
+  window.removeEventListener('focus', refreshNotificationsSilently)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+})
+
+watch(totalPages, (nextTotalPages) => {
+  if (currentPage.value > nextTotalPages) {
+    currentPage.value = nextTotalPages
+  }
 })
 </script>
 
@@ -288,9 +360,9 @@ onMounted(() => {
 
       <template v-else>
         <article
-          v-for="notification in notifications"
+          v-for="notification in paginatedNotifications"
           :key="notification.notificationId"
-          class="grid cursor-pointer gap-3 border-b border-slate-200 py-4 last:border-b-0 hover:bg-slate-50 md:grid-cols-[1fr_auto_auto] md:items-center md:gap-8"
+          class="cursor-pointer border-b border-slate-200 py-4 last:border-b-0 hover:bg-slate-50"
           role="button"
           tabindex="0"
           @click="openDetail(notification)"
@@ -348,36 +420,66 @@ onMounted(() => {
               </svg>
             </span>
 
-            <div class="min-w-0">
-              <h2 class="break-words text-base font-bold leading-snug text-black">
-                {{ notification.title }}
-              </h2>
-              <p class="mt-1 break-words text-sm leading-snug text-slate-500">
-                {{ plainNotificationMessage(notification.message) }}
-              </p>
+            <div class="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3">
+              <div class="min-w-0">
+                <h2 class="truncate text-sm font-medium leading-snug text-slate-950">
+                  {{ notification.title }}
+                </h2>
+
+                <p class="mt-1 truncate text-xs leading-snug text-slate-500">
+                  {{ plainNotificationMessage(notification.message) }}
+                </p>
+              </div>
+
+              <div class="flex w-[12.5rem] shrink-0 items-center justify-end gap-3">
+                <time class="whitespace-nowrap text-xs text-slate-700">
+                  {{ formatNotificationTime(notification.sentAt ?? notification.createdAt) }}
+                </time>
+
+                <button
+                  v-if="!notification.isRead"
+                  type="button"
+                  :disabled="markingNotificationId === notification.notificationId"
+                  class="inline-flex h-7 items-center justify-center whitespace-nowrap rounded-lg border border-[#ead0d0] px-3 text-xs font-semibold text-[#8b2a23] hover:bg-[#f8eeee] disabled:cursor-not-allowed disabled:opacity-60"
+                  @click.stop="markOneAsRead(notification)"
+                >
+                  Mark as read
+                </button>
+              </div>
             </div>
-          </div>
-
-          <time class="text-sm text-slate-500 md:min-w-32">
-            {{ formatNotificationTime(notification.sentAt ?? notification.createdAt) }}
-          </time>
-
-          <div class="flex flex-wrap items-center gap-2 md:justify-end">
-            <button
-              v-if="!notification.isRead"
-              type="button"
-              :disabled="markingNotificationId === notification.notificationId"
-              class="inline-flex h-7 items-center justify-center rounded-lg border border-[#ead0d0] px-3 text-xs font-semibold text-[#8b2a23] hover:bg-[#f8eeee] disabled:cursor-not-allowed disabled:opacity-60"
-              @click.stop="markOneAsRead(notification)"
-            >
-              Mark as read
-            </button>
           </div>
         </article>
 
-        <p class="pt-4 text-sm text-slate-500">
-          Showing {{ notifications.length }} notification{{ notifications.length === 1 ? '' : 's' }}
-        </p>
+        <div
+          class="flex flex-col gap-3 pt-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p>
+            Showing {{ currentPageStart }}-{{ currentPageEnd }} of
+            {{ notifications.length }} notification{{ notifications.length === 1 ? '' : 's' }}
+          </p>
+
+          <nav
+            v-if="totalPages > 1"
+            class="flex flex-wrap items-center gap-1"
+            aria-label="Notification pages"
+          >
+            <button
+              v-for="page in pageNumbers"
+              :key="page"
+              type="button"
+              class="flex size-8 items-center justify-center rounded-lg border text-sm font-semibold transition-colors"
+              :class="
+                page === currentPage
+                  ? 'border-[#8b2a23] bg-[#8b2a23] text-white'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-[#d7b2ad] hover:text-[#8b2a23]'
+              "
+              :aria-current="page === currentPage ? 'page' : undefined"
+              @click="goToPage(page)"
+            >
+              {{ page }}
+            </button>
+          </nav>
+        </div>
       </template>
     </section>
 
