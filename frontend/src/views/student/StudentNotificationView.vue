@@ -151,6 +151,48 @@ function formattedNotificationMessage(value: string) {
     .replace(/\n/g, '<br>')
 }
 
+function notificationDeadline(value: string) {
+  return plainNotificationMessage(value).match(/\bDeadline:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\.?/i)?.[1] ?? ''
+}
+
+function formatNotificationDeadline(value: string) {
+  if (!value) return ''
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
+}
+
+function notificationFooterNotice(value: string) {
+  const message = plainNotificationMessage(value)
+  if (message.includes('Please review the milestone details and prepare the required documents.')) {
+    return 'Please review the milestone details and prepare the required documents.'
+  }
+
+  if (message.includes('Please review your progress and prepare your submission.')) {
+    return 'Please review your progress and prepare your submission.'
+  }
+
+  if (message.includes('Please complete the required work before the deadline.')) {
+    return 'Please review your progress and prepare your submission.'
+  }
+
+  return ''
+}
+
+function notificationDescription(value: string) {
+  return value
+    .replace(/\s*Please review the milestone details and prepare the required documents\.?/gi, '')
+    .replace(/\s*Please review your progress and prepare your submission\.?/gi, '')
+    .replace(/\s*Please complete the required work before the deadline\.?/gi, '')
+    .replace(/\s*Deadline:\s*[0-9]{4}-[0-9]{2}-[0-9]{2}\.?/gi, '')
+    .trim()
+}
+
 async function downloadAttachment(value: string) {
   const href = attachmentHref(value)
   const fileName = attachmentName(value) || 'attachment'
@@ -552,8 +594,17 @@ watch(totalPages, (nextTotalPages) => {
           <p class="text-xs font-semibold text-black">Description</p>
           <div
             class="mt-2 break-words text-xs leading-5 text-slate-900 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
-            v-html="formattedNotificationMessage(selectedNotification.message)"
+            v-html="formattedNotificationMessage(notificationDescription(selectedNotification.message))"
           ></div>
+
+          <div v-if="notificationDeadline(selectedNotification.message)" class="mt-5">
+            <p class="text-xs font-semibold text-black">
+              Deadline:
+              <span class="ml-2 font-medium text-slate-900">
+                {{ formatNotificationDeadline(notificationDeadline(selectedNotification.message)) }}
+              </span>
+            </p>
+          </div>
 
           <div v-if="selectedNotification.attachmentUrl" class="mt-5">
             <p class="text-xs font-semibold text-black">Attachment</p>
@@ -628,6 +679,13 @@ watch(totalPages, (nextTotalPages) => {
                 </span>
               </div>
           </div>
+
+          <p
+            v-if="notificationFooterNotice(selectedNotification.message)"
+            class="mt-5 text-xs font-semibold leading-5 text-red-600"
+          >
+            {{ notificationFooterNotice(selectedNotification.message) }}
+          </p>
         </div>
       </section>
     </div>

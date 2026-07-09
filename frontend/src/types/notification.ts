@@ -11,7 +11,9 @@ export interface Notification {
   targetAudience: NotificationTargetAudience
   sendEmail: boolean
   emailSentAt: string | null
-  createdBy: string
+  createdBy: string | null
+  milestoneId?: string | null
+  reminderStage?: string | null
   createdAt: string
   sentAt: string | null
 }

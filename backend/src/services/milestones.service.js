@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import pool from '../config/database.js'
+import { createMilestoneReminderNotification } from './notifications.service.js'
 
 let schemaReady
 
@@ -460,7 +461,55 @@ export async function createMilestone(input) {
     ],
   )
 
-  return findMilestoneById(milestoneId)
+  const milestone = await findMilestoneById(milestoneId)
+  await createMilestoneReminderNotification(milestone, 'created')
+
+  return milestone
+}
+
+function normalizeDate(value) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+export async function createDueMilestoneReminderNotifications(date = null) {
+  await ensureMilestoneSchema()
+
+  const targetDate = normalizeDate(date) ?? normalizeDate(new Date())
+  const result = await pool.query(
+    `
+      SELECT ${milestoneColumns}
+      FROM milestone_templates
+      WHERE is_enabled = TRUE
+        AND (
+          first_reminder_date = $1::date
+          OR second_reminder_date = $1::date
+        )
+      ORDER BY degree_level, semester, sequence_order, created_at
+    `,
+    [targetDate],
+  )
+
+  const notifications = []
+
+  for (const milestone of result.rows) {
+    if (normalizeDate(milestone.firstReminderDate) === targetDate) {
+      const notification = await createMilestoneReminderNotification(milestone, 'first')
+      if (notification) notifications.push(notification)
+    }
+
+    if (normalizeDate(milestone.secondReminderDate) === targetDate) {
+      const notification = await createMilestoneReminderNotification(milestone, 'second')
+      if (notification) notifications.push(notification)
+    }
+  }
+
+  return notifications
 }
 
 export async function updateMilestone(milestoneId, input) {
@@ -692,8 +741,24 @@ export async function copyMilestones({
       [toDegreeLevel, toSemester],
     )
     let nextOrder = Number(orderResult.rows[0].maxOrder) + 1
+    const copiedMilestones = []
 
     for (const row of source.rows) {
+      const milestoneId = randomUUID()
+      const copiedMilestone = {
+        milestoneId,
+        degreeLevel: toDegreeLevel,
+        semester: toSemester,
+        title: row.title,
+        description: row.description,
+        sequenceOrder: nextOrder,
+        openDate: shiftDateToYear(row.open_date, toYear),
+        deadline: shiftDateToYear(row.deadline, toYear),
+        firstReminderDate: shiftDateToYear(row.first_reminder_date, toYear),
+        secondReminderDate: shiftDateToYear(row.second_reminder_date, toYear),
+        isEnabled: row.is_enabled,
+      }
+
       await client.query(
         `
           INSERT INTO milestone_templates (
@@ -703,23 +768,29 @@ export async function copyMilestones({
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         `,
         [
-          randomUUID(),
-          toDegreeLevel,
-          toSemester,
-          row.title,
-          row.description,
-          nextOrder,
-          shiftDateToYear(row.open_date, toYear),
-          shiftDateToYear(row.deadline, toYear),
-          shiftDateToYear(row.first_reminder_date, toYear),
-          shiftDateToYear(row.second_reminder_date, toYear),
-          row.is_enabled,
+          copiedMilestone.milestoneId,
+          copiedMilestone.degreeLevel,
+          copiedMilestone.semester,
+          copiedMilestone.title,
+          copiedMilestone.description,
+          copiedMilestone.sequenceOrder,
+          copiedMilestone.openDate,
+          copiedMilestone.deadline,
+          copiedMilestone.firstReminderDate,
+          copiedMilestone.secondReminderDate,
+          copiedMilestone.isEnabled,
         ],
       )
+      copiedMilestones.push(copiedMilestone)
       nextOrder += 1
     }
 
     await client.query('COMMIT')
+
+    for (const milestone of copiedMilestones) {
+      await createMilestoneReminderNotification(milestone, 'created')
+    }
+
     return source.rowCount
   } catch (error) {
     await client.query('ROLLBACK')
