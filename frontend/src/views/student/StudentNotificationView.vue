@@ -389,7 +389,7 @@ onMounted(() => {
           </span>
 
           <div class="min-w-0">
-            <h2 id="notification-detail-title" class="break-words text-xl font-semibold leading-tight text-slate-950">
+            <h2 id="notification-detail-title" class="break-words text-base font-semibold leading-tight text-slate-950">
               {{ selectedNotification.title }}
             </h2>
             <p class="mt-0.5 inline-flex max-w-full items-center gap-1.5 text-xs text-slate-500">
