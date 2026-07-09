@@ -221,13 +221,29 @@ async function downloadAttachment(value: string) {
 }
 
 function notificationTone(notification: StudentNotification) {
-  const text = `${notification.title} ${plainNotificationMessage(notification.message)}`.toLowerCase()
+  const title = notification.title.toLowerCase()
 
-  if (text.includes('deadline') || text.includes('reminder')) return 'deadline'
-  if (text.includes('complete') || text.includes('approved')) return 'success'
-  if (text.includes('document') || text.includes('file')) return 'document'
-  if (text.includes('advisor')) return 'advisor'
-  if (text.includes('system') || text.includes('maintenance')) return 'system'
+  if (
+    ['deadline', 'reminder', 'announcement', 'scholarship', 'urgent', 'important', 'due'].some(
+      (keyword) => title.includes(keyword),
+    )
+  ) {
+    return 'deadline'
+  }
+
+  if (
+    ['document', 'submission', 'evidence', 'attachment', 'upload'].some((keyword) =>
+      title.includes(keyword),
+    )
+  ) {
+    return 'document'
+  }
+
+  if (['advisor', 'adviser'].some((keyword) => title.includes(keyword))) return 'advisor'
+  if (['system', 'maintenance', 'server'].some((keyword) => title.includes(keyword))) {
+    return 'system'
+  }
+
   return 'milestone'
 }
 
@@ -423,7 +439,6 @@ watch(totalPages, (nextTotalPages) => {
               :class="{
                 'bg-[#f8e7e7] text-[#b12a24]': notificationTone(notification) === 'milestone',
                 'bg-[#fff4d8] text-[#d09a10]': notificationTone(notification) === 'deadline',
-                'bg-[#ecf7df] text-[#6b9c2f]': notificationTone(notification) === 'success',
                 'bg-[#e6f0ff] text-[#2f7de1]': notificationTone(notification) === 'document',
                 'bg-[#fde9e5] text-[#b84b3f]': notificationTone(notification) === 'advisor',
                 'bg-[#efe3ff] text-[#8a4de8]': notificationTone(notification) === 'system',
