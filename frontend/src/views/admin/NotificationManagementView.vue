@@ -28,6 +28,7 @@ const targetAudience = ref<NotificationTargetAudience>('All Students')
 const sendEmail = ref(false)
 const attachmentFile = ref<File | null>(null)
 const attachmentInput = useTemplateRef<HTMLInputElement>('attachmentInput')
+const messageEditor = useTemplateRef<HTMLDivElement>('messageEditor')
 let toastTimer: ReturnType<typeof window.setTimeout> | undefined
 
 const audienceOptions: { label: string; value: NotificationTargetAudience }[] = [
@@ -46,7 +47,7 @@ const selectedFilterLabel = computed(
   () => filterOptions.find((option) => option.value === selectedFilter.value)?.label ?? 'All Program',
 )
 
-const messageLength = computed(() => message.value.length)
+const messageLength = computed(() => plainNotificationMessage(message.value).length)
 const toastMessage = computed(() => errorMessage.value || successMessage.value)
 
 function showToast(text: string, type: 'success' | 'error' = 'success') {
@@ -98,6 +99,79 @@ function canOpenAttachment(value: string | null) {
 function attachmentHref(value: string) {
   if (value.startsWith('data:image/')) return value
   return resolveNotificationAttachmentUrl(value)
+}
+
+function plainNotificationMessage(value: string) {
+  return value
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<li[^>]*>/gi, ' ')
+    .replace(/<\/(p|div)>/gi, ' ')
+    .replace(/<[^>]*>/g, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/<u>(.*?)<\/u>/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function formattedNotificationMessage(value: string) {
+  return escapeHtml(value)
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/&lt;(strong|b)&gt;(.*?)&lt;\/\1&gt;/g, '<strong>$2</strong>')
+    .replace(/&lt;(em|i)&gt;(.*?)&lt;\/\1&gt;/g, '<em>$2</em>')
+    .replace(/&lt;(strike|s)&gt;(.*?)&lt;\/\1&gt;/g, '<s>$2</s>')
+    .replace(/&lt;u&gt;(.*?)&lt;\/u&gt;/g, '<u>$1</u>')
+    .replace(/&lt;(ul|ol)&gt;/g, '<$1>')
+    .replace(/&lt;\/(ul|ol)&gt;/g, '</$1>')
+    .replace(/&lt;li&gt;/g, '<li>')
+    .replace(/&lt;\/li&gt;/g, '</li>')
+    .replace(/&lt;br\s*\/?&gt;/g, '<br>')
+    .replace(/\n/g, '<br>')
+}
+
+function sanitizeEditorHtml(html: string) {
+  return html
+    .replace(/<(\/?)b(\s[^>]*)?>/gi, '<$1strong>')
+    .replace(/<(\/?)i(\s[^>]*)?>/gi, '<$1em>')
+    .replace(/<(\/?)(strike|s)(\s[^>]*)?>/gi, '<$1s>')
+    .replace(/<(\/?)(strong|em|u|s|ul|ol|li)(\s[^>]*)?>/gi, '<$1$2>')
+    .replace(/<br\s*\/?>/gi, '<br>')
+    .replace(/<\/(div|p)>/gi, '<br>')
+    .replace(/<(div|p)(\s[^>]*)?>/gi, '')
+    .replace(/<(?!\/?(strong|em|u|s|ul|ol|li)\b|br\b)[^>]*>/gi, '')
+    .replace(/(<br>){3,}/gi, '<br><br>')
+    .replace(/^(<br>)+|(<br>)+$/gi, '')
+}
+
+function syncMessageFromEditor() {
+  message.value = sanitizeEditorHtml(messageEditor.value?.innerHTML ?? '')
+}
+
+function applyMessageFormat(
+  format: 'bold' | 'italic' | 'underline' | 'strikeThrough' | 'insertUnorderedList' | 'insertOrderedList' | 'removeFormat',
+) {
+  const editor = messageEditor.value
+  if (!editor) return
+
+  editor.focus()
+  document.execCommand(format)
+  syncMessageFromEditor()
+}
+
+function pasteMessageText(event: ClipboardEvent) {
+  const text = event.clipboardData?.getData('text/plain') ?? ''
+  document.execCommand('insertText', false, text)
+  syncMessageFromEditor()
 }
 
 async function downloadAttachment(value: string) {
@@ -172,6 +246,7 @@ function resetForm() {
   attachmentFile.value = null
   formError.value = ''
   if (attachmentInput.value) attachmentInput.value.value = ''
+  if (messageEditor.value) messageEditor.value.innerHTML = ''
 }
 
 function chooseAttachment() {
@@ -194,20 +269,22 @@ function updateAttachment(event: Event) {
 }
 
 async function submitNotification() {
+  syncMessageFromEditor()
   const trimmedTitle = title.value.trim()
-  const trimmedMessage = message.value.trim()
+  const trimmedMessage = sanitizeEditorHtml(message.value.trim())
+  const trimmedPlainMessage = plainNotificationMessage(trimmedMessage)
 
   if (!trimmedTitle) {
     formError.value = 'Title is required'
     return
   }
 
-  if (!trimmedMessage) {
+  if (!trimmedPlainMessage) {
     formError.value = 'Description is required'
     return
   }
 
-  if (message.value.length > 5000) {
+  if (trimmedPlainMessage.length > 5000) {
     formError.value = 'Description must not exceed 5000 characters'
     return
   }
@@ -219,6 +296,11 @@ async function submitNotification() {
     const uploadedAttachment = attachmentFile.value
       ? await uploadNotificationAttachment(attachmentFile.value)
       : null
+
+    if (attachmentFile.value && !uploadedAttachment?.url) {
+      throw new Error('Attachment upload did not return a file URL')
+    }
+
     const input: NotificationInput = {
       title: trimmedTitle,
       message: trimmedMessage,
@@ -285,7 +367,7 @@ onBeforeUnmount(() => {
         >
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
         </svg>
-        Add Notifications
+        Add Notification
       </button>
     </header>
 
@@ -380,7 +462,9 @@ onBeforeUnmount(() => {
             >
               <td class="max-w-[320px] px-1 py-4">
                 <p class="truncate font-medium text-slate-950">{{ notification.title }}</p>
-                <p class="mt-1 truncate text-xs text-slate-500">{{ notification.message }}</p>
+                <p class="mt-1 truncate text-xs text-slate-500">
+                  {{ plainNotificationMessage(notification.message) }}
+                </p>
               </td>
               <td class="px-1 py-4 text-center">
                 <span class="inline-flex min-w-24 justify-center rounded-md bg-slate-100 px-3 py-1 text-xs text-slate-700">
@@ -393,7 +477,7 @@ onBeforeUnmount(() => {
               <td class="px-1 py-4 text-center">
                 <button
                   type="button"
-                  class="inline-flex items-center gap-1 text-xs font-semibold text-slate-900 hover:text-[#8b2a23]"
+                  class="inline-flex items-center gap-1.5 rounded-md px-1 py-2 text-xs font-semibold text-sky-500 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-300"
                   @click="openDetail(notification)"
                 >
                   <svg
@@ -456,21 +540,96 @@ onBeforeUnmount(() => {
                 Description <span class="text-[#8b2a23]">*</span>
               </label>
               <div class="mt-1 overflow-hidden rounded-md border border-slate-200">
-                <div class="flex h-8 items-center gap-4 border-b border-slate-100 px-3 text-xs font-semibold text-slate-500">
-                  <span>B</span>
-                  <span class="italic">I</span>
-                  <span class="underline">U</span>
-                  <span>≡</span>
-                  <span>≣</span>
-                  <span>↗</span>
+                <div class="flex h-8 items-center gap-1.5 border-b border-slate-100 px-3 text-xs font-semibold text-slate-600">
+                  <button
+                    type="button"
+                    class="flex size-6 items-center justify-center rounded hover:bg-slate-100 hover:text-[#8b2a23]"
+                    aria-label="Bold selected text"
+                    @mousedown.prevent="applyMessageFormat('bold')"
+                  >
+                    B
+                  </button>
+                  <button
+                    type="button"
+                    class="flex size-6 items-center justify-center rounded italic hover:bg-slate-100 hover:text-[#8b2a23]"
+                    aria-label="Italic selected text"
+                    @mousedown.prevent="applyMessageFormat('italic')"
+                  >
+                    I
+                  </button>
+                  <button
+                    type="button"
+                    class="flex size-6 items-center justify-center rounded underline hover:bg-slate-100 hover:text-[#8b2a23]"
+                    aria-label="Underline selected text"
+                    @mousedown.prevent="applyMessageFormat('underline')"
+                  >
+                    U
+                  </button>
+                  <button
+                    type="button"
+                    class="flex size-6 items-center justify-center rounded line-through hover:bg-slate-100 hover:text-[#8b2a23]"
+                    aria-label="Strike through selected text"
+                    @mousedown.prevent="applyMessageFormat('strikeThrough')"
+                  >
+                    S
+                  </button>
+                  <span class="mx-1 h-4 w-px bg-slate-200" aria-hidden="true"></span>
+                  <button
+                    type="button"
+                    class="flex size-6 items-center justify-center rounded hover:bg-slate-100 hover:text-[#8b2a23]"
+                    aria-label="Bullet list"
+                    @mousedown.prevent="applyMessageFormat('insertUnorderedList')"
+                  >
+                    <svg
+                      class="size-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      aria-hidden="true"
+                    >
+                      <path d="M8 6h13M8 12h13M8 18h13" />
+                      <path d="M3 6h.01M3 12h.01M3 18h.01" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="flex size-6 items-center justify-center rounded hover:bg-slate-100 hover:text-[#8b2a23]"
+                    aria-label="Numbered list"
+                    @mousedown.prevent="applyMessageFormat('insertOrderedList')"
+                  >
+                    <svg
+                      class="size-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      aria-hidden="true"
+                    >
+                      <path d="M10 6h11M10 12h11M10 18h11" />
+                      <path d="M4 6h1v4M3.5 10h2M3.5 14h2c0-1 .5-2 2-2H4M4 18h1.5a1 1 0 0 1 0 2H4" />
+                    </svg>
+                  </button>
+                  <span class="mx-1 h-4 w-px bg-slate-200" aria-hidden="true"></span>
+                  <button
+                    type="button"
+                    class="flex size-6 items-center justify-center rounded hover:bg-slate-100 hover:text-[#8b2a23]"
+                    aria-label="Clear formatting"
+                    @mousedown.prevent="applyMessageFormat('removeFormat')"
+                  >
+                    Tx
+                  </button>
                 </div>
-                <textarea
+                <div
                   id="notification-message"
-                  v-model="message"
-                  maxlength="5000"
-                  class="h-32 w-full resize-none px-4 py-3 text-sm outline-none"
-                  placeholder="Type your description here..."
-                ></textarea>
+                  ref="messageEditor"
+                  class="h-32 w-full overflow-y-auto px-4 py-3 text-sm outline-none empty:before:text-slate-400 empty:before:content-['Type_your_description_here...']"
+                  contenteditable="true"
+                  role="textbox"
+                  aria-multiline="true"
+                  @input="syncMessageFromEditor"
+                  @paste.prevent="pasteMessageText"
+                ></div>
                 <p class="px-3 pb-2 text-right text-xs text-slate-500">{{ messageLength }}/5000</p>
               </div>
             </section>
@@ -625,9 +784,10 @@ onBeforeUnmount(() => {
 
         <div class="px-6 pb-6 pt-0">
           <p class="text-xs font-semibold text-black">Description</p>
-          <p class="mt-2 whitespace-pre-line break-words text-xs leading-5 text-slate-900">
-            {{ selectedNotification.message }}
-          </p>
+          <div
+            class="mt-2 break-words text-xs leading-5 text-slate-900 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+            v-html="formattedNotificationMessage(selectedNotification.message)"
+          ></div>
 
           <div v-if="selectedNotification.attachmentUrl" class="mt-5">
             <p class="text-xs font-semibold text-black">Attachment</p>
