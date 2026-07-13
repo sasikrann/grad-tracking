@@ -38,11 +38,14 @@ const isDuplicateWarningOpen = ref(false)
 // เช่น program ตรงกัน, year ตรงกัน และ semester ตรงกัน
 const sourceMilestones = computed(() =>
   props.milestones.filter((milestone) => {
-    const matchesProgram = milestone.degreeLevel === fromDegreeLevel.value
     const matchesYear =
       fromYear.value === 'all' ||
+      !milestone.deadline ||
       new Date(milestone.deadline).getFullYear().toString() === fromYear.value
-    const matchesSemester = milestone.semester === fromSemester.value
+    const matchesSemester =
+      milestone.semester === 'all' || milestone.semester === fromSemester.value
+    const matchesProgram =
+      milestone.degreeLevel === 'All' || milestone.degreeLevel === fromDegreeLevel.value
 
     return matchesProgram && matchesYear && matchesSemester
   }),
@@ -60,9 +63,11 @@ const allSelected = computed(
 
 const destinationMilestones = computed(() =>
   props.milestones.filter((milestone) => {
-    const matchesProgram = milestone.degreeLevel === toDegreeLevel.value
+    const matchesProgram =
+      milestone.degreeLevel === 'All' || milestone.degreeLevel === toDegreeLevel.value
     const matchesYear =
       toYear.value === 'all' ||
+      !milestone.deadline ||
       new Date(milestone.deadline).getFullYear().toString() === toYear.value
     const matchesSemester = milestone.semester === toSemester.value
 
@@ -124,8 +129,12 @@ function confirmCopy() {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/35 px-4 py-4 sm:items-center sm:py-6">
-    <section class="max-h-[calc(100vh-2rem)] w-full max-w-4xl overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:max-h-[calc(100vh-3rem)] sm:p-6">
+  <div
+    class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/35 px-4 py-4 sm:items-center sm:py-6"
+  >
+    <section
+      class="max-h-[calc(100vh-2rem)] w-full max-w-4xl overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:max-h-[calc(100vh-3rem)] sm:p-6"
+    >
       <h2 class="text-lg font-semibold">Copy Milestone</h2>
       <p class="mt-1 text-xs text-slate-500">
         Copy milestone from one semester/program to another.
@@ -293,7 +302,9 @@ function confirmCopy() {
       v-if="isDuplicateWarningOpen"
       class="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-4 sm:items-center sm:py-6"
     >
-      <div class="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:max-h-[calc(100vh-3rem)] sm:p-6">
+      <div
+        class="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:max-h-[calc(100vh-3rem)] sm:p-6"
+      >
         <h3 class="text-base font-semibold text-[#8b0000]">Duplicate milestone titles found</h3>
         <p class="mt-2 text-sm text-slate-600">
           The destination already has milestones with the same title. If you continue, new

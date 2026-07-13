@@ -34,8 +34,9 @@ const statusStyles: Record<StudentMilestoneStatus, string> = {
   'In Progress': 'bg-[#ffbb2a] text-white',
 }
 
-const needsEvidence = computed(() =>
-  !props.readonly &&
+const needsEvidence = computed(
+  () =>
+    !props.readonly &&
     ['Missing', 'In Progress'].includes(props.milestone.status) &&
     !props.milestone.evidenceUrl,
 )
@@ -47,14 +48,12 @@ const hasReachedRevisionLimit = computed(
 )
 const showUploadEvidence = computed(() => needsEvidence.value && !hasReachedRevisionLimit.value)
 const canUploadEvidence = computed(
-  () =>
-    showUploadEvidence.value &&
-    !isLocked.value &&
-    (props.canUpload ?? true),
+  () => showUploadEvidence.value && !isLocked.value && (props.canUpload ?? true),
 )
 
-const isDeadlineUrgent = computed(() =>
-  !isLocked.value &&
+const isDeadlineUrgent = computed(
+  () =>
+    !isLocked.value &&
     ['Missing', 'In Progress'].includes(props.milestone.status) &&
     !props.milestone.evidenceUrl,
 )
@@ -67,13 +66,17 @@ const evidenceName = computed(() => {
   const fileName = decodeURIComponent(value.split('/').pop() || value)
   return fileName.replace(/^\d+-/, '')
 })
-const fallbackDescription = computed(() =>
-  `Complete course registration for ${
-    props.milestone.semester === '2' ? 'second' : 'first'
-  } semester`,
+const fallbackDescription = computed(
+  () =>
+    `Complete course registration for ${
+      props.milestone.semester === '2' ? 'second' : 'first'
+    } semester`,
 )
-const canRemoveEvidence = computed(() =>
-  !props.readonly && Boolean(props.milestone.evidenceUrl) && props.milestone.status !== 'Approved',
+const canRemoveEvidence = computed(
+  () =>
+    !props.readonly &&
+    Boolean(props.milestone.evidenceUrl) &&
+    props.milestone.status !== 'Approved',
 )
 
 function formatDate(value: string) {
@@ -112,7 +115,9 @@ function handleFileChange(event: Event) {
 </script>
 
 <template>
-  <article class="relative grid grid-cols-[1.5rem_minmax(0,1fr)] gap-4 md:grid-cols-[2rem_minmax(0,1fr)]">
+  <article
+    class="relative grid grid-cols-[1.5rem_minmax(0,1fr)] gap-4 md:grid-cols-[2rem_minmax(0,1fr)]"
+  >
     <div class="relative flex justify-center">
       <div
         class="relative z-10 flex size-6 items-center justify-center rounded-full text-xs font-semibold text-white shadow-sm"
@@ -189,6 +194,13 @@ function handleFileChange(event: Event) {
         </span>
       </div>
 
+      <p
+        v-if="milestone.lockedReason"
+        class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
+      >
+        {{ milestone.lockedReason }}
+      </p>
+
       <div v-if="milestone.evidenceUrl" class="mt-3 flex flex-wrap items-center gap-2">
         <a
           class="break-all text-sm text-[#00a000] hover:underline"
@@ -230,12 +242,7 @@ function handleFileChange(event: Event) {
       </div>
 
       <div v-if="showUploadEvidence" class="mt-3 flex flex-wrap items-center gap-3">
-        <input
-          ref="fileInput"
-          class="hidden"
-          type="file"
-          @change="handleFileChange"
-        />
+        <input ref="fileInput" class="hidden" type="file" @change="handleFileChange" />
         <button
           type="button"
           class="inline-flex h-7 items-center gap-2 rounded border border-slate-300 bg-white px-3 text-xs font-semibold text-black shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
@@ -258,10 +265,7 @@ function handleFileChange(event: Event) {
         </button>
       </div>
 
-      <p
-        v-if="uploadError"
-        class="mt-4 rounded-lg bg-[#feecec] px-3 py-2 text-xs text-[#8a2b25]"
-      >
+      <p v-if="uploadError" class="mt-4 rounded-lg bg-[#feecec] px-3 py-2 text-xs text-[#8a2b25]">
         {{ uploadError }}
       </p>
 

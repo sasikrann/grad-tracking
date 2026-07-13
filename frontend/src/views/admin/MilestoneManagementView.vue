@@ -4,16 +4,10 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import CopyMilestoneModal from '@/components/milestone/CopyMilestoneModal.vue'
 import MilestoneFormModal from '@/components/milestone/MilestoneFormModal.vue'
 import MilestoneTable from '@/components/milestone/MilestoneTable.vue'
-import {
-  copyMilestones,
-  createMilestone,
-  deleteMilestone,
-  getMilestones,
-  moveMilestone,
-  setMilestoneEnabled,
-  updateMilestone,
-} from '@/services/milestones.api'
-import type { DegreeLevel, Milestone, MilestoneInput } from '@/types/milestone'
+import { standardMilestones } from '@/data/standard-milestones'
+import type { EducationPlan, Milestone, MilestoneInput, MilestoneProgram } from '@/types/milestone'
+
+const storageKey = 'grad-tracking-milestone-management-v1'
 
 const milestones = ref<Milestone[]>([])
 const isLoading = ref(false)
@@ -22,7 +16,8 @@ const errorMessage = ref('')
 const notificationType = ref<'success' | 'error'>('success')
 let notificationTimer: ReturnType<typeof setTimeout> | undefined
 const selectedSemester = ref('all')
-const selectedDegreeLevel = ref<DegreeLevel>('Master')
+const selectedDegreeLevel = ref<MilestoneProgram>('All')
+const selectedPlan = ref<EducationPlan>('All')
 const selectedYear = ref('all')
 const isFormOpen = ref(false)
 const isCopyOpen = ref(false)
@@ -30,25 +25,37 @@ const editingMilestone = ref<Milestone | null>(null)
 const deletingMilestone = ref<Milestone | null>(null)
 const isDeleteConfirmed = ref(false)
 const isDeleting = ref(false)
-type MilestoneFilterKey = 'semester' | 'year' | 'degreeLevel'
+type MilestoneFilterKey = 'semester' | 'year' | 'degreeLevel' | 'plan'
 const openFilter = ref<MilestoneFilterKey | null>(null)
 
 const filteredMilestones = computed(() =>
   milestones.value.filter((milestone) => {
     const matchesSemester =
-      selectedSemester.value === 'all' || milestone.semester === selectedSemester.value
-    const matchesDegree = milestone.degreeLevel === selectedDegreeLevel.value
+      selectedSemester.value === 'all' ||
+      milestone.semester === 'all' ||
+      milestone.semester === selectedSemester.value
+    const matchesDegree =
+      selectedDegreeLevel.value === 'All' ||
+      milestone.degreeLevel === 'All' ||
+      milestone.degreeLevel === selectedDegreeLevel.value
+    const matchesPlan =
+      selectedPlan.value === 'All' ||
+      milestone.plans.includes('All') ||
+      milestone.plans.includes(selectedPlan.value)
     const matchesYear =
       selectedYear.value === 'all' ||
+      !milestone.deadline ||
       new Date(milestone.deadline).getFullYear().toString() === selectedYear.value
 
-    return matchesSemester && matchesDegree && matchesYear
+    return matchesSemester && matchesDegree && matchesPlan && matchesYear
   }),
 )
 
 const yearOptions = computed(() => {
   const years = new Set(
-    milestones.value.map((milestone) => new Date(milestone.deadline).getFullYear().toString()),
+    milestones.value
+      .filter((milestone) => Boolean(milestone.deadline))
+      .map((milestone) => new Date(milestone.deadline as string).getFullYear().toString()),
   )
   return Array.from(years).sort()
 })
@@ -64,6 +71,19 @@ const filterDefinitions = computed(() => [
     ],
   },
   {
+    key: 'plan' as const,
+    label: selectedPlan.value === 'All' ? 'All Plan' : selectedPlan.value,
+    options: [
+      { label: 'All Plan', value: 'All' },
+      ...(selectedDegreeLevel.value === 'Master'
+        ? ['A1', 'A2', 'B']
+        : selectedDegreeLevel.value === 'Doctoral'
+          ? ['1.1', '2.1', '2.2']
+          : ['A1', 'A2', 'B', '1.1', '2.1', '2.2']
+      ).map((plan) => ({ label: plan, value: plan })),
+    ],
+  },
+  {
     key: 'year' as const,
     label: selectedYear.value === 'all' ? 'All Year' : selectedYear.value,
     options: [
@@ -73,8 +93,14 @@ const filterDefinitions = computed(() => [
   },
   {
     key: 'degreeLevel' as const,
-    label: selectedDegreeLevel.value === 'Doctoral' ? 'Ph.D' : selectedDegreeLevel.value,
+    label:
+      selectedDegreeLevel.value === 'All'
+        ? 'All Program'
+        : selectedDegreeLevel.value === 'Doctoral'
+          ? 'Ph.D'
+          : selectedDegreeLevel.value,
     options: [
+      { label: 'All Program', value: 'All' },
       { label: 'Master', value: 'Master' },
       { label: 'Ph.D', value: 'Doctoral' },
     ],
@@ -124,17 +150,29 @@ function formatMilestoneError(error: unknown, fallback: string) {
   return readableMessages[text] ?? text
 }
 
-async function loadMilestones() {
+function persistMilestones() {
+  localStorage.setItem(storageKey, JSON.stringify(milestones.value))
+}
+
+function loadMilestones() {
   isLoading.value = true
   errorMessage.value = ''
   try {
-    milestones.value = await getMilestones()
-  } catch (error) {
-    milestones.value = []
-    const text = error instanceof Error ? error.message : 'Unable to load milestones'
-    if (!text.includes('not found')) {
-      showNotification('ไม่สามารถโหลดข้อมูล milestone ได้ กรุณาลองใหม่อีกครั้ง', 'error')
-    }
+    const saved = localStorage.getItem(storageKey)
+    milestones.value = saved
+      ? (JSON.parse(saved) as Milestone[])
+      : standardMilestones.map((milestone) => ({
+          ...milestone,
+          plans: [...milestone.plans],
+          prerequisiteMilestoneIds: [...milestone.prerequisiteMilestoneIds],
+        }))
+    if (!saved) persistMilestones()
+  } catch {
+    milestones.value = standardMilestones.map((milestone) => ({ ...milestone }))
+    showNotification(
+      'Unable to load locally saved milestones. Standard milestones were restored.',
+      'error',
+    )
   } finally {
     isLoading.value = false
   }
@@ -164,18 +202,55 @@ function closeDeleteModal(force = false) {
 async function saveMilestone(input: MilestoneInput) {
   errorMessage.value = ''
   try {
+    if (!input.title.trim()) throw new Error('title is required')
+    if (!input.sequenceOrder || input.sequenceOrder < 1)
+      throw new Error('sequenceOrder is required')
+    if (!input.plans.length) throw new Error('At least one plan is required')
+    const normalizedPlans: EducationPlan[] = input.plans.includes('All')
+      ? ['All']
+      : [...input.plans]
+
     if (editingMilestone.value) {
-      await updateMilestone(editingMilestone.value.milestoneId, input)
+      const index = milestones.value.findIndex(
+        (milestone) => milestone.milestoneId === editingMilestone.value?.milestoneId,
+      )
+      if (index >= 0) {
+        milestones.value[index] = {
+          ...editingMilestone.value,
+          ...input,
+          plans: normalizedPlans,
+          prerequisiteMilestoneIds: [...input.prerequisiteMilestoneIds],
+          description: input.description.trim() || null,
+          sequenceOrder: input.sequenceOrder,
+          openDate: input.openDate || null,
+          deadline: input.deadline || null,
+          firstReminderDate: input.firstReminderDate || null,
+          secondReminderDate: input.secondReminderDate || null,
+        }
+      }
       showNotification('Milestone updated successfully')
     } else {
-      await createMilestone(input)
+      milestones.value.push({
+        ...input,
+        milestoneId: `local-${crypto.randomUUID()}`,
+        plans: normalizedPlans,
+        prerequisiteMilestoneIds: [...input.prerequisiteMilestoneIds],
+        description: input.description.trim() || null,
+        sequenceOrder: input.sequenceOrder,
+        openDate: input.openDate || null,
+        deadline: input.deadline || null,
+        firstReminderDate: input.firstReminderDate || null,
+        secondReminderDate: input.secondReminderDate || null,
+        isStandard: false,
+      })
       showNotification('Milestone added successfully')
     }
+    persistMilestones()
     selectedDegreeLevel.value = input.degreeLevel
     selectedSemester.value = 'all'
-    selectedYear.value = new Date(input.deadline).getFullYear().toString()
+    selectedPlan.value = 'All'
+    selectedYear.value = input.deadline ? new Date(input.deadline).getFullYear().toString() : 'all'
     isFormOpen.value = false
-    await loadMilestones()
   } catch (error) {
     showNotification(formatMilestoneError(error, 'Unable to save milestone'), 'error')
   }
@@ -186,10 +261,12 @@ async function removeMilestone() {
   errorMessage.value = ''
   isDeleting.value = true
   try {
-    await deleteMilestone(deletingMilestone.value.milestoneId)
+    milestones.value = milestones.value.filter(
+      (milestone) => milestone.milestoneId !== deletingMilestone.value?.milestoneId,
+    )
+    persistMilestones()
     showNotification('Milestone deleted successfully')
     closeDeleteModal(true)
-    await loadMilestones()
   } catch (error) {
     showNotification(formatMilestoneError(error, 'Unable to delete milestone'), 'error')
   } finally {
@@ -200,11 +277,11 @@ async function removeMilestone() {
 async function setMilestoneStatus(milestone: Milestone, isEnabled: boolean) {
   errorMessage.value = ''
   try {
-    await setMilestoneEnabled(milestone.milestoneId, isEnabled)
+    milestone.isEnabled = isEnabled
+    persistMilestones()
     showNotification(
       isEnabled ? 'Milestone enabled successfully' : 'Milestone disabled successfully',
     )
-    await loadMilestones()
   } catch (error) {
     showNotification(formatMilestoneError(error, 'Unable to update milestone'), 'error')
   }
@@ -213,17 +290,29 @@ async function setMilestoneStatus(milestone: Milestone, isEnabled: boolean) {
 async function moveMilestoneOrder(milestoneId: string, direction: 'up' | 'down') {
   errorMessage.value = ''
   try {
-    await moveMilestone(milestoneId, direction)
+    const current = milestones.value.find((milestone) => milestone.milestoneId === milestoneId)
+    if (!current) throw new Error('Milestone not found')
+    const siblings = milestones.value
+      .filter((milestone) => milestone.degreeLevel === current.degreeLevel)
+      .filter((milestone) => milestone.semester === current.semester)
+      .sort((first, second) => first.sequenceOrder - second.sequenceOrder)
+    const currentIndex = siblings.findIndex((milestone) => milestone.milestoneId === milestoneId)
+    const target = siblings[currentIndex + (direction === 'up' ? -1 : 1)]
+    if (target) {
+      const currentOrder = current.sequenceOrder
+      current.sequenceOrder = target.sequenceOrder
+      target.sequenceOrder = currentOrder
+      persistMilestones()
+    }
     showNotification('Milestone order updated successfully')
-    await loadMilestones()
   } catch (error) {
     showNotification(formatMilestoneError(error, 'Unable to reorder milestone'), 'error')
   }
 }
 
 async function copyMilestoneTemplates(
-  fromDegreeLevel: DegreeLevel,
-  toDegreeLevel: DegreeLevel,
+  fromDegreeLevel: Exclude<MilestoneProgram, 'All'>,
+  toDegreeLevel: Exclude<MilestoneProgram, 'All'>,
   fromSemester: string,
   toSemester: string,
   toYear: string,
@@ -231,20 +320,41 @@ async function copyMilestoneTemplates(
 ) {
   errorMessage.value = ''
   try {
-    const result = await copyMilestones(
-      fromDegreeLevel,
-      toDegreeLevel,
-      fromSemester,
-      toSemester,
-      toYear,
-      milestoneIds,
+    const selected = milestones.value.filter((milestone) =>
+      milestoneIds.includes(milestone.milestoneId),
     )
-    showNotification(`Copied ${result.copiedRecords} milestones successfully`)
+    const nextOrderStart = Math.max(
+      0,
+      ...milestones.value
+        .filter((milestone) => milestone.degreeLevel === toDegreeLevel)
+        .filter((milestone) => milestone.semester === toSemester)
+        .map((milestone) => milestone.sequenceOrder),
+    )
+    const shiftYear = (value: string | null, year: string) => {
+      if (!value || year === 'all') return value
+      return `${year}${value.slice(4)}`
+    }
+    const copies = selected.map((milestone, index) => ({
+      ...milestone,
+      milestoneId: `local-${crypto.randomUUID()}`,
+      degreeLevel: toDegreeLevel,
+      semester: toSemester,
+      plans: ['All' as const],
+      sequenceOrder: nextOrderStart + index + 1,
+      openDate: shiftYear(milestone.openDate, toYear),
+      deadline: shiftYear(milestone.deadline, toYear),
+      firstReminderDate: shiftYear(milestone.firstReminderDate, toYear),
+      secondReminderDate: shiftYear(milestone.secondReminderDate, toYear),
+      prerequisiteMilestoneIds: [],
+      isStandard: false,
+    }))
+    milestones.value.push(...copies)
+    persistMilestones()
+    showNotification(`Copied ${copies.length} milestones successfully`)
     selectedDegreeLevel.value = toDegreeLevel
     selectedSemester.value = 'all'
     selectedYear.value = toYear
     isCopyOpen.value = false
-    await loadMilestones()
   } catch (error) {
     showNotification(formatMilestoneError(error, 'Unable to copy milestones'), 'error')
   }
@@ -253,13 +363,18 @@ async function copyMilestoneTemplates(
 function selectedFilterValue(key: MilestoneFilterKey) {
   if (key === 'semester') return selectedSemester.value
   if (key === 'year') return selectedYear.value
+  if (key === 'plan') return selectedPlan.value
   return selectedDegreeLevel.value
 }
 
 function selectFilter(key: MilestoneFilterKey, value: string) {
   if (key === 'semester') selectedSemester.value = value
   if (key === 'year') selectedYear.value = value
-  if (key === 'degreeLevel') selectedDegreeLevel.value = value as DegreeLevel
+  if (key === 'plan') selectedPlan.value = value as EducationPlan
+  if (key === 'degreeLevel') {
+    selectedDegreeLevel.value = value as MilestoneProgram
+    selectedPlan.value = 'All'
+  }
   openFilter.value = null
 }
 
@@ -370,7 +485,7 @@ onBeforeUnmount(() => {
       <MilestoneTable
         :milestones="filteredMilestones"
         :is-loading="isLoading"
-        :group-by-semester="selectedSemester === 'all'"
+        :group-by-semester="false"
         @edit="openEditModal"
         @remove="openDeleteModal"
         @set-enabled="setMilestoneStatus"
