@@ -20,7 +20,7 @@ function initials(name: string) {
 }
 
 function statusLabel(status: Advisor['status']) {
-  return status === 'inactive' ? 'Active' : 'Disable'
+  return status === 'inactive' ? 'Active' : 'Inactive'
 }
 </script>
 
