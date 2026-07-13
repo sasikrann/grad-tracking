@@ -2,11 +2,20 @@ import { randomUUID } from 'node:crypto'
 
 import pool from '../config/database.js'
 
+let advisorSchemaReady
+async function ensureAdvisorSchema() {
+  advisorSchemaReady ??= pool.query("ALTER TABLE advisors ADD COLUMN IF NOT EXISTS status VARCHAR NOT NULL DEFAULT 'inactive'")
+    .then(() => pool.query("UPDATE advisors SET status = 'inactive' WHERE status = 'active'"))
+    .then(() => pool.query("ALTER TABLE advisors ALTER COLUMN status SET DEFAULT 'inactive'"))
+  await advisorSchemaReady
+}
+
 const advisorColumns = `
   a.advisor_id AS "advisorId",
   a.user_id AS "userId",
   a.full_name AS "fullName",
   a.email,
+  a.status,
   a.created_at AS "createdAt"
 `
 const duplicateAdvisorEmailMessage =
@@ -146,6 +155,7 @@ function applyAdvisorImportResolutions(records, conflicts, resolutions = {}) {
 }
 
 export async function findAllAdvisors() {
+  await ensureAdvisorSchema()
   await ensureAdvisorProfilesForAdvisorUsers()
 
   const result = await pool.query(`
@@ -165,6 +175,7 @@ export async function findAllAdvisors() {
 }
 
 export async function findAdvisorById(advisorId) {
+  await ensureAdvisorSchema()
   const result = await pool.query(
     `
       SELECT ${advisorColumns}
@@ -237,6 +248,7 @@ async function ensureAdvisorProfilesForAdvisorUsers() {
 }
 
 async function upsertAdvisorWithClient(client, input) {
+  await ensureAdvisorSchema()
   const requestedAdvisorId = String(input.advisorId ?? '').trim()
   const email = String(input.email ?? '').trim().toLowerCase()
   const fullName = String(input.fullName ?? '').trim()
@@ -340,6 +352,20 @@ export async function replaceAdvisor(advisorId, input) {
   } finally {
     client.release()
   }
+}
+
+export async function updateAdvisorStatus(advisorId, status) {
+  await ensureAdvisorSchema()
+  if (!['inactive', 'disabled'].includes(status)) {
+    const error = new Error('Status must be inactive or disabled')
+    error.statusCode = 400
+    throw error
+  }
+  const result = await pool.query(
+    'UPDATE advisors SET status = $2 WHERE advisor_id = $1 RETURNING advisor_id',
+    [advisorId, status],
+  )
+  return result.rowCount ? findAdvisorById(advisorId) : null
 }
 
 export async function removeAdvisor(advisorId) {

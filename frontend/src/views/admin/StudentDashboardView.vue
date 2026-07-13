@@ -9,7 +9,6 @@ import StudentOverview from '@/components/student/StudentOverview.vue'
 import SummaryCard from '@/components/student/SummaryCard.vue'
 import { useStudentOverview } from '@/composables/useStudentOverview'
 import {
-  downloadStudentTemplate,
   exportStudents,
   getStudents,
   importStudents,
@@ -139,7 +138,9 @@ function showImportResult(result: StudentImportResult) {
   showNotificationAfterImportModalCloses(
     result.failedRecords
       ? `Imported ${result.successRecords}/${result.totalRecords} students.${errorText}`
-      : `Imported ${result.successRecords} students successfully`,
+      : result.updatedRecords
+        ? `Imported ${result.successRecords} students: created ${result.createdRecords ?? 0}, updated ${result.updatedRecords}.`
+        : `Imported ${result.successRecords} students successfully`,
     result.failedRecords ? 'error' : 'success',
   )
 }
@@ -177,7 +178,7 @@ async function finishImport(result: StudentImportResult) {
   await loadStudents()
 }
 
-async function handleImport(resolutions?: Record<string, string>) {
+async function handleImport(_resolutions?: Record<string, string>) {
   const file = selectedImportFile.value
   if (!file) return
 
@@ -185,7 +186,7 @@ async function handleImport(resolutions?: Record<string, string>) {
   errorMessage.value = ''
   isImporting.value = true
   try {
-    const result = await importStudents(file, resolutions)
+    const result = await importStudents(file)
     await finishImport(result)
   } catch (error) {
     if (error instanceof StudentImportConflictError) {
@@ -250,13 +251,6 @@ onBeforeUnmount(() => {
         </p>
       </div>
 
-      <button
-        type="button"
-        class="rounded-lg bg-[#8b2a23] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#7a211c]"
-        @click="downloadStudentTemplate"
-      >
-        Download Template
-      </button>
     </header>
 
     <section class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2" aria-label="Import and export">

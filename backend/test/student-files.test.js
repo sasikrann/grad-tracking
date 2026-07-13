@@ -36,6 +36,7 @@ test('parses a valid student CSV file using the current import flow', async () =
     email: 'student@lamduan.mfu.ac.th',
     fullName: 'Test Student',
     program: 'CE',
+    educationPlan: null,
     degreeLevel: 'Doctoral',
     enrollmentAcademicYear: 2023,
     semester: '2',

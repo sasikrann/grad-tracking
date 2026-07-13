@@ -8,7 +8,7 @@ defineOptions({ name: 'AppNavbar' })
 
 // ชนิดข้อมูลที่ใช้สร้างเมนูของแต่ละ role
 type MenuRole = 'admin' | 'lecturer' | 'student'
-type MenuIcon = 'dashboard' | 'student' | 'milestone' | 'notification'
+type MenuIcon = 'dashboard' | 'student' | 'advisor' | 'milestone' | 'notification'
 
 interface MenuItem {
   label: string
@@ -39,7 +39,7 @@ const menus: Record<MenuRole, MenuItem[]> = {
       icon: 'dashboard',
       activePaths: ['/admin/students/'],
     },
-    { label: 'Advisor Dashboard', to: '/admin/advisor-dashboard', icon: 'dashboard' },
+    { label: 'Advisor Management', to: '/admin/advisor-dashboard', icon: 'advisor' },
     { label: 'Milestone Management', to: '/milestones', icon: 'milestone' },
     { label: 'Notification Management', to: '/admin/notifications', icon: 'notification' },
   ],
@@ -248,6 +248,13 @@ watch(
               <template v-else-if="item.icon === 'student'">
                 <path d="M5 3h12a2 2 0 0 1 2 2v16H7a2 2 0 0 1-2-2V3Z" />
                 <path d="M7 17h12M9 7h6" />
+              </template>
+
+              <template v-else-if="item.icon === 'advisor'">
+                <circle cx="9" cy="7" r="3.5" />
+                <path d="M3 21v-2a6 6 0 0 1 12 0v2" />
+                <path d="M16 4.2a3.5 3.5 0 0 1 0 6.7" />
+                <path d="M17.5 14a5 5 0 0 1 3.5 4.8V21" />
               </template>
 
               <template v-else-if="item.icon === 'milestone'">

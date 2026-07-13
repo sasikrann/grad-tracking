@@ -6,6 +6,7 @@ export interface StudentTableItem {
   studentId: string
   degree: string
   program: string
+  educationPlan: string
   enrollmentAcademicYear: string
   expectedGraduationYear: string
   semester: number
@@ -25,6 +26,7 @@ export interface StudentFiltersState {
   semester: string
   year: string
   degree: string
+  plan: string
   status: string
   advisor: string
 }

@@ -11,6 +11,7 @@ import {
   exportAdvisors,
   getAdvisors,
   importAdvisors,
+  updateAdvisorStatus,
 } from '@/services/advisors.api'
 import type { AdvisorImportConflict, AdvisorImportResult } from '@/services/advisors.api'
 import type { Advisor } from '@/types/advisor'
@@ -173,6 +174,16 @@ async function handleExport() {
   }
 }
 
+async function handleStatusChange(advisorId: string, status: Advisor['status']) {
+  try {
+    const updated = await updateAdvisorStatus(advisorId, status)
+    advisors.value = advisors.value.map((advisor) => advisor.advisorId === advisorId ? updated : advisor)
+    showNotification(`Advisor status changed to ${status}.`)
+  } catch (error) {
+    showNotification(error instanceof Error ? error.message : 'Unable to update advisor status.', 'error')
+  }
+}
+
 onMounted(loadAdvisors)
 onBeforeUnmount(() => {
   if (messageTimer) clearTimeout(messageTimer)
@@ -183,7 +194,7 @@ onBeforeUnmount(() => {
   <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 class="text-3xl font-bold tracking-tight">Advisor Dashboard</h1>
+        <h1 class="text-3xl font-bold tracking-tight">Advisor Management</h1>
         <p class="mt-1 text-sm text-slate-500">Manage advisor data and view assigned users</p>
       </div>
 
@@ -216,7 +227,7 @@ onBeforeUnmount(() => {
       />
     </section>
 
-    <AdvisorTable :advisors="advisors" :is-loading="isLoading" :error="loadError" />
+    <AdvisorTable :advisors="advisors" :is-loading="isLoading" :error="loadError" @status="handleStatusChange" />
 
     <ImportFileModal
       v-if="isImportModalOpen && !isDuplicateEmailModalOpen"
