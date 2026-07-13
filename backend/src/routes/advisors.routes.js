@@ -16,6 +16,7 @@ import {
   importAdvisorFile,
   reviewAdvisorStudentMilestone,
   updateAdvisor,
+  patchAdvisorStatus,
 } from '../controllers/advisors.controller.js'
 
 const router = Router()
@@ -42,6 +43,7 @@ router.get('/milestone-submissions', getAdvisorMilestoneSubmissions)
 router.get('/students/:studentId/milestones', getAdvisorStudentMilestones)
 router.post('/import', adminOnly, upload.single('file'), importAdvisorFile)
 router.post('/', adminOnly, createAdvisor)
+router.patch('/:advisorId/status', adminOnly, patchAdvisorStatus)
 router.get('/:advisorId/milestone-summary', getAdvisorMilestoneSummaryReport)
 router.get('/:advisorId', getAdvisor)
 router.put('/:advisorId', adminOnly, updateAdvisor)

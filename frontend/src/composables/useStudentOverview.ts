@@ -13,6 +13,7 @@ export function useStudentOverview(
     semester: 'all',
     year: 'all',
     degree: 'all',
+    plan: 'all',
     status: 'all',
     advisor: initialAdvisorFilter,
   })
@@ -42,6 +43,8 @@ export function useStudentOverview(
       const matchesYear = filters.value.year === 'all' || student.year === filters.value.year
       const matchesDegree =
         filters.value.degree === 'all' || student.degree === filters.value.degree
+      const matchesPlan =
+        filters.value.plan === 'all' || student.educationPlan === filters.value.plan
       const matchesStatus =
         filters.value.status === 'all' || student.status === filters.value.status
       const matchesAdvisor = filters.value.advisor === 'all' || student.isAdvised
@@ -51,6 +54,7 @@ export function useStudentOverview(
         matchesSemester &&
         matchesYear &&
         matchesDegree &&
+        matchesPlan &&
         matchesStatus &&
         matchesAdvisor
       )
