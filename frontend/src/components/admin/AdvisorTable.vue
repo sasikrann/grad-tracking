@@ -18,6 +18,10 @@ function initials(name: string) {
     .map((part) => part.charAt(0).toUpperCase())
     .join('')
 }
+
+function statusLabel(status: Advisor['status']) {
+  return status === 'inactive' ? 'Active' : 'Disable'
+}
 </script>
 
 <template>
@@ -59,8 +63,8 @@ function initials(name: string) {
             </td>
             <td class="w-[25%] py-3 pl-4 text-right">
               <div class="ml-auto flex w-38 justify-center gap-2">
-                <button v-for="status in (['inactive', 'disabled'] as const)" :key="status" type="button" :disabled="advisor.status === status" :aria-label="`Set ${advisor.fullName} status to ${status}`" class="rounded-md border px-3 py-1 text-[11px] capitalize disabled:cursor-default" :class="advisor.status === status ? (status === 'inactive' ? 'border-green-200 bg-green-100 text-green-700' : 'border-red-200 bg-red-50 text-red-700') : 'border-slate-200 text-slate-500 hover:bg-slate-50'" @click="$emit('status', advisor.advisorId, status)">
-                  {{ status }}
+                <button v-for="status in (['inactive', 'disabled'] as const)" :key="status" type="button" :disabled="advisor.status === status" :aria-label="`Set ${advisor.fullName} status to ${statusLabel(status)}`" class="rounded-md border px-3 py-1 text-[11px] disabled:cursor-default" :class="advisor.status === status ? (status === 'inactive' ? 'border-green-200 bg-green-100 text-green-700' : 'border-red-200 bg-red-50 text-red-700') : 'border-slate-200 text-slate-500 hover:bg-slate-50'" @click="$emit('status', advisor.advisorId, status)">
+                  {{ statusLabel(status) }}
                 </button>
               </div>
             </td>

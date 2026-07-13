@@ -40,6 +40,10 @@ const hasResolvedImportConflicts = computed(() =>
 const duplicateAdvisorMessage =
   'Some advisor emails already exist. Please choose which advisor record to keep before importing.'
 
+function advisorStatusLabel(status: Advisor['status']) {
+  return status === 'inactive' ? 'Active' : 'Disable'
+}
+
 function showNotification(text: string, type: 'success' | 'error' = 'success') {
   message.value = type === 'success' ? text : ''
   errorMessage.value = type === 'error' ? text : ''
@@ -178,7 +182,7 @@ async function handleStatusChange(advisorId: string, status: Advisor['status']) 
   try {
     const updated = await updateAdvisorStatus(advisorId, status)
     advisors.value = advisors.value.map((advisor) => advisor.advisorId === advisorId ? updated : advisor)
-    showNotification(`Advisor status changed to ${status}.`)
+    showNotification(`Advisor status changed to ${advisorStatusLabel(status)}.`)
   } catch (error) {
     showNotification(error instanceof Error ? error.message : 'Unable to update advisor status.', 'error')
   }
