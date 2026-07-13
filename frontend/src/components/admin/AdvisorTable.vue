@@ -37,13 +37,13 @@ function statusLabel(status: Advisor['status']) {
     <div v-else-if="error" class="py-10 text-center text-sm text-red-600">{{ error }}</div>
     <div v-else class="mt-4 overflow-x-auto">
       <table class="min-w-full table-fixed text-left text-sm">
-        <thead class="border-b border-slate-200 text-xs font-semibold text-slate-900">
-          <tr>
-            <th class="w-[38%] py-3 pr-4">Advisors</th>
-            <th class="w-[37%] px-4 py-3">
+        <thead class="border-b border-slate-200 text-slate-900">
+          <tr class="text-xs">
+            <th class="w-[38%] py-3 pr-4 font-semibold">Advisors</th>
+            <th class="w-[37%] px-4 py-3 font-semibold">
               <div class="mx-auto w-64 text-left">Email</div>
             </th>
-            <th class="w-[25%] py-3 pl-4">
+            <th class="w-[25%] py-3 pl-4 font-semibold">
               <div class="ml-auto w-38 text-center">Status</div>
             </th>
           </tr>
