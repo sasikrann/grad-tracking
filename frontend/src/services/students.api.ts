@@ -8,6 +8,7 @@ interface StudentApiResponse {
   studentId: string
   fullName: string
   program: string
+  educationPlan?: string | null
   degreeLevel: 'Master' | 'Doctoral'
   enrollmentAcademicYear: number
   semester: string
@@ -61,6 +62,8 @@ export interface StudentImportResult {
   successRecords: number
   failedRecords: number
   errors: string[]
+  createdRecords?: number
+  updatedRecords?: number
 }
 
 export class StudentImportConflictError extends Error {
@@ -87,6 +90,7 @@ function toStudent(student: StudentApiResponse, currentAdvisorId?: string): Stud
     name: student.fullName,
     degree: student.degreeLevel === 'Doctoral' ? 'Ph. D.' : 'Master',
     program: student.program,
+    educationPlan: student.educationPlan ?? '-',
     enrollmentAcademicYear: String(student.enrollmentAcademicYear),
     expectedGraduationYear: String(student.expectedGraduationYear),
     semester: Number(student.semester),
@@ -167,12 +171,9 @@ export function downloadStudentTemplate() {
   return downloadStudentFile('/api/students/template', 'student_import_template.xlsx')
 }
 
-export async function importStudents(file: File, resolutions?: Record<string, string>) {
+export async function importStudents(file: File) {
   const formData = new FormData()
   formData.append('file', file)
-  if (resolutions) {
-    formData.append('resolutions', JSON.stringify(resolutions))
-  }
   const response = await authenticatedFetch(`${apiBaseUrl}/api/students/import`, {
     method: 'POST',
     body: formData,

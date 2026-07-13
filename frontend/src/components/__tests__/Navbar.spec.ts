@@ -4,7 +4,7 @@ import Navbar from '../navbar.vue'
 
 describe('Navbar', () => {
   it.each([
-    ['admin', 'Advisor Dashboard'],
+    ['admin', 'Advisor Management'],
     ['lecturer', 'Milestone Summary'],
     ['advisor', 'Milestone Summary'],
     ['student', 'Student Information'],

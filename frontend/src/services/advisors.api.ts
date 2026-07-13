@@ -65,6 +65,17 @@ export async function getAdvisors() {
   return Array.isArray(result.data) ? result.data : []
 }
 
+export async function updateAdvisorStatus(advisorId: string, status: Advisor['status']) {
+  const response = await authenticatedFetch(`${apiBaseUrl}/api/advisors/${encodeURIComponent(advisorId)}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  })
+  const result = await response.json().catch(() => null)
+  if (!response.ok) throw new Error(result?.message ?? 'Unable to update advisor status')
+  return result.data as Advisor
+}
+
 export function exportAdvisors() {
   return downloadAdvisorFile('/api/advisors/export', 'advisors.xlsx')
 }

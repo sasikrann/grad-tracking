@@ -19,6 +19,7 @@ defineEmits<{
         <tr class="border-b border-[#dddddd] text-xs">
           <th class="w-[25%] pb-3 font-semibold">Student</th>
           <th class="w-[13%] pb-3 font-semibold">Program</th>
+          <th class="w-[10%] -translate-x-8 pb-3 text-center font-semibold">Plan</th>
           <th class="w-[10%] pb-3 font-semibold">Semester</th>
           <th class="w-[10%] pb-3 text-center font-semibold">Year</th>
           <th class="w-[22%] pb-3 text-center font-semibold">Progress</th>
@@ -69,16 +70,21 @@ defineEmits<{
               </span>
             </div>
           </td>
+          <td class="-translate-x-8 text-center">
+            <span class="inline-flex min-w-12 justify-center px-3 py-0.5 text-xs leading-none">
+              {{ student.educationPlan || '-' }}
+            </span>
+          </td>
           <td>
             <span
-              class="inline-flex min-w-12 justify-center rounded-md border border-[#dedede] px-3 py-0.5 text-xs leading-none"
+              class="inline-flex min-w-12 justify-center px-3 py-0.5 text-xs leading-none"
             >
               {{ student.semester }}
             </span>
           </td>
           <td class="text-center">
             <span
-              class="inline-flex min-w-14 justify-center rounded-md border border-[#dedede] px-3 py-0.5 text-xs leading-none"
+              class="inline-flex min-w-14 justify-center px-3 py-0.5 text-xs leading-none"
             >
               {{ student.year }}
             </span>
@@ -125,15 +131,15 @@ defineEmits<{
           </td>
         </tr>
         <tr v-if="isLoading">
-          <td colspan="7" class="py-14 text-center text-[#777]">Loading students...</td>
+          <td colspan="8" class="py-14 text-center text-[#777]">Loading students...</td>
         </tr>
         <tr v-else-if="error">
-          <td colspan="7" class="py-14 text-center text-[#b42318]">
+          <td colspan="8" class="py-14 text-center text-[#b42318]">
             {{ error }} Please make sure the backend is running.
           </td>
         </tr>
         <tr v-else-if="students.length === 0">
-          <td colspan="7" class="py-14 text-center text-[#777]">
+          <td colspan="8" class="py-14 text-center text-[#777]">
             No students match the selected filters.
           </td>
         </tr>
