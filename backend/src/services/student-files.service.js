@@ -11,10 +11,23 @@ const importRequiredFields = [
   'fullName',
   'program',
   'degreeLevel',
-  'enrollmentAcademicYear',
-  'semester',
   'expectedGraduationYear',
 ]
+
+const headerAliases = {
+  studentId: ['studentid', 'student id', 'student code', 'รหัสนักศึกษา', 'รหัส นศ.'],
+  email: ['email', 'e-mail', 'อีเมล', 'อีเมล์'],
+  fullName: ['fullname', 'full name', 'name', 'student name', 'ชื่อ-นามสกุล', 'ชื่อนามสกุล'],
+  program: ['program', 'programme', 'major', 'สาขาวิชา', 'หลักสูตร'],
+  educationPlan: ['plan', 'education plan', 'study plan', 'แผนการศึกษา', 'แผน'],
+  degreeLevel: ['degreelevel', 'degree level', 'degree', 'ระดับการศึกษา', 'ระดับปริญญา'],
+  enrollmentAcademicYear: ['enrollmentacademicyear', 'enrollment academic year', 'admission year', 'entry year', 'ปีเข้าศึกษา', 'ปีการศึกษา'],
+  semester: ['semester', 'term', 'ภาคการศึกษา', 'เทอม'],
+  expectedGraduationYear: ['expectedgraduationyear', 'expected graduation year', 'graduation year', 'year', 'ปีที่คาดว่าจะจบ'],
+  advisorId: ['advisorid', 'advisor id', 'รหัสอาจารย์ที่ปรึกษา'],
+  advisorEmail: ['advisoremail', 'advisor email', 'อีเมลอาจารย์ที่ปรึกษา'],
+  advisorName: ['advisorname', 'advisor name', 'advisor', 'อาจารย์ที่ปรึกษา'],
+}
 
 const studentTemplateColumns = [
   { header: 'Student ID', key: 'studentId', width: 16 },
@@ -29,6 +42,7 @@ const studentTemplateColumns = [
 
 const studentExportColumns = [
   ...studentTemplateColumns,
+  { header: 'Plan', key: 'educationPlan', width: 18 },
   { header: 'Advisor Email', key: 'advisorEmail', width: 32 },
   { header: 'Advisor Name', key: 'advisorName', width: 28 },
 ]
@@ -71,6 +85,7 @@ export function normalizeStudent(body, { studentId, requireEmail = true } = {}) 
     email,
     fullName: requiredText(body.fullName, 'fullName'),
     program: requiredText(body.program, 'program'),
+    educationPlan: String(body.educationPlan ?? '').trim() || null,
     degreeLevel,
     enrollmentAcademicYear: requiredYear(body.enrollmentAcademicYear, 'enrollmentAcademicYear'),
     semester: requiredText(body.semester, 'semester'),
@@ -149,6 +164,10 @@ function normalizeEmailText(value) {
   return match?.[0] ?? text
 }
 
+function normalizeHeader(value) {
+  return normalizeCellText(value).toLowerCase().replace(/[\s_.\-/()]+/g, '')
+}
+
 function normalizeImportStudent(rawStudent) {
   const rowErrors = []
 
@@ -164,9 +183,9 @@ function normalizeImportStudent(rawStudent) {
 }
 
 function cellValue(row, headerMap, names) {
-  const key = names.find((name) => headerMap.has(name.toLowerCase()))
+  const key = names.find((name) => headerMap.has(normalizeHeader(name)))
   if (!key) return ''
-  const value = row.getCell(headerMap.get(key.toLowerCase())).value
+  const value = row.getCell(headerMap.get(normalizeHeader(key))).value
   return normalizeCellText(value)
 }
 
@@ -188,12 +207,7 @@ export async function readStudentImportFile(file) {
 
   const headerMap = new Map()
   sheet.getRow(1).eachCell((cell, column) => {
-    headerMap.set(
-      String(cell.value ?? '')
-        .trim()
-        .toLowerCase(),
-      column,
-    )
+    headerMap.set(normalizeHeader(cell.value), column)
   })
 
   const records = []
@@ -204,24 +218,18 @@ export async function readStudentImportFile(file) {
     try {
       records.push(
         normalizeImportStudent({
-          studentId: cellValue(row, headerMap, ['studentid', 'student id']),
-          email: cellValue(row, headerMap, ['email']),
-          fullName: cellValue(row, headerMap, ['fullname', 'full name', 'name']),
-          program: cellValue(row, headerMap, ['program']),
-          degreeLevel: cellValue(row, headerMap, ['degreelevel', 'degree level']),
-          enrollmentAcademicYear: cellValue(row, headerMap, [
-            'enrollmentacademicyear',
-            'enrollment academic year',
-          ]),
-          semester: cellValue(row, headerMap, ['semester']),
-          expectedGraduationYear: cellValue(row, headerMap, [
-            'expectedgraduationyear',
-            'expected graduation year',
-            'year',
-          ]),
-          advisorId: cellValue(row, headerMap, ['advisorid', 'advisor id']),
-          advisorEmail: cellValue(row, headerMap, ['advisoremail', 'advisor email']),
-          advisorName: cellValue(row, headerMap, ['advisorname', 'advisor name', 'advisor']),
+          studentId: cellValue(row, headerMap, headerAliases.studentId),
+          email: cellValue(row, headerMap, headerAliases.email),
+          fullName: cellValue(row, headerMap, headerAliases.fullName),
+          program: cellValue(row, headerMap, headerAliases.program),
+          educationPlan: cellValue(row, headerMap, headerAliases.educationPlan),
+          degreeLevel: cellValue(row, headerMap, headerAliases.degreeLevel),
+          enrollmentAcademicYear: cellValue(row, headerMap, headerAliases.enrollmentAcademicYear),
+          semester: cellValue(row, headerMap, headerAliases.semester),
+          expectedGraduationYear: cellValue(row, headerMap, headerAliases.expectedGraduationYear),
+          advisorId: cellValue(row, headerMap, headerAliases.advisorId),
+          advisorEmail: cellValue(row, headerMap, headerAliases.advisorEmail),
+          advisorName: cellValue(row, headerMap, headerAliases.advisorName),
         }),
       )
     } catch (error) {
@@ -250,6 +258,10 @@ export async function readStudentImportFile(file) {
   ].filter(Boolean)
   if (allValidationErrors.length) {
     throw new ApiError(400, allValidationErrors.join('; '))
+  }
+  const duplicateIds = [...new Set(records.map((record) => record.studentId).filter((id, index, ids) => ids.indexOf(id) !== index))]
+  if (duplicateIds.length) {
+    throw new ApiError(400, `Duplicate Student ID in file: ${duplicateIds.join(', ')}. Please correct the registration file and import it again.`)
   }
   return records
 }

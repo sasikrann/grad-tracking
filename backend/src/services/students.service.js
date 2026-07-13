@@ -3,12 +3,19 @@ import { randomUUID } from 'node:crypto'
 import pool from '../config/database.js'
 import { resolveAdvisorReference } from './advisors.service.js'
 
+let studentSchemaReady
+async function ensureStudentSchema() {
+  studentSchemaReady ??= pool.query('ALTER TABLE students ADD COLUMN IF NOT EXISTS education_plan VARCHAR')
+  await studentSchemaReady
+}
+
 const studentDetailColumns = `
   s.student_id AS "studentId",
   s.user_id AS "userId",
   u.email,
   s.full_name AS "fullName",
   s.program,
+  s.education_plan AS "educationPlan",
   s.degree_level AS "degreeLevel",
   s.enrollment_academic_year AS "enrollmentAcademicYear",
   s.semester,
@@ -176,6 +183,7 @@ function applyStudentImportResolutions(records, conflicts, resolutions = {}) {
 }
 
 async function findStudents({ advisorId } = {}) {
+  await ensureStudentSchema()
   const values = advisorId ? [advisorId] : []
   const advisorFilter = advisorId ? 'WHERE s.advisor_id = $1' : ''
 
@@ -185,6 +193,7 @@ async function findStudents({ advisorId } = {}) {
         s.student_id AS "studentId",
         s.full_name AS "fullName",
         s.program,
+        s.education_plan AS "educationPlan",
         s.degree_level AS "degreeLevel",
         s.enrollment_academic_year AS "enrollmentAcademicYear",
         s.semester,
@@ -229,6 +238,7 @@ async function findStudents({ advisorId } = {}) {
         s.student_id,
         s.full_name,
         s.program,
+        s.education_plan,
         s.degree_level,
         s.enrollment_academic_year,
         s.semester,
@@ -252,6 +262,7 @@ export function findStudentsByAdvisorId(advisorId) {
 }
 
 export async function findStudentById(studentId) {
+  await ensureStudentSchema()
   const result = await pool.query(
     `
       SELECT ${studentDetailColumns}
@@ -267,6 +278,7 @@ export async function findStudentById(studentId) {
 }
 
 async function upsertStudentWithClient(client, input) {
+  await ensureStudentSchema()
   const advisorId = await resolveAdvisorReference(client, input)
 
   const existingStudent = await client.query(
@@ -327,9 +339,9 @@ async function upsertStudentWithClient(client, input) {
       `
         INSERT INTO students (
           student_id, user_id, full_name, program, degree_level,
-          enrollment_academic_year, semester, expected_graduation_year, advisor_id
+          enrollment_academic_year, semester, expected_graduation_year, advisor_id, education_plan
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         ON CONFLICT (student_id) DO UPDATE SET
           user_id = COALESCE(EXCLUDED.user_id, students.user_id),
           full_name = EXCLUDED.full_name,
@@ -339,6 +351,7 @@ async function upsertStudentWithClient(client, input) {
           semester = EXCLUDED.semester,
           expected_graduation_year = EXCLUDED.expected_graduation_year,
           advisor_id = EXCLUDED.advisor_id,
+          education_plan = EXCLUDED.education_plan,
           updated_at = NOW()
       `,
       [
@@ -351,6 +364,7 @@ async function upsertStudentWithClient(client, input) {
         input.semester,
         input.expectedGraduationYear,
         advisorId,
+        input.educationPlan,
       ],
     )
   } catch (error) {
@@ -370,6 +384,7 @@ async function upsertStudentWithClient(client, input) {
 }
 
 export async function findStudentByUserId(userId) {
+  await ensureStudentSchema()
   const result = await pool.query(
     `
       SELECT ${studentDetailColumns}
@@ -500,6 +515,7 @@ export async function removeStudent(studentId) {
 }
 
 export async function findStudentsForExport({ enrollmentYear } = {}) {
+  await ensureStudentSchema()
   const values = enrollmentYear ? [enrollmentYear] : []
   const yearFilter = enrollmentYear ? 'WHERE s.enrollment_academic_year = $1' : ''
 
@@ -518,22 +534,17 @@ export async function importStudents(records, { fileName, importedBy, resolution
   const client = await pool.connect()
   const importId = randomUUID()
   let successRecords = 0
+  let updatedRecords = 0
   const errors = []
 
   try {
     await client.query('BEGIN')
-    const conflicts = await findStudentImportConflicts(client, records)
-
-    if (conflicts.length && !resolutions) {
-      const error = new Error(duplicateStudentIdMessage)
-      error.statusCode = 409
-      error.conflicts = conflicts
-      throw error
-    }
-
-    const recordsToImport = conflicts.length
-      ? applyStudentImportResolutions(records, conflicts, resolutions)
-      : records
+    const existingIds = await client.query(
+      'SELECT student_id FROM students WHERE student_id = ANY($1::varchar[])',
+      [records.map((record) => record.studentId)],
+    )
+    const existingIdSet = new Set(existingIds.rows.map((row) => row.student_id))
+    const recordsToImport = records
 
     await client.query(
       `INSERT INTO import_logs
@@ -548,6 +559,7 @@ export async function importStudents(records, { fileName, importedBy, resolution
       try {
         await upsertStudentWithClient(client, record)
         successRecords += 1
+        if (existingIdSet.has(record.studentId)) updatedRecords += 1
         await client.query(`RELEASE SAVEPOINT ${savepoint}`)
       } catch (error) {
         await client.query(`ROLLBACK TO SAVEPOINT ${savepoint}`)
@@ -569,6 +581,8 @@ export async function importStudents(records, { fileName, importedBy, resolution
       importId,
       totalRecords: recordsToImport.length,
       successRecords,
+      createdRecords: successRecords - updatedRecords,
+      updatedRecords,
       failedRecords: errors.length,
       errors,
     }

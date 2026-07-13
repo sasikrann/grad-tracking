@@ -42,6 +42,7 @@ CREATE TABLE advisors (
   user_id UUID UNIQUE REFERENCES users(user_id),
   full_name VARCHAR NOT NULL,
   email VARCHAR UNIQUE NOT NULL,
+  status VARCHAR NOT NULL DEFAULT 'inactive' CHECK (status IN ('inactive', 'disabled')),
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -50,6 +51,7 @@ CREATE TABLE students (
   user_id UUID UNIQUE REFERENCES users(user_id),
   full_name VARCHAR NOT NULL,
   program VARCHAR NOT NULL,
+  education_plan VARCHAR,
   degree_level degree_level NOT NULL,
   enrollment_academic_year INT NOT NULL,
   semester VARCHAR NOT NULL,

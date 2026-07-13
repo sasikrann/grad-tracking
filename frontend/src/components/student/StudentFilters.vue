@@ -33,6 +33,25 @@ const emit = defineEmits<{
 
 const openFilter = ref<StudentFilterKey | null>(null)
 
+const planOptions = computed<FilterOption[]>(() => {
+  const allPlan = { label: 'All Plan', value: 'all' }
+  if (props.modelValue.degree === 'Master') {
+    return [allPlan, { label: 'A1', value: 'A1' }, { label: 'A2', value: 'A2' }, { label: 'B', value: 'B' }]
+  }
+  if (props.modelValue.degree === 'Ph. D.') {
+    return [allPlan, { label: '1.1', value: '1.1' }, { label: '2.1', value: '2.1' }, { label: '2.2', value: '2.2' }]
+  }
+  return [
+    allPlan,
+    { label: 'A1', value: 'A1' },
+    { label: 'A2', value: 'A2' },
+    { label: 'B', value: 'B' },
+    { label: '1.1', value: '1.1' },
+    { label: '2.1', value: '2.1' },
+    { label: '2.2', value: '2.2' },
+  ]
+})
+
 const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
   {
     key: 'semester',
@@ -69,6 +88,11 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
       { label: 'Overdue', value: 'Overdue' },
     ],
   },
+  {
+    key: 'plan',
+    defaultLabel: 'All Plan',
+    options: planOptions.value,
+  },
 ])
 
 const filterDefinitions = computed<FilterDefinition[]>(() => {
@@ -89,8 +113,8 @@ const filterDefinitions = computed<FilterDefinition[]>(() => {
 
 const filterGridClass = computed(() =>
   props.advisorMode === 'all-only'
-    ? 'sm:grid-cols-2 lg:col-span-7 lg:grid-cols-4'
-    : 'sm:grid-cols-2 lg:col-span-7 lg:grid-cols-[0.9fr_0.9fr_1.1fr_1fr_1.35fr]',
+    ? 'sm:grid-cols-2 lg:col-span-7 lg:grid-cols-[1.2fr_0.8fr_1fr_1fr_1fr]'
+    : 'sm:grid-cols-2 lg:col-span-7 lg:grid-cols-6',
 )
 
 function selectedFilterLabel(filter: FilterDefinition) {
@@ -101,7 +125,11 @@ function selectedFilterLabel(filter: FilterDefinition) {
 }
 
 function selectFilter(key: StudentFilterKey, value: string) {
-  emit('update:modelValue', { ...props.modelValue, [key]: value })
+  emit('update:modelValue', {
+    ...props.modelValue,
+    [key]: value,
+    ...(key === 'degree' ? { plan: 'all' } : {}),
+  })
   openFilter.value = null
 }
 

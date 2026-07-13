@@ -14,6 +14,7 @@ import {
   insertAdvisor,
   removeAdvisor,
   replaceAdvisor,
+  updateAdvisorStatus,
 } from '../services/advisors.service.js'
 import { findAdvisorIdByUserId } from '../services/auth.service.js'
 import {
@@ -43,6 +44,12 @@ export async function updateAdvisor(request, response) {
     request.params.advisorId,
     normalizeAdvisor(request.body, { advisorId: request.params.advisorId }),
   )
+  if (!advisor) throw new ApiError(404, 'Advisor not found')
+  response.json({ data: advisor })
+}
+
+export async function patchAdvisorStatus(request, response) {
+  const advisor = await updateAdvisorStatus(request.params.advisorId, String(request.body.status ?? '').trim())
   if (!advisor) throw new ApiError(404, 'Advisor not found')
   response.json({ data: advisor })
 }
