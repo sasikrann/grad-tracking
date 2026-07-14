@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import pool from '../config/database.js'
+import { sendNotificationEmail } from './email.service.js'
 
 let notificationSchemaReady
 
@@ -83,6 +84,37 @@ export async function findNotificationsForAdmin({ targetAudience } = {}) {
   )
 
   return result.rows
+}
+
+async function findNotificationEmailRecipients(client, targetAudience) {
+  const result = await client.query(
+    `
+      SELECT DISTINCT u.email
+      FROM users u
+      JOIN students s ON s.user_id = u.user_id
+      WHERE u.role = 'student'
+        AND u.email IS NOT NULL
+        AND (
+          $1 = 'All Students'
+          OR ($1 = 'Master Students' AND s.degree_level = 'Master')
+          OR ($1 = 'Doctoral Students' AND s.degree_level = 'Doctoral')
+        )
+      ORDER BY u.email
+    `,
+    [targetAudience],
+  )
+
+  return result.rows.map((row) => row.email)
+}
+
+function absoluteAttachmentUrl(attachmentUrl) {
+  if (!attachmentUrl) return null
+  if (/^https?:\/\//i.test(attachmentUrl)) return attachmentUrl
+
+  const baseUrl = process.env.PUBLIC_APP_URL || process.env.PUBLIC_API_URL || process.env.APP_BASE_URL
+  if (!baseUrl) return attachmentUrl
+
+  return new URL(attachmentUrl, baseUrl).toString()
 }
 
 export async function findNotificationsForStudent(userId) {
@@ -171,37 +203,74 @@ export async function createNotification(input, createdBy) {
   await ensureNotificationSchema()
 
   const notificationId = randomUUID()
-  const result = await pool.query(
-    `
-      INSERT INTO notifications (
-        notification_id,
-        title,
-        message,
-        attachment_url,
-        target_audience,
-        send_email,
-        created_by,
-        milestone_id,
-        reminder_stage,
-        sent_at
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
-      RETURNING ${returningNotificationColumns}
-    `,
-    [
-      notificationId,
-      input.title,
-      input.message,
-      input.attachmentUrl,
-      input.targetAudience,
-      input.sendEmail,
-      createdBy,
-      input.milestoneId ?? null,
-      input.reminderStage ?? null,
-    ],
-  )
+  const client = await pool.connect()
 
-  return result.rows[0]
+  try {
+    await client.query('BEGIN')
+
+    let result = await client.query(
+      `
+        INSERT INTO notifications (
+          notification_id,
+          title,
+          message,
+          attachment_url,
+          target_audience,
+          send_email,
+          created_by,
+          milestone_id,
+          reminder_stage,
+          sent_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        RETURNING ${returningNotificationColumns}
+      `,
+      [
+        notificationId,
+        input.title,
+        input.message,
+        input.attachmentUrl,
+        input.targetAudience,
+        input.sendEmail,
+        createdBy,
+        input.milestoneId ?? null,
+        input.reminderStage ?? null,
+      ],
+    )
+
+    if (input.sendEmail) {
+      const recipients = await findNotificationEmailRecipients(client, input.targetAudience)
+
+      await sendNotificationEmail({
+        recipients,
+        title: input.title,
+        message: input.message,
+        attachmentUrl: absoluteAttachmentUrl(input.attachmentUrl),
+      })
+
+      result = await client.query(
+        `
+          UPDATE notifications
+          SET email_sent_at = NOW()
+          WHERE notification_id = $1
+          RETURNING ${returningNotificationColumns}
+        `,
+        [notificationId],
+      )
+    }
+
+    await client.query('COMMIT')
+    return result.rows[0]
+  } catch (error) {
+    await client.query('ROLLBACK')
+    if (input.sendEmail && !error.statusCode) {
+      error.statusCode = 502
+      error.message = `Unable to send notification email: ${error.message}`
+    }
+    throw error
+  } finally {
+    client.release()
+  }
 }
 
 function targetAudienceForDegreeLevel(degreeLevel) {

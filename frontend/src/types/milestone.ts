@@ -1,22 +1,28 @@
 export type DegreeLevel = 'Master' | 'Doctoral'
+export type MilestoneProgram = DegreeLevel | 'All'
+export type EducationPlan = 'All' | 'A1' | 'A2' | 'B' | '1.1' | '2.1' | '2.2'
 
 export interface Milestone {
   milestoneId: string
-  degreeLevel: DegreeLevel
+  degreeLevel: MilestoneProgram
   semester: string
+  plans: EducationPlan[]
   title: string
   description: string | null
   sequenceOrder: number
-  openDate: string
-  deadline: string
+  openDate: string | null
+  deadline: string | null
   firstReminderDate: string | null
   secondReminderDate: string | null
+  prerequisiteMilestoneIds: string[]
   isEnabled: boolean
+  isStandard?: boolean
 }
 
 export interface MilestoneInput {
-  degreeLevel: DegreeLevel
+  degreeLevel: MilestoneProgram
   semester: string
+  plans: EducationPlan[]
   title: string
   description: string
   sequenceOrder: number | null
@@ -24,6 +30,7 @@ export interface MilestoneInput {
   deadline: string
   firstReminderDate: string
   secondReminderDate: string
+  prerequisiteMilestoneIds: string[]
   isEnabled: boolean
 }
 
@@ -40,7 +47,9 @@ export interface StudentMilestone {
   deadline: string
   firstReminderDate: string | null
   secondReminderDate: string | null
+  prerequisiteMilestoneIds?: string[]
   isLocked?: boolean
+  lockedReason?: string
   status: StudentMilestoneStatus
   evidenceUrl: string | null
   advisorComment: string | null

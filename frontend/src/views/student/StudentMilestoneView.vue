@@ -3,13 +3,16 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import StudentMilestoneCard from '@/components/student-milestone/StudentMilestoneCard.vue'
 import StudentMilestoneProgress from '@/components/student-milestone/StudentMilestoneProgress.vue'
+import { standardMilestones } from '@/data/standard-milestones'
 import {
   getMyStudentMilestones,
   removeMyMilestoneEvidence,
   uploadMyMilestoneEvidence,
 } from '@/services/student-milestones.api'
 import { getMyStudentProfile, type StudentProfile } from '@/services/student-profile.api'
-import type { StudentMilestone } from '@/types/milestone'
+import type { Milestone, StudentMilestone } from '@/types/milestone'
+
+const milestoneStorageKey = 'grad-tracking-milestone-management-v1'
 
 const milestones = ref<StudentMilestone[]>([])
 const profile = ref<StudentProfile | null>(null)
@@ -20,11 +23,14 @@ const uploadErrorMilestoneId = ref<string | null>(null)
 const uploadErrorMessage = ref('')
 const maxMilestoneEvidenceFileSize = 2 * 1024 * 1024
 const notificationMessage = ref('')
+const milestoneTemplates = ref<Milestone[]>(standardMilestones)
 let refreshTimer: ReturnType<typeof window.setInterval> | undefined
 let notificationTimer: ReturnType<typeof window.setTimeout> | undefined
 
 const completedCount = computed(
-  () => milestones.value.filter((milestone) => ['Approved', 'Completed'].includes(milestone.status)).length,
+  () =>
+    milestones.value.filter((milestone) => ['Approved', 'Completed'].includes(milestone.status))
+      .length,
 )
 
 const progressPercentage = computed(() => {
@@ -32,12 +38,69 @@ const progressPercentage = computed(() => {
   return Math.round((completedCount.value / milestones.value.length) * 100)
 })
 const hasAdvisor = computed(() => Boolean(profile.value?.advisorId))
-const visibleMilestones = computed(() =>
-  milestones.value.map((milestone) => ({
-    ...milestone,
-    isLocked: milestone.isLocked || milestone.semester === '2',
-  })),
+const completedMilestoneIds = computed(
+  () =>
+    new Set(
+      milestones.value
+        .filter((milestone) => ['Completed', 'Approved'].includes(milestone.status))
+        .map((milestone) => milestone.milestoneId),
+    ),
 )
+
+function normalizeTitle(title: string) {
+  return title.trim().toLowerCase()
+}
+
+function prerequisiteIdsFor(milestone: StudentMilestone) {
+  if (milestone.prerequisiteMilestoneIds?.length) return milestone.prerequisiteMilestoneIds
+
+  const template = milestoneTemplates.value.find(
+    (candidate) => normalizeTitle(candidate.title) === normalizeTitle(milestone.title),
+  )
+  if (!template?.prerequisiteMilestoneIds.length) return []
+
+  return template.prerequisiteMilestoneIds.flatMap((templateId) => {
+    const prerequisiteTemplate = milestoneTemplates.value.find(
+      (candidate) => candidate.milestoneId === templateId,
+    )
+    if (!prerequisiteTemplate) return []
+
+    const assignedMilestone = milestones.value.find(
+      (candidate) => normalizeTitle(candidate.title) === normalizeTitle(prerequisiteTemplate.title),
+    )
+    return assignedMilestone ? [assignedMilestone.milestoneId] : []
+  })
+}
+
+const visibleMilestones = computed(() =>
+  milestones.value.map((milestone) => {
+    const incompletePrerequisiteIds = prerequisiteIdsFor(milestone).filter(
+      (milestoneId) => !completedMilestoneIds.value.has(milestoneId),
+    )
+    const prerequisiteTitles = incompletePrerequisiteIds.map(
+      (milestoneId) =>
+        milestones.value.find((candidate) => candidate.milestoneId === milestoneId)?.title ??
+        'the prerequisite milestone',
+    )
+
+    return {
+      ...milestone,
+      isLocked: milestone.isLocked || incompletePrerequisiteIds.length > 0,
+      lockedReason: prerequisiteTitles.length
+        ? `Complete ${prerequisiteTitles.map((title) => `“${title}”`).join(', ')} first.`
+        : undefined,
+    }
+  }),
+)
+
+function loadMilestoneTemplates() {
+  try {
+    const saved = localStorage.getItem(milestoneStorageKey)
+    if (saved) milestoneTemplates.value = JSON.parse(saved) as Milestone[]
+  } catch {
+    milestoneTemplates.value = standardMilestones
+  }
+}
 
 async function loadMilestones({ silent = false } = {}) {
   if (!silent) {
@@ -131,6 +194,7 @@ async function removeEvidence(milestoneId: string) {
 }
 
 onMounted(() => {
+  loadMilestoneTemplates()
   void loadMilestones()
   refreshTimer = window.setInterval(refreshWhenVisible, 15_000)
   window.addEventListener('focus', refreshWhenVisible)
@@ -149,9 +213,7 @@ onBeforeUnmount(() => {
   <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
     <header>
       <h1 class="text-3xl font-bold tracking-tight text-black">Milestone</h1>
-      <p class="mt-1 text-sm text-slate-500">
-        Track your academic progress and deadline
-      </p>
+      <p class="mt-1 text-sm text-slate-500">Track your academic progress and deadline</p>
     </header>
 
     <p v-if="errorMessage" class="mt-4 text-sm text-red-600" role="alert">
@@ -170,10 +232,7 @@ onBeforeUnmount(() => {
         :percentage="progressPercentage"
       />
 
-      <div
-        v-if="visibleMilestones.length"
-        class="relative mt-5 space-y-4 pb-10"
-      >
+      <div v-if="visibleMilestones.length" class="relative mt-5 space-y-4 pb-10">
         <div
           v-if="visibleMilestones.length > 1"
           class="absolute bottom-3 left-3 top-3 w-px bg-slate-200 md:left-4"
@@ -187,9 +246,7 @@ onBeforeUnmount(() => {
           :index="index + 1"
           :is-uploading="uploadingMilestoneId === milestone.milestoneId"
           :can-upload="hasAdvisor"
-          :upload-error="
-            uploadErrorMilestoneId === milestone.milestoneId ? uploadErrorMessage : ''
-          "
+          :upload-error="uploadErrorMilestoneId === milestone.milestoneId ? uploadErrorMessage : ''"
           @upload-blocked="showUploadBlockedMessage"
           @upload="uploadEvidence"
           @remove-evidence="removeEvidence"
