@@ -54,6 +54,23 @@ const planOptions = computed<FilterOption[]>(() => {
 
 const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
   {
+    key: 'degree',
+    defaultLabel: 'All Program',
+    options: [
+      { label: 'All Program', value: 'all' },
+      { label: 'Master', value: 'Master' },
+      {
+        label: props.advisorMode === 'all-only' ? 'Doctoral' : 'Ph. D.',
+        value: 'Ph. D.',
+      },
+    ],
+  },
+  {
+    key: 'plan',
+    defaultLabel: 'All Plan',
+    options: planOptions.value,
+  },
+  {
     key: 'semester',
     defaultLabel: 'All Semester',
     options: [
@@ -71,15 +88,6 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
     ],
   },
   {
-    key: 'degree',
-    defaultLabel: 'All Program',
-    options: [
-      { label: 'All Program', value: 'all' },
-      { label: 'Master', value: 'Master' },
-      { label: 'Ph. D.', value: 'Ph. D.' },
-    ],
-  },
-  {
     key: 'status',
     defaultLabel: 'All Status',
     options: [
@@ -87,11 +95,6 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
       { label: 'On-track', value: 'On-track' },
       { label: 'Overdue', value: 'Overdue' },
     ],
-  },
-  {
-    key: 'plan',
-    defaultLabel: 'All Plan',
-    options: planOptions.value,
   },
 ])
 

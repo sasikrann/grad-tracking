@@ -180,7 +180,7 @@ watch(
   ></button>
 
   <aside
-    class="fixed inset-y-0 left-0 z-50 flex h-screen w-64 shrink-0 -translate-x-full flex-col justify-between bg-[#7D2923] px-3 py-3 text-white shadow-xl transition-transform duration-200 md:sticky md:top-0 md:z-auto md:translate-x-0 md:shadow-none"
+    class="fixed inset-y-0 left-0 z-50 flex h-screen w-72 shrink-0 -translate-x-full flex-col justify-between bg-[#7D2923] px-3 py-3 text-white shadow-xl transition-transform duration-200 md:sticky md:top-0 md:z-auto md:translate-x-0 md:shadow-none"
     :class="{ 'translate-x-0': isMobileMenuOpen }"
   >
     <div>
@@ -274,7 +274,7 @@ watch(
           </span>
 
           <span class="flex min-w-0 flex-1 items-center gap-2">
-            <span class="-translate-y-0.5 truncate leading-none">{{ item.label }}</span>
+            <span class="-translate-y-0.5 whitespace-nowrap leading-none">{{ item.label }}</span>
           </span>
         </RouterLink>
       </nav>
