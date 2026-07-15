@@ -30,7 +30,7 @@ const filters = defineModel<StudentFiltersState>('filters', { required: true })
     class="mt-4 rounded-xl border border-[#ececec] bg-white px-7 pt-5 pb-4 shadow-[0_2px_4px_rgba(0,0,0,0.18)]"
   >
     <header>
-      <h2 class="text-xl font-semibold tracking-[-0.01em]">Student Overview</h2>
+      <h2 class="text-lg font-semibold">Student Overview</h2>
       <p class="mt-1 text-sm font-medium text-[#7d7d7d]">
         Filter and view student progress details
       </p>
@@ -46,6 +46,7 @@ const filters = defineModel<StudentFiltersState>('filters', { required: true })
       :students="students"
       :is-loading="isLoading"
       :error="error"
+      :use-doctoral-label="advisorMode === 'all-only'"
       @view="emit('view', $event)"
     />
   </section>
