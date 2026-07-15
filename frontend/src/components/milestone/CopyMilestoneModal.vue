@@ -282,7 +282,7 @@ function confirmCopy() {
       <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button
           type="button"
-          class="rounded-md border border-slate-200 px-4 py-2 text-xs"
+          class="rounded-md border border-slate-200 px-4 py-2 text-xs font-semibold"
           @click="emit('close')"
         >
           Cancel
@@ -324,7 +324,7 @@ function confirmCopy() {
         <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button
             type="button"
-            class="rounded-md border border-slate-200 px-4 py-2 text-xs"
+            class="rounded-md border border-slate-200 px-4 py-2 text-xs font-semibold"
             @click="isDuplicateWarningOpen = false"
           >
             Cancel

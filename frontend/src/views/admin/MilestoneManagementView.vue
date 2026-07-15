@@ -8,6 +8,7 @@ import { standardMilestones } from '@/data/standard-milestones'
 import type { EducationPlan, Milestone, MilestoneInput, MilestoneProgram } from '@/types/milestone'
 
 const storageKey = 'grad-tracking-milestone-management-v1'
+const doctoralPlanMigrationKey = 'grad-tracking-milestone-02-doctoral-plans-v1'
 
 const milestones = ref<Milestone[]>([])
 const isLoading = ref(false)
@@ -62,12 +63,17 @@ const yearOptions = computed(() => {
 
 const filterDefinitions = computed(() => [
   {
-    key: 'semester' as const,
-    label: selectedSemester.value === 'all' ? 'All Semester' : selectedSemester.value,
+    key: 'degreeLevel' as const,
+    label:
+      selectedDegreeLevel.value === 'All'
+        ? 'All Program'
+        : selectedDegreeLevel.value === 'Doctoral'
+          ? 'Ph.D'
+          : selectedDegreeLevel.value,
     options: [
-      { label: 'All Semester', value: 'all' },
-      { label: '1', value: '1' },
-      { label: '2', value: '2' },
+      { label: 'All Program', value: 'All' },
+      { label: 'Master', value: 'Master' },
+      { label: 'Ph.D', value: 'Doctoral' },
     ],
   },
   {
@@ -84,25 +90,20 @@ const filterDefinitions = computed(() => [
     ],
   },
   {
+    key: 'semester' as const,
+    label: selectedSemester.value === 'all' ? 'All Semester' : selectedSemester.value,
+    options: [
+      { label: 'All Semester', value: 'all' },
+      { label: '1', value: '1' },
+      { label: '2', value: '2' },
+    ],
+  },
+  {
     key: 'year' as const,
     label: selectedYear.value === 'all' ? 'All Year' : selectedYear.value,
     options: [
       { label: 'All Year', value: 'all' },
       ...yearOptions.value.map((year) => ({ label: year, value: year })),
-    ],
-  },
-  {
-    key: 'degreeLevel' as const,
-    label:
-      selectedDegreeLevel.value === 'All'
-        ? 'All Program'
-        : selectedDegreeLevel.value === 'Doctoral'
-          ? 'Ph.D'
-          : selectedDegreeLevel.value,
-    options: [
-      { label: 'All Program', value: 'All' },
-      { label: 'Master', value: 'Master' },
-      { label: 'Ph.D', value: 'Doctoral' },
     ],
   },
 ])
@@ -166,7 +167,19 @@ function loadMilestones() {
           plans: [...milestone.plans],
           prerequisiteMilestoneIds: [...milestone.prerequisiteMilestoneIds],
         }))
-    if (!saved) persistMilestones()
+
+    if (!localStorage.getItem(doctoralPlanMigrationKey)) {
+      const qualifyingExam = milestones.value.find(
+        (milestone) => milestone.milestoneId === 'standard-milestone-02',
+      )
+      if (qualifyingExam?.plans.includes('All')) {
+        qualifyingExam.plans = ['1.1', '2.1', '2.2']
+      }
+      localStorage.setItem(doctoralPlanMigrationKey, 'complete')
+      persistMilestones()
+    } else if (!saved) {
+      persistMilestones()
+    }
   } catch {
     milestones.value = standardMilestones.map((milestone) => ({ ...milestone }))
     showNotification(

@@ -25,7 +25,7 @@ export const standardMilestones: Milestone[] = [
     ...commonFields,
     milestoneId: 'standard-milestone-02',
     degreeLevel: 'Doctoral',
-    plans: ['All'],
+    plans: ['1.1', '2.1', '2.2'],
     title: 'Pass the Qualifying Exam',
     description: 'สอบผ่าน Qualifying Exam (เฉพาะนักศึกษาระดับปริญญาเอก)',
     sequenceOrder: 2,

@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
-import DateInput from './DateInput.vue'
+import DateInput from './form/DateInput.vue'
+import MilestonePlanDropdown from './form/MilestonePlanDropdown.vue'
+import MilestoneSelectDropdown from './form/MilestoneSelectDropdown.vue'
 import type { EducationPlan, Milestone, MilestoneInput, MilestoneProgram } from '@/types/milestone'
 
 const props = defineProps<{
@@ -33,17 +35,23 @@ const form = reactive<MilestoneInput>({
 })
 
 const isEditing = computed(() => Boolean(props.milestone))
-const isPlanDropdownOpen = ref(false)
+type FormDropdown = 'program' | 'semester' | 'plan'
+const openDropdown = ref<FormDropdown | null>(null)
+const programOptions: { label: string; value: MilestoneProgram }[] = [
+  { label: 'All Program', value: 'All' },
+  { label: 'Master', value: 'Master' },
+  { label: 'Ph.D', value: 'Doctoral' },
+]
+const semesterOptions = [
+  { label: 'All Semester', value: 'all' },
+  { label: '1', value: '1' },
+  { label: '2', value: '2' },
+]
 const planOptions = computed<EducationPlan[]>(() => {
   if (form.degreeLevel === 'Master') return ['All', 'A1', 'A2', 'B']
   if (form.degreeLevel === 'Doctoral') return ['All', '1.1', '2.1', '2.2']
   return ['All', 'A1', 'A2', 'B', '1.1', '2.1', '2.2']
 })
-const selectedPlanLabel = computed(() => {
-  if (form.plans.includes('All')) return 'All Plans'
-  return form.plans.join(', ')
-})
-
 const prerequisiteOptions = computed(() =>
   props.milestones.filter((milestone) => milestone.milestoneId !== props.milestone?.milestoneId),
 )
@@ -64,24 +72,24 @@ function saveForm() {
   emit('save', { ...form })
 }
 
-function togglePlan(plan: EducationPlan) {
-  if (plan === 'All') {
-    form.plans = ['All']
-    return
-  }
+function toggleDropdown(dropdown: FormDropdown) {
+  openDropdown.value = openDropdown.value === dropdown ? null : dropdown
+}
 
-  const selectedPlans = form.plans.filter((selectedPlan) => selectedPlan !== 'All')
-  form.plans = selectedPlans.includes(plan)
-    ? selectedPlans.filter((selectedPlan) => selectedPlan !== plan)
-    : [...selectedPlans, plan]
+function selectDropdown(dropdown: Exclude<FormDropdown, 'plan'>, value: string) {
+  if (dropdown === 'program') form.degreeLevel = value as MilestoneProgram
+  if (dropdown === 'semester') form.semester = value
+  openDropdown.value = null
+}
 
-  if (form.plans.length === 0) form.plans = ['All']
+function closeDropdown() {
+  openDropdown.value = null
 }
 
 watch(
   () => props.milestone,
   (milestone) => {
-    isPlanDropdownOpen.value = false
+    openDropdown.value = null
     form.degreeLevel = milestone?.degreeLevel ?? props.defaultDegreeLevel
     form.semester =
       milestone?.semester ?? (props.defaultSemester === 'all' ? '1' : props.defaultSemester)
@@ -102,7 +110,7 @@ watch(
 watch(
   () => form.degreeLevel,
   () => {
-    isPlanDropdownOpen.value = false
+    openDropdown.value = null
     const validPlans = form.plans.filter((plan) => planOptions.value.includes(plan))
     form.plans = validPlans.length ? validPlans : ['All']
   },
@@ -117,6 +125,9 @@ watch(
   },
   { immediate: true },
 )
+
+onMounted(() => document.addEventListener('click', closeDropdown))
+onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
 </script>
 
 <template>
@@ -150,29 +161,23 @@ watch(
         </label>
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label class="block text-xs font-semibold">
-            Program
-            <select
-              v-model="form.degreeLevel"
-              class="mt-1 h-10 w-full rounded-md border border-[#c9827c] bg-white px-3 text-xs outline-none focus:border-[#7D2923]"
-            >
-              <option value="All">All Program</option>
-              <option value="Master">Master</option>
-              <option value="Doctoral">Ph.D</option>
-            </select>
-          </label>
+          <MilestoneSelectDropdown
+            label="Program"
+            :model-value="form.degreeLevel"
+            :options="programOptions"
+            :open="openDropdown === 'program'"
+            @toggle="toggleDropdown('program')"
+            @select="selectDropdown('program', $event)"
+          />
 
-          <label class="block text-xs font-semibold">
-            Semester
-            <select
-              v-model="form.semester"
-              class="mt-1 h-10 w-full rounded-md border border-[#c9827c] bg-white px-3 text-xs outline-none focus:border-[#7D2923]"
-            >
-              <option value="all">All Semester</option>
-              <option value="1">1</option>
-              <option value="2">2</option>
-            </select>
-          </label>
+          <MilestoneSelectDropdown
+            label="Semester"
+            :model-value="form.semester"
+            :options="semesterOptions"
+            :open="openDropdown === 'semester'"
+            @toggle="toggleDropdown('semester')"
+            @select="selectDropdown('semester', $event)"
+          />
         </div>
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -186,47 +191,12 @@ watch(
             />
           </label>
 
-          <div class="relative block text-xs font-semibold">
-            <span>Plan</span>
-            <button
-              type="button"
-              class="mt-1 flex h-10 w-full items-center justify-between gap-2 rounded-md border border-[#c9827c] bg-white px-3 text-left text-xs font-normal outline-none focus:border-[#7D2923]"
-              :aria-expanded="isPlanDropdownOpen"
-              @click="isPlanDropdownOpen = !isPlanDropdownOpen"
-            >
-              <span class="truncate">{{ selectedPlanLabel }}</span>
-              <svg
-                class="size-4 shrink-0 text-slate-500 transition-transform"
-                :class="{ 'rotate-180': isPlanDropdownOpen }"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                aria-hidden="true"
-              >
-                <path d="m7 10 5 5 5-5" />
-              </svg>
-            </button>
-
-            <div
-              v-if="isPlanDropdownOpen"
-              class="absolute left-0 top-[calc(100%+4px)] z-20 w-full rounded-md border border-[#c9827c] bg-white p-1.5 shadow-lg"
-            >
-              <label
-                v-for="plan in planOptions"
-                :key="plan"
-                class="flex cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-xs font-normal hover:bg-[#f8eeee]"
-              >
-                <input
-                  type="checkbox"
-                  class="size-4 accent-[#7D2923]"
-                  :checked="form.plans.includes(plan)"
-                  @change="togglePlan(plan)"
-                />
-                {{ plan === 'All' ? 'All Plans' : plan }}
-              </label>
-            </div>
-          </div>
+          <MilestonePlanDropdown
+            v-model="form.plans"
+            :options="planOptions"
+            :open="openDropdown === 'plan'"
+            @toggle="toggleDropdown('plan')"
+          />
         </div>
 
         <DateInput v-model="form.openDate" label="Date" />
@@ -266,7 +236,7 @@ watch(
         <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
           <button
             type="button"
-            class="rounded-md border border-slate-200 px-4 py-2 text-xs"
+            class="rounded-md border border-slate-200 px-4 py-2 text-xs font-semibold"
             @click="emit('close')"
           >
             Cancel
