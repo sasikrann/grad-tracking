@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import type { StudentTableItem } from '@/types/student'
 
-defineProps<{
+withDefaults(defineProps<{
   students: StudentTableItem[]
   isLoading: boolean
   error: string
-}>()
+  useDoctoralLabel?: boolean
+}>(), {
+  useDoctoralLabel: false,
+})
 
 defineEmits<{
   view: [studentId: string]
@@ -61,7 +64,7 @@ defineEmits<{
               <span
                 class="rounded-md border border-[#dedede] px-2 py-0.5 text-xs font-semibold leading-none"
               >
-                {{ student.degree }}
+                {{ useDoctoralLabel && student.degree === 'Ph. D.' ? 'Doctoral' : student.degree }}
               </span>
               <span
                 class="min-w-12 rounded-md border border-[#dedede] px-2 py-0.5 text-center text-xs font-semibold leading-none"
