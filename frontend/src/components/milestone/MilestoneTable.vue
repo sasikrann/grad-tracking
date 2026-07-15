@@ -148,7 +148,7 @@ const tableRows = computed(() => {
 
               <td class="py-4 text-center align-middle">
                 <span
-                  class="inline-flex min-w-20 items-center justify-center rounded-md bg-slate-100 px-3 py-1 leading-none"
+                  class="inline-flex min-w-14 items-center justify-center rounded-md border border-slate-200 px-3 py-1 leading-none"
                 >
                   {{
                     row.milestone.degreeLevel === 'All'
@@ -162,11 +162,11 @@ const tableRows = computed(() => {
 
               <td class="py-4 text-center align-middle">
                 <span
-                  class="inline-flex items-center justify-center rounded-md bg-slate-100 px-2 py-1 leading-snug"
+                  class="inline-flex min-w-14 items-center justify-center rounded-md border border-slate-200 px-3 py-1 leading-none"
                 >
                   {{
                     row.milestone.plans.includes('All')
-                      ? 'All Plans'
+                      ? 'All Plan'
                       : row.milestone.plans.join(', ')
                   }}
                 </span>
