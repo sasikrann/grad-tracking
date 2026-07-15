@@ -13,8 +13,9 @@ import {
   updateMilestone,
 } from '../services/milestones.service.js'
 
-const degreeLevels = new Set(['Master', 'Doctoral'])
-const semesters = new Set(['1', '2'])
+const degreeLevels = new Set(['All', 'Master', 'Doctoral'])
+const semesters = new Set(['all', '1', '2'])
+const educationPlans = new Set(['All', 'A1', 'A2', 'B', '1.1', '2.1', '2.2'])
 
 function requiredText(value, field) {
   const result = String(value ?? '').trim()
@@ -24,12 +25,6 @@ function requiredText(value, field) {
 
 function optionalText(value) {
   return String(value ?? '').trim() || null
-}
-
-function requiredDate(value, field) {
-  const result = requiredText(value, field)
-  if (Number.isNaN(Date.parse(result))) throw new ApiError(400, `${field} must be a valid date`)
-  return result
 }
 
 function optionalDate(value, field) {
@@ -45,30 +40,46 @@ function optionalYear(value) {
   return year
 }
 
+function stringArray(value, field, allowedValues = null) {
+  if (!Array.isArray(value)) return []
+  const result = [...new Set(value.map((item) => String(item).trim()).filter(Boolean))]
+  if (allowedValues && result.some((item) => !allowedValues.has(item))) {
+    throw new ApiError(400, `${field} contains an invalid value`)
+  }
+  return result
+}
+
 function requiredSemester(value) {
   const semester = requiredText(value, 'semester')
-  if (!semesters.has(semester)) throw new ApiError(400, 'semester must be 1 or 2')
+  if (!semesters.has(semester)) throw new ApiError(400, 'semester must be all, 1 or 2')
   return semester
 }
 
 function optionalSemester(value) {
   const semester = optionalText(value)
-  if (semester && !semesters.has(semester)) throw new ApiError(400, 'semester must be 1 or 2')
+  if (semester && !semesters.has(semester)) throw new ApiError(400, 'semester must be all, 1 or 2')
   return semester
 }
 
 function normalizeMilestone(body) {
   const degreeLevel = requiredText(body.degreeLevel, 'degreeLevel')
-  if (!degreeLevels.has(degreeLevel)) throw new ApiError(400, 'degreeLevel must be Master or Doctoral')
+  if (!degreeLevels.has(degreeLevel)) throw new ApiError(400, 'degreeLevel must be All, Master or Doctoral')
+
+  const plans = stringArray(body.plans, 'plans', educationPlans)
 
   return {
     degreeLevel,
     semester: requiredSemester(body.semester ?? '1'),
+    plans: plans.length ? plans : ['All'],
+    prerequisiteMilestoneIds: stringArray(
+      body.prerequisiteMilestoneIds,
+      'prerequisiteMilestoneIds',
+    ),
     title: requiredText(body.title, 'title'),
     description: optionalText(body.description),
     sequenceOrder: body.sequenceOrder ? Number(body.sequenceOrder) : null,
-    openDate: requiredDate(body.openDate, 'openDate'),
-    deadline: requiredDate(body.deadline, 'deadline'),
+    openDate: optionalDate(body.openDate, 'openDate'),
+    deadline: optionalDate(body.deadline, 'deadline'),
     firstReminderDate: optionalDate(body.firstReminderDate, 'firstReminderDate'),
     secondReminderDate: optionalDate(body.secondReminderDate, 'secondReminderDate'),
     isEnabled: body.isEnabled !== false,

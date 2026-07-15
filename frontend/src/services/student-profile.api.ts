@@ -8,6 +8,7 @@ export interface StudentProfile {
   email: string
   fullName: string
   program: string
+  educationPlan: string | null
   degreeLevel: 'Master' | 'Doctoral'
   enrollmentAcademicYear: number
   semester: string

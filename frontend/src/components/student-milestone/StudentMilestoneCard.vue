@@ -79,7 +79,8 @@ const canRemoveEvidence = computed(
     props.milestone.status !== 'Approved',
 )
 
-function formatDate(value: string) {
+function formatDate(value: string | null) {
+  if (!value) return 'Not specified'
   return new Intl.DateTimeFormat('en-US', {
     month: 'long',
     day: 'numeric',

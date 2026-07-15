@@ -274,7 +274,9 @@ export async function createNotification(input, createdBy) {
 }
 
 function targetAudienceForDegreeLevel(degreeLevel) {
-  return degreeLevel === 'Doctoral' ? 'Doctoral Students' : 'Master Students'
+  if (degreeLevel === 'Master') return 'Master Students'
+  if (degreeLevel === 'Doctoral') return 'Doctoral Students'
+  return 'All Students'
 }
 
 function formatDate(value) {

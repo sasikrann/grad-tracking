@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import pool from '../config/database.js'
+import { ensureMilestoneSchema } from './milestones.service.js'
 
 let advisorSchemaReady
 async function ensureAdvisorSchema() {
@@ -535,6 +536,7 @@ export async function resolveAdvisorReference(client, { advisorId, advisorEmail,
 }
 
 export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, semester, year } = {}) {
+  await ensureMilestoneSchema()
   const values = [advisorId]
   const filters = []
 
@@ -575,7 +577,8 @@ export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, semes
           ) AS status
         FROM students s
         JOIN milestone_templates mt
-          ON mt.degree_level = s.degree_level
+          ON (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
+         AND (mt.plans @> ARRAY['All']::VARCHAR[] OR s.education_plan IS NULL OR s.education_plan = ANY(mt.plans))
          AND mt.is_enabled = TRUE
         LEFT JOIN student_milestones sm
           ON sm.student_id = s.student_id

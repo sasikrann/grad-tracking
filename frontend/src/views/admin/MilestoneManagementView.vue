@@ -5,6 +5,15 @@ import CopyMilestoneModal from '@/components/milestone/CopyMilestoneModal.vue'
 import MilestoneFormModal from '@/components/milestone/MilestoneFormModal.vue'
 import MilestoneTable from '@/components/milestone/MilestoneTable.vue'
 import { standardMilestones } from '@/data/standard-milestones'
+import {
+  copyMilestones,
+  createMilestone,
+  deleteMilestone,
+  getMilestones,
+  moveMilestone,
+  setMilestoneEnabled,
+  updateMilestone,
+} from '@/services/milestones.api'
 import type { EducationPlan, Milestone, MilestoneInput, MilestoneProgram } from '@/types/milestone'
 
 const storageKey = 'grad-tracking-milestone-management-v1'
@@ -155,12 +164,40 @@ function persistMilestones() {
   localStorage.setItem(storageKey, JSON.stringify(milestones.value))
 }
 
-function loadMilestones() {
+async function migrateLocalMilestones(localMilestones: Milestone[]) {
+  const serverIdByLocalId = new Map<string, string>()
+  const orderedMilestones = [...localMilestones].sort(
+    (first, second) => first.sequenceOrder - second.sequenceOrder,
+  )
+
+  for (const milestone of orderedMilestones) {
+    const created = await createMilestone({
+      degreeLevel: milestone.degreeLevel,
+      semester: milestone.semester,
+      plans: [...milestone.plans],
+      title: milestone.title,
+      description: milestone.description ?? '',
+      sequenceOrder: milestone.sequenceOrder,
+      openDate: milestone.openDate ?? '',
+      deadline: milestone.deadline ?? '',
+      firstReminderDate: milestone.firstReminderDate ?? '',
+      secondReminderDate: milestone.secondReminderDate ?? '',
+      prerequisiteMilestoneIds: milestone.prerequisiteMilestoneIds.flatMap((localId) => {
+        const serverId = serverIdByLocalId.get(localId)
+        return serverId ? [serverId] : []
+      }),
+      isEnabled: milestone.isEnabled,
+    })
+    serverIdByLocalId.set(milestone.milestoneId, created.milestoneId)
+  }
+}
+
+async function loadMilestones() {
   isLoading.value = true
   errorMessage.value = ''
   try {
     const saved = localStorage.getItem(storageKey)
-    milestones.value = saved
+    const localMilestones = saved
       ? (JSON.parse(saved) as Milestone[])
       : standardMilestones.map((milestone) => ({
           ...milestone,
@@ -169,21 +206,29 @@ function loadMilestones() {
         }))
 
     if (!localStorage.getItem(doctoralPlanMigrationKey)) {
-      const qualifyingExam = milestones.value.find(
+      const qualifyingExam = localMilestones.find(
         (milestone) => milestone.milestoneId === 'standard-milestone-02',
       )
       if (qualifyingExam?.plans.includes('All')) {
         qualifyingExam.plans = ['1.1', '2.1', '2.2']
       }
       localStorage.setItem(doctoralPlanMigrationKey, 'complete')
-      persistMilestones()
-    } else if (!saved) {
-      persistMilestones()
     }
-  } catch {
-    milestones.value = standardMilestones.map((milestone) => ({ ...milestone }))
+
+    let serverMilestones = await getMilestones()
+    const milestonesToMigrate = serverMilestones.length
+      ? localMilestones.filter((milestone) => milestone.milestoneId.startsWith('local-'))
+      : localMilestones
+    if (milestonesToMigrate.length) {
+      await migrateLocalMilestones(milestonesToMigrate)
+      serverMilestones = await getMilestones()
+    }
+    milestones.value = serverMilestones
+    persistMilestones()
+  } catch (error) {
+    milestones.value = []
     showNotification(
-      'Unable to load locally saved milestones. Standard milestones were restored.',
+      formatMilestoneError(error, 'Unable to load milestones from the server.'),
       'error',
     )
   } finally {
@@ -224,41 +269,19 @@ async function saveMilestone(input: MilestoneInput) {
       : [...input.plans]
 
     if (editingMilestone.value) {
-      const index = milestones.value.findIndex(
-        (milestone) => milestone.milestoneId === editingMilestone.value?.milestoneId,
-      )
-      if (index >= 0) {
-        milestones.value[index] = {
-          ...editingMilestone.value,
-          ...input,
-          plans: normalizedPlans,
-          prerequisiteMilestoneIds: [...input.prerequisiteMilestoneIds],
-          description: input.description.trim() || null,
-          sequenceOrder: input.sequenceOrder,
-          openDate: input.openDate || null,
-          deadline: input.deadline || null,
-          firstReminderDate: input.firstReminderDate || null,
-          secondReminderDate: input.secondReminderDate || null,
-        }
-      }
+      await updateMilestone(editingMilestone.value.milestoneId, {
+        ...input,
+        plans: normalizedPlans,
+      })
       showNotification('Milestone updated successfully')
     } else {
-      milestones.value.push({
+      await createMilestone({
         ...input,
-        milestoneId: `local-${crypto.randomUUID()}`,
         plans: normalizedPlans,
-        prerequisiteMilestoneIds: [...input.prerequisiteMilestoneIds],
-        description: input.description.trim() || null,
-        sequenceOrder: input.sequenceOrder,
-        openDate: input.openDate || null,
-        deadline: input.deadline || null,
-        firstReminderDate: input.firstReminderDate || null,
-        secondReminderDate: input.secondReminderDate || null,
-        isStandard: false,
       })
       showNotification('Milestone added successfully')
     }
-    persistMilestones()
+    await loadMilestones()
     selectedDegreeLevel.value = input.degreeLevel
     selectedSemester.value = 'all'
     selectedPlan.value = 'All'
@@ -274,12 +297,10 @@ async function removeMilestone() {
   errorMessage.value = ''
   isDeleting.value = true
   try {
-    milestones.value = milestones.value.filter(
-      (milestone) => milestone.milestoneId !== deletingMilestone.value?.milestoneId,
-    )
-    persistMilestones()
+    await deleteMilestone(deletingMilestone.value.milestoneId)
     showNotification('Milestone deleted successfully')
     closeDeleteModal(true)
+    await loadMilestones()
   } catch (error) {
     showNotification(formatMilestoneError(error, 'Unable to delete milestone'), 'error')
   } finally {
@@ -290,11 +311,11 @@ async function removeMilestone() {
 async function setMilestoneStatus(milestone: Milestone, isEnabled: boolean) {
   errorMessage.value = ''
   try {
-    milestone.isEnabled = isEnabled
-    persistMilestones()
+    await setMilestoneEnabled(milestone.milestoneId, isEnabled)
     showNotification(
       isEnabled ? 'Milestone enabled successfully' : 'Milestone disabled successfully',
     )
+    await loadMilestones()
   } catch (error) {
     showNotification(formatMilestoneError(error, 'Unable to update milestone'), 'error')
   }
@@ -303,21 +324,9 @@ async function setMilestoneStatus(milestone: Milestone, isEnabled: boolean) {
 async function moveMilestoneOrder(milestoneId: string, direction: 'up' | 'down') {
   errorMessage.value = ''
   try {
-    const current = milestones.value.find((milestone) => milestone.milestoneId === milestoneId)
-    if (!current) throw new Error('Milestone not found')
-    const siblings = milestones.value
-      .filter((milestone) => milestone.degreeLevel === current.degreeLevel)
-      .filter((milestone) => milestone.semester === current.semester)
-      .sort((first, second) => first.sequenceOrder - second.sequenceOrder)
-    const currentIndex = siblings.findIndex((milestone) => milestone.milestoneId === milestoneId)
-    const target = siblings[currentIndex + (direction === 'up' ? -1 : 1)]
-    if (target) {
-      const currentOrder = current.sequenceOrder
-      current.sequenceOrder = target.sequenceOrder
-      target.sequenceOrder = currentOrder
-      persistMilestones()
-    }
+    await moveMilestone(milestoneId, direction)
     showNotification('Milestone order updated successfully')
+    await loadMilestones()
   } catch (error) {
     showNotification(formatMilestoneError(error, 'Unable to reorder milestone'), 'error')
   }
@@ -333,41 +342,20 @@ async function copyMilestoneTemplates(
 ) {
   errorMessage.value = ''
   try {
-    const selected = milestones.value.filter((milestone) =>
-      milestoneIds.includes(milestone.milestoneId),
+    const result = await copyMilestones(
+      fromDegreeLevel,
+      toDegreeLevel,
+      fromSemester,
+      toSemester,
+      toYear,
+      milestoneIds,
     )
-    const nextOrderStart = Math.max(
-      0,
-      ...milestones.value
-        .filter((milestone) => milestone.degreeLevel === toDegreeLevel)
-        .filter((milestone) => milestone.semester === toSemester)
-        .map((milestone) => milestone.sequenceOrder),
-    )
-    const shiftYear = (value: string | null, year: string) => {
-      if (!value || year === 'all') return value
-      return `${year}${value.slice(4)}`
-    }
-    const copies = selected.map((milestone, index) => ({
-      ...milestone,
-      milestoneId: `local-${crypto.randomUUID()}`,
-      degreeLevel: toDegreeLevel,
-      semester: toSemester,
-      plans: ['All' as const],
-      sequenceOrder: nextOrderStart + index + 1,
-      openDate: shiftYear(milestone.openDate, toYear),
-      deadline: shiftYear(milestone.deadline, toYear),
-      firstReminderDate: shiftYear(milestone.firstReminderDate, toYear),
-      secondReminderDate: shiftYear(milestone.secondReminderDate, toYear),
-      prerequisiteMilestoneIds: [],
-      isStandard: false,
-    }))
-    milestones.value.push(...copies)
-    persistMilestones()
-    showNotification(`Copied ${copies.length} milestones successfully`)
+    showNotification(`Copied ${result.copiedRecords} milestones successfully`)
     selectedDegreeLevel.value = toDegreeLevel
     selectedSemester.value = 'all'
     selectedYear.value = toYear
     isCopyOpen.value = false
+    await loadMilestones()
   } catch (error) {
     showNotification(formatMilestoneError(error, 'Unable to copy milestones'), 'error')
   }

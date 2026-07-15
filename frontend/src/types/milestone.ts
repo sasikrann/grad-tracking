@@ -38,13 +38,14 @@ export type StudentMilestoneStatus = 'In Progress' | 'Completed' | 'Approved' | 
 
 export interface StudentMilestone {
   milestoneId: string
-  degreeLevel: DegreeLevel
+  degreeLevel: MilestoneProgram
   semester: string
+  plans: EducationPlan[]
   title: string
   description: string | null
   sequenceOrder: number
-  openDate: string
-  deadline: string
+  openDate: string | null
+  deadline: string | null
   firstReminderDate: string | null
   secondReminderDate: string | null
   prerequisiteMilestoneIds?: string[]

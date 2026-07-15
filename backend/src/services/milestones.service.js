@@ -9,6 +9,8 @@ const milestoneColumns = `
   milestone_id AS "milestoneId",
   degree_level AS "degreeLevel",
   semester,
+  plans,
+  prerequisite_milestone_ids AS "prerequisiteMilestoneIds",
   title,
   description,
   sequence_order AS "sequenceOrder",
@@ -23,11 +25,28 @@ const milestoneColumns = `
 
 const maxRejectedRevisionRounds = 3
 
-async function ensureMilestoneSchema() {
+export async function ensureMilestoneSchema() {
   schemaReady ??= pool.query(`
     ALTER TABLE milestone_templates
-    ADD COLUMN IF NOT EXISTS semester VARCHAR NOT NULL DEFAULT '1'
+    ALTER COLUMN degree_level TYPE VARCHAR USING degree_level::text
   `)
+    .then(() => pool.query(`
+    ALTER TABLE milestone_templates
+    ADD COLUMN IF NOT EXISTS semester VARCHAR NOT NULL DEFAULT '1'
+  `))
+    .then(() => pool.query(`
+      ALTER TABLE milestone_templates
+      ADD COLUMN IF NOT EXISTS plans VARCHAR[] NOT NULL DEFAULT ARRAY['All']::VARCHAR[]
+    `))
+    .then(() => pool.query(`
+      ALTER TABLE milestone_templates
+      ADD COLUMN IF NOT EXISTS prerequisite_milestone_ids VARCHAR[] NOT NULL DEFAULT ARRAY[]::VARCHAR[]
+    `))
+    .then(() => pool.query(`
+      ALTER TABLE milestone_templates
+      ALTER COLUMN open_date DROP NOT NULL,
+      ALTER COLUMN deadline DROP NOT NULL
+    `))
     .then(() => pool.query(`
       ALTER TABLE student_milestones
       ADD COLUMN IF NOT EXISTS rejection_count INT NOT NULL DEFAULT 0
@@ -82,6 +101,8 @@ export async function findStudentMilestonesByUserId(userId) {
         mt.milestone_id AS "milestoneId",
         mt.degree_level AS "degreeLevel",
         mt.semester,
+        mt.plans,
+        mt.prerequisite_milestone_ids AS "prerequisiteMilestoneIds",
         mt.title,
         mt.description,
         mt.sequence_order AS "sequenceOrder",
@@ -90,7 +111,7 @@ export async function findStudentMilestonesByUserId(userId) {
         mt.first_reminder_date AS "firstReminderDate",
         mt.second_reminder_date AS "secondReminderDate",
         (
-          mt.semester::int > s.semester::int
+          (mt.semester <> 'all' AND mt.semester::int > s.semester::int)
           OR mt.open_date > CURRENT_DATE
         ) AS "isLocked",
         COALESCE(
@@ -108,13 +129,14 @@ export async function findStudentMilestonesByUserId(userId) {
         sm.reviewed_at AS "reviewedAt"
       FROM students s
       JOIN milestone_templates mt
-        ON mt.degree_level = s.degree_level
+        ON (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
+        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR s.education_plan IS NULL OR s.education_plan = ANY(mt.plans))
         AND mt.is_enabled = TRUE
       LEFT JOIN student_milestones sm
         ON sm.student_id = s.student_id
         AND sm.milestone_id = mt.milestone_id
       WHERE s.user_id = $1
-      ORDER BY mt.semester, mt.sequence_order, mt.created_at
+      ORDER BY CASE WHEN mt.semester = 'all' THEN 0 ELSE mt.semester::int END, mt.sequence_order, mt.created_at
     `,
     [userId],
   )
@@ -133,6 +155,8 @@ export async function findStudentMilestonesByStudentId(studentId) {
         mt.milestone_id AS "milestoneId",
         mt.degree_level AS "degreeLevel",
         mt.semester,
+        mt.plans,
+        mt.prerequisite_milestone_ids AS "prerequisiteMilestoneIds",
         mt.title,
         mt.description,
         mt.sequence_order AS "sequenceOrder",
@@ -155,13 +179,14 @@ export async function findStudentMilestonesByStudentId(studentId) {
         sm.reviewed_at AS "reviewedAt"
       FROM students s
       LEFT JOIN milestone_templates mt
-        ON mt.degree_level = s.degree_level
+        ON (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
+        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR s.education_plan IS NULL OR s.education_plan = ANY(mt.plans))
         AND mt.is_enabled = TRUE
       LEFT JOIN student_milestones sm
         ON sm.student_id = s.student_id
         AND sm.milestone_id = mt.milestone_id
       WHERE s.student_id = $1
-      ORDER BY mt.semester, mt.sequence_order, mt.created_at
+      ORDER BY CASE WHEN mt.semester = 'all' THEN 0 ELSE mt.semester::int END, mt.sequence_order, mt.created_at
     `,
     [studentId],
   )
@@ -190,6 +215,8 @@ export async function findAdvisorStudentMilestones(advisorUserId, studentId) {
         mt.milestone_id AS "milestoneId",
         mt.degree_level AS "degreeLevel",
         mt.semester,
+        mt.plans,
+        mt.prerequisite_milestone_ids AS "prerequisiteMilestoneIds",
         mt.title,
         mt.description,
         mt.sequence_order AS "sequenceOrder",
@@ -215,13 +242,14 @@ export async function findAdvisorStudentMilestones(advisorUserId, studentId) {
         ON s.advisor_id = a.advisor_id
         AND s.student_id = $2
       LEFT JOIN milestone_templates mt
-        ON mt.degree_level = s.degree_level
+        ON (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
+        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR s.education_plan IS NULL OR s.education_plan = ANY(mt.plans))
         AND mt.is_enabled = TRUE
       LEFT JOIN student_milestones sm
         ON sm.student_id = s.student_id
         AND sm.milestone_id = mt.milestone_id
       WHERE a.user_id = $1
-      ORDER BY mt.semester, mt.sequence_order, mt.created_at
+      ORDER BY CASE WHEN mt.semester = 'all' THEN 0 ELSE mt.semester::int END, mt.sequence_order, mt.created_at
     `,
     [advisorUserId, studentId],
   )
@@ -258,10 +286,11 @@ export async function submitStudentMilestoneEvidence(userId, milestoneId, eviden
       FROM students s
       JOIN milestone_templates mt
         ON mt.milestone_id = $2
-        AND mt.degree_level = s.degree_level
+        AND (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
+        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR s.education_plan IS NULL OR s.education_plan = ANY(mt.plans))
         AND mt.is_enabled = TRUE
-        AND mt.semester::int <= s.semester::int
-        AND mt.open_date <= CURRENT_DATE
+        AND (mt.semester = 'all' OR mt.semester::int <= s.semester::int)
+        AND (mt.open_date IS NULL OR mt.open_date <= CURRENT_DATE)
       LEFT JOIN student_milestones existing_sm
         ON existing_sm.student_id = s.student_id
         AND existing_sm.milestone_id = mt.milestone_id
@@ -441,15 +470,18 @@ export async function createMilestone(input) {
   await pool.query(
     `
       INSERT INTO milestone_templates (
-        milestone_id, degree_level, semester, title, description, sequence_order,
-        open_date, deadline, first_reminder_date, second_reminder_date, is_enabled
+        milestone_id, degree_level, semester, plans, prerequisite_milestone_ids,
+        title, description, sequence_order, open_date, deadline,
+        first_reminder_date, second_reminder_date, is_enabled
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     `,
     [
       milestoneId,
       input.degreeLevel,
       input.semester,
+      input.plans,
+      input.prerequisiteMilestoneIds,
       input.title,
       input.description,
       sequenceOrder,
@@ -521,14 +553,16 @@ export async function updateMilestone(milestoneId, input) {
       SET
         degree_level = $2,
         semester = $3,
-        title = $4,
-        description = $5,
-        sequence_order = $6,
-        open_date = $7,
-        deadline = $8,
-        first_reminder_date = $9,
-        second_reminder_date = $10,
-        is_enabled = $11,
+        plans = $4,
+        prerequisite_milestone_ids = $5,
+        title = $6,
+        description = $7,
+        sequence_order = $8,
+        open_date = $9,
+        deadline = $10,
+        first_reminder_date = $11,
+        second_reminder_date = $12,
+        is_enabled = $13,
         updated_at = NOW()
       WHERE milestone_id = $1
     `,
@@ -536,6 +570,8 @@ export async function updateMilestone(milestoneId, input) {
       milestoneId,
       input.degreeLevel,
       input.semester,
+      input.plans,
+      input.prerequisiteMilestoneIds,
       input.title,
       input.description,
       input.sequenceOrder,
@@ -749,6 +785,8 @@ export async function copyMilestones({
         milestoneId,
         degreeLevel: toDegreeLevel,
         semester: toSemester,
+        plans: ['All'],
+        prerequisiteMilestoneIds: [],
         title: row.title,
         description: row.description,
         sequenceOrder: nextOrder,
@@ -762,15 +800,18 @@ export async function copyMilestones({
       await client.query(
         `
           INSERT INTO milestone_templates (
-            milestone_id, degree_level, semester, title, description, sequence_order,
-            open_date, deadline, first_reminder_date, second_reminder_date, is_enabled
+            milestone_id, degree_level, semester, plans, prerequisite_milestone_ids,
+            title, description, sequence_order, open_date, deadline,
+            first_reminder_date, second_reminder_date, is_enabled
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         `,
         [
           copiedMilestone.milestoneId,
           copiedMilestone.degreeLevel,
           copiedMilestone.semester,
+          copiedMilestone.plans,
+          copiedMilestone.prerequisiteMilestoneIds,
           copiedMilestone.title,
           copiedMilestone.description,
           copiedMilestone.sequenceOrder,

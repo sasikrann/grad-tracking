@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 
 import pool from '../config/database.js'
 import { resolveAdvisorReference } from './advisors.service.js'
+import { ensureMilestoneSchema } from './milestones.service.js'
 
 let studentSchemaReady
 async function ensureStudentSchema() {
@@ -184,6 +185,7 @@ function applyStudentImportResolutions(records, conflicts, resolutions = {}) {
 
 async function findStudents({ advisorId } = {}) {
   await ensureStudentSchema()
+  await ensureMilestoneSchema()
   const values = advisorId ? [advisorId] : []
   const advisorFilter = advisorId ? 'WHERE s.advisor_id = $1' : ''
 
@@ -228,7 +230,8 @@ async function findStudents({ advisorId } = {}) {
       FROM students s
       LEFT JOIN advisors a ON a.advisor_id = s.advisor_id
       LEFT JOIN milestone_templates mt
-        ON mt.degree_level = s.degree_level
+        ON (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
+        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR s.education_plan IS NULL OR s.education_plan = ANY(mt.plans))
         AND mt.is_enabled = TRUE
       LEFT JOIN student_milestones sm
         ON sm.student_id = s.student_id
