@@ -5,9 +5,11 @@ import { useRoute } from 'vue-router'
 import StudentMilestoneCard from '@/components/student-milestone/StudentMilestoneCard.vue'
 import StudentMilestoneProgress from '@/components/student-milestone/StudentMilestoneProgress.vue'
 import {
-  getAdvisorStudentMilestones,
-  reviewAdvisorMilestone,
-} from '@/services/advisor-milestones.api'
+  getStandardMilestonesForStudent,
+  toFrontendStudentMilestones,
+} from '@/data/standard-milestones'
+import { currentUser } from '@/services/auth'
+import { getAdvisorStudentOverview } from '@/services/students.api'
 import type { StudentMilestone } from '@/types/milestone'
 
 const route = useRoute()
@@ -35,9 +37,16 @@ async function loadMilestones() {
   errorMessage.value = ''
 
   try {
-    const result = await getAdvisorStudentMilestones(studentId.value)
-    studentName.value = result.student.studentName
-    milestones.value = result.milestones
+    const advisorId = currentUser.value?.advisorId
+    if (!advisorId) throw new Error('Advisor profile is not linked to this account')
+    const students = await getAdvisorStudentOverview(advisorId)
+    const student = students.find((candidate) => candidate.studentId === studentId.value)
+    if (!student) throw new Error('Student not found')
+    studentName.value = student.name
+    const degreeLevel = student.degree === 'Ph. D.' ? 'Doctoral' : 'Master'
+    milestones.value = toFrontendStudentMilestones(
+      getStandardMilestonesForStudent(degreeLevel, student.educationPlan),
+    )
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Unable to load student milestones'
   } finally {
@@ -50,17 +59,7 @@ function canReview(milestone: StudentMilestone) {
 }
 
 async function approveMilestone(milestone: StudentMilestone) {
-  reviewingMilestoneId.value = milestone.milestoneId
-  errorMessage.value = ''
-
-  try {
-    await reviewAdvisorMilestone(studentId.value, milestone.milestoneId, 'approve')
-    await loadMilestones()
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Unable to approve submission'
-  } finally {
-    reviewingMilestoneId.value = null
-  }
+  void milestone
 }
 
 function openRejectDialog(milestone: StudentMilestone) {
@@ -76,23 +75,7 @@ function closeRejectDialog() {
 async function submitReject() {
   if (!rejectMilestone.value || !rejectComment.value.trim()) return
 
-  reviewingMilestoneId.value = rejectMilestone.value.milestoneId
-  errorMessage.value = ''
-
-  try {
-    await reviewAdvisorMilestone(
-      studentId.value,
-      rejectMilestone.value.milestoneId,
-      'reject',
-      rejectComment.value,
-    )
-    closeRejectDialog()
-    await loadMilestones()
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Unable to reject submission'
-  } finally {
-    reviewingMilestoneId.value = null
-  }
+  closeRejectDialog()
 }
 
 onMounted(loadMilestones)

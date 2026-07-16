@@ -4,7 +4,11 @@ import { useRoute } from 'vue-router'
 
 import StudentMilestoneCard from '@/components/student-milestone/StudentMilestoneCard.vue'
 import StudentMilestoneProgress from '@/components/student-milestone/StudentMilestoneProgress.vue'
-import { getStudentMilestones } from '@/services/students.api'
+import {
+  getStandardMilestonesForStudent,
+  toFrontendStudentMilestones,
+} from '@/data/standard-milestones'
+import { getStudents } from '@/services/students.api'
 import type { StudentMilestone } from '@/types/milestone'
 
 const route = useRoute()
@@ -29,9 +33,14 @@ async function loadMilestones() {
   errorMessage.value = ''
 
   try {
-    const result = await getStudentMilestones(studentId.value)
-    studentName.value = result.student.studentName
-    milestones.value = result.milestones
+    const students = await getStudents()
+    const student = students.find((candidate) => candidate.studentId === studentId.value)
+    if (!student) throw new Error('Student not found')
+    studentName.value = student.name
+    const degreeLevel = student.degree === 'Ph. D.' ? 'Doctoral' : 'Master'
+    milestones.value = toFrontendStudentMilestones(
+      getStandardMilestonesForStudent(degreeLevel, student.educationPlan),
+    )
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Unable to load student milestones'
   } finally {

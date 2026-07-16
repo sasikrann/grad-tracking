@@ -1,4 +1,9 @@
-import type { Milestone } from '@/types/milestone'
+import type {
+  DegreeLevel,
+  EducationPlan,
+  Milestone,
+  StudentMilestone,
+} from '@/types/milestone'
 
 const commonFields = {
   semester: 'all',
@@ -112,3 +117,32 @@ export const standardMilestones: Milestone[] = [
     prerequisiteMilestoneIds: [],
   },
 ]
+
+export function getStandardMilestonesForStudent(
+  degreeLevel: DegreeLevel,
+  educationPlan: string | null | undefined,
+) {
+  return standardMilestones.filter((milestone) => {
+    const matchesDegree =
+      milestone.degreeLevel === 'All' || milestone.degreeLevel === degreeLevel
+    const matchesPlan =
+      milestone.plans.includes('All') ||
+      (Boolean(educationPlan) && milestone.plans.includes(educationPlan as EducationPlan))
+
+    return milestone.isEnabled && matchesDegree && matchesPlan
+  })
+}
+
+export function toFrontendStudentMilestones(milestones: Milestone[]): StudentMilestone[] {
+  return milestones.map((milestone) => ({
+    ...milestone,
+    prerequisiteMilestoneIds: [...milestone.prerequisiteMilestoneIds],
+    status: 'In Progress',
+    evidenceUrl: null,
+    advisorComment: null,
+    rejectionCount: 0,
+    maxRejectedRevisionRounds: 3,
+    submittedAt: null,
+    reviewedAt: null,
+  }))
+}
