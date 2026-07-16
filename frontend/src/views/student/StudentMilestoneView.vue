@@ -3,16 +3,13 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import StudentMilestoneCard from '@/components/student-milestone/StudentMilestoneCard.vue'
 import StudentMilestoneProgress from '@/components/student-milestone/StudentMilestoneProgress.vue'
-import { standardMilestones } from '@/data/standard-milestones'
 import {
-  getMyStudentMilestones,
-  removeMyMilestoneEvidence,
-  uploadMyMilestoneEvidence,
-} from '@/services/student-milestones.api'
+  getStandardMilestonesForStudent,
+  standardMilestones,
+  toFrontendStudentMilestones,
+} from '@/data/standard-milestones'
 import { getMyStudentProfile, type StudentProfile } from '@/services/student-profile.api'
 import type { Milestone, StudentMilestone } from '@/types/milestone'
-
-const milestoneStorageKey = 'grad-tracking-milestone-management-v1'
 
 const milestones = ref<StudentMilestone[]>([])
 const profile = ref<StudentProfile | null>(null)
@@ -94,12 +91,7 @@ const visibleMilestones = computed(() =>
 )
 
 function loadMilestoneTemplates() {
-  try {
-    const saved = localStorage.getItem(milestoneStorageKey)
-    if (saved) milestoneTemplates.value = JSON.parse(saved) as Milestone[]
-  } catch {
-    milestoneTemplates.value = standardMilestones
-  }
+  milestoneTemplates.value = standardMilestones
 }
 
 async function loadMilestones({ silent = false } = {}) {
@@ -108,12 +100,11 @@ async function loadMilestones({ silent = false } = {}) {
   }
   errorMessage.value = ''
   try {
-    const [studentMilestones, studentProfile] = await Promise.all([
-      getMyStudentMilestones(),
-      getMyStudentProfile(),
-    ])
-    milestones.value = studentMilestones
+    const studentProfile = await getMyStudentProfile()
     profile.value = studentProfile
+    milestones.value = toFrontendStudentMilestones(
+      getStandardMilestonesForStudent(studentProfile.degreeLevel, studentProfile.educationPlan),
+    )
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Unable to load milestones'
   } finally {
@@ -168,29 +159,12 @@ async function uploadEvidence(milestoneId: string, file: File) {
     return
   }
 
-  uploadingMilestoneId.value = milestoneId
-  errorMessage.value = ''
-  try {
-    milestones.value = await uploadMyMilestoneEvidence(milestoneId, file)
-    uploadErrorMilestoneId.value = null
-    uploadErrorMessage.value = ''
-  } catch (error) {
-    uploadErrorMessage.value = error instanceof Error ? error.message : 'Unable to upload evidence'
-  } finally {
-    uploadingMilestoneId.value = null
-  }
+  void file
+  showNotification('Evidence upload is unavailable while standard frontend milestones are in use.')
 }
 
 async function removeEvidence(milestoneId: string) {
-  uploadingMilestoneId.value = milestoneId
-  errorMessage.value = ''
-  try {
-    milestones.value = await removeMyMilestoneEvidence(milestoneId)
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Unable to remove evidence'
-  } finally {
-    uploadingMilestoneId.value = null
-  }
+  void milestoneId
 }
 
 onMounted(() => {
