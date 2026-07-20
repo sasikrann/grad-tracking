@@ -57,6 +57,10 @@ export async function loginWithGoogle(request, response) {
   })
 }
 
+/*
+ * DEVELOPMENT LOGIN BYPASS (disabled while Google Sign-In is in use)
+ * Uncomment this function together with the /dev-login route and the frontend
+ * development-login code if local Google Sign-In is unavailable.
 export async function loginForDevelopment(request, response) {
   const isEnabled =
     process.env.NODE_ENV !== 'production' && process.env.ENABLE_DEV_LOGIN === 'true'
@@ -89,6 +93,7 @@ export async function loginForDevelopment(request, response) {
     },
   })
 }
+*/
 
 export async function getCurrentUser(request, response) {
   const user = await findAuthorizedUserByEmail(request.user.email)
