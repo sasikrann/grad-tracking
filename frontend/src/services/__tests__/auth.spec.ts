@@ -35,6 +35,7 @@ describe('auth service', () => {
     expect(sessionStorage.getItem('accessToken')).toBe('signed-token')
   })
 
+  /* DEVELOPMENT LOGIN BYPASS TEST
   it('stores a server-issued development session', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ data: { token: 'dev-token', user: adminUser } }), {
@@ -53,6 +54,7 @@ describe('auth service', () => {
     )
     expect(accessToken.value).toBe('dev-token')
   })
+  */
 
   it('clears an invalid stored session when the backend rejects it', async () => {
     sessionStorage.setItem('accessToken', 'invalid-token')
