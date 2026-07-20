@@ -116,7 +116,7 @@ onMounted(async () => {
 <template>
   <div class="flex min-h-screen items-center justify-center bg-[#fafafa] px-5 py-10">
     <section
-      class="w-full max-w-100 rounded-2xl bg-[#872c26] pb-12 pt-5 text-white shadow-[0_10px_22px_rgba(0,0,0,0.34)]"
+      class="w-full max-w-100 rounded-2xl bg-[#872c26] pb-8 pt-5 text-white shadow-[0_10px_22px_rgba(0,0,0,0.34)]"
     >
       <div class="flex flex-col items-center">
         <img
@@ -128,7 +128,7 @@ onMounted(async () => {
         <p class="text-xs text-white/60 pb-1">Sign in to your account</p>
       </div>
 
-      <div class="flex min-h-11 justify-center">
+      <div class="mt-3 flex min-h-11 justify-center">
         <div ref="googleButton" :class="{ 'pointer-events-none opacity-60': isLoading }"></div>
       </div>
 
@@ -160,7 +160,7 @@ onMounted(async () => {
       </form>
       -->
 
-      <div class="mx-auto mt-4 flex min-h-14 w-full max-w-75 flex-col justify-end gap-1.5 px-1">
+      <div class="mx-auto mt-3 flex min-h-8 w-full max-w-75 flex-col justify-end gap-1.5 px-1">
         <div
           v-if="isLoading"
           class="flex items-center justify-center gap-2 text-xs font-normal text-white/70"
