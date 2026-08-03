@@ -64,12 +64,15 @@ CREATE TABLE students (
 
 CREATE TABLE milestone_templates (
   milestone_id UUID PRIMARY KEY,
+  default_template_key VARCHAR UNIQUE,
+  default_template_version INT NOT NULL DEFAULT 0,
   degree_level VARCHAR NOT NULL CHECK (degree_level IN ('All', 'Master', 'Doctoral')),
   semester VARCHAR NOT NULL DEFAULT '1',
   plans VARCHAR[] NOT NULL DEFAULT ARRAY['All']::VARCHAR[],
   prerequisite_milestone_ids VARCHAR[] NOT NULL DEFAULT ARRAY[]::VARCHAR[],
   title VARCHAR NOT NULL,
   description TEXT,
+  reference_urls TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   sequence_order INT NOT NULL,
   open_date DATE,
   deadline DATE,

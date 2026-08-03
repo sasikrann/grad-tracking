@@ -49,6 +49,22 @@ function stringArray(value, field, allowedValues = null) {
   return result
 }
 
+function referenceUrls(value) {
+  const references = stringArray(value, 'references')
+  for (const reference of references) {
+    let url
+    try {
+      url = new URL(reference)
+    } catch {
+      throw new ApiError(400, 'references must contain valid links')
+    }
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new ApiError(400, 'references must contain HTTP or HTTPS links')
+    }
+  }
+  return references
+}
+
 function requiredSemester(value) {
   const semester = requiredText(value, 'semester')
   if (!semesters.has(semester)) throw new ApiError(400, 'semester must be all, 1 or 2')
@@ -77,8 +93,9 @@ function normalizeMilestone(body) {
     ),
     title: requiredText(body.title, 'title'),
     description: optionalText(body.description),
+    references: referenceUrls(body.references),
     sequenceOrder: body.sequenceOrder ? Number(body.sequenceOrder) : null,
-    openDate: optionalDate(body.openDate, 'openDate'),
+    openDate: null,
     deadline: optionalDate(body.deadline, 'deadline'),
     firstReminderDate: optionalDate(body.firstReminderDate, 'firstReminderDate'),
     secondReminderDate: optionalDate(body.secondReminderDate, 'secondReminderDate'),

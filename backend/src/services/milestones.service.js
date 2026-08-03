@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import pool from '../config/database.js'
+import { defaultMilestoneTemplates } from '../data/default-milestone-templates.js'
 import { createMilestoneReminderNotification } from './notifications.service.js'
 
 let schemaReady
@@ -13,6 +14,7 @@ const milestoneColumns = `
   prerequisite_milestone_ids AS "prerequisiteMilestoneIds",
   title,
   description,
+  reference_urls AS references,
   sequence_order AS "sequenceOrder",
   open_date AS "openDate",
   deadline,
@@ -24,6 +26,120 @@ const milestoneColumns = `
 `
 
 const maxRejectedRevisionRounds = 3
+
+async function seedDefaultMilestoneTemplates() {
+  const client = await pool.connect()
+
+  try {
+    await client.query('BEGIN')
+    const milestoneIdByKey = new Map()
+    const initializedKeys = new Set()
+
+    for (const [index, template] of defaultMilestoneTemplates.entries()) {
+      let result = await client.query(
+        `
+          SELECT milestone_id, default_template_version
+          FROM milestone_templates
+          WHERE default_template_key = $1
+        `,
+        [template.key],
+      )
+
+      if (result.rowCount && result.rows[0].default_template_version < 1) {
+        initializedKeys.add(template.key)
+      }
+
+      if (!result.rowCount) {
+        const matchingTitles = [template.title, ...(template.aliases ?? [])].map((title) =>
+          title.toLowerCase(),
+        )
+        result = await client.query(
+          `
+            SELECT milestone_id
+            FROM milestone_templates
+            WHERE default_template_key IS NULL
+              AND LOWER(title) = ANY($1::TEXT[])
+            ORDER BY created_at
+            LIMIT 1
+          `,
+          [matchingTitles],
+        )
+
+        if (result.rowCount) {
+          await client.query(
+            'UPDATE milestone_templates SET default_template_key = $2 WHERE milestone_id = $1',
+            [result.rows[0].milestone_id, template.key],
+          )
+        } else {
+          const milestoneId = randomUUID()
+          await client.query(
+            `
+              INSERT INTO milestone_templates (
+                milestone_id, default_template_key, degree_level, semester, plans,
+                prerequisite_milestone_ids, title, description, reference_urls,
+                sequence_order, open_date, deadline, first_reminder_date,
+                second_reminder_date, is_enabled, default_template_version
+              )
+              VALUES ($1, $2, $3, 'all', $4, ARRAY[]::VARCHAR[], $5, $6,
+                ARRAY[]::TEXT[], $7, NULL, NULL, NULL, NULL, TRUE, 1)
+            `,
+            [
+              milestoneId,
+              template.key,
+              template.degreeLevel,
+              template.plans,
+              template.title,
+              template.description,
+              index + 1,
+            ],
+          )
+          result = { rows: [{ milestone_id: milestoneId }], rowCount: 1 }
+        }
+        initializedKeys.add(template.key)
+      }
+
+      milestoneIdByKey.set(template.key, result.rows[0].milestone_id)
+    }
+
+    for (const [index, template] of defaultMilestoneTemplates.entries()) {
+      if (!initializedKeys.has(template.key)) continue
+      const prerequisiteIds = template.prerequisites
+        .map((key) => milestoneIdByKey.get(key))
+        .filter(Boolean)
+      await client.query(
+        `
+          UPDATE milestone_templates
+          SET degree_level = $2,
+              semester = 'all',
+              plans = $3,
+              title = $4,
+              description = $5,
+              sequence_order = $6,
+              prerequisite_milestone_ids = $7,
+              default_template_version = 1,
+              updated_at = NOW()
+          WHERE milestone_id = $1
+        `,
+        [
+          milestoneIdByKey.get(template.key),
+          template.degreeLevel,
+          template.plans,
+          template.title,
+          template.description,
+          index + 1,
+          prerequisiteIds,
+        ],
+      )
+    }
+
+    await client.query('COMMIT')
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
 
 export async function ensureMilestoneSchema() {
   schemaReady ??= pool.query(`
@@ -44,6 +160,18 @@ export async function ensureMilestoneSchema() {
     `))
     .then(() => pool.query(`
       ALTER TABLE milestone_templates
+      ADD COLUMN IF NOT EXISTS reference_urls TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[]
+    `))
+    .then(() => pool.query(`
+      ALTER TABLE milestone_templates
+      ADD COLUMN IF NOT EXISTS default_template_key VARCHAR UNIQUE
+    `))
+    .then(() => pool.query(`
+      ALTER TABLE milestone_templates
+      ADD COLUMN IF NOT EXISTS default_template_version INT NOT NULL DEFAULT 0
+    `))
+    .then(() => pool.query(`
+      ALTER TABLE milestone_templates
       ALTER COLUMN open_date DROP NOT NULL,
       ALTER COLUMN deadline DROP NOT NULL
     `))
@@ -58,6 +186,7 @@ export async function ensureMilestoneSchema() {
     .catch((error) => {
       if (!['42710', '42P07'].includes(error.code)) throw error
     }))
+    .then(() => seedDefaultMilestoneTemplates())
   await schemaReady
 }
 
@@ -77,7 +206,8 @@ export async function findMilestones({ degreeLevel, semester } = {}) {
     conditions.push(`semester = $${values.length}`)
   }
 
-  const filter = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+  conditions.push('default_template_key IS NOT NULL')
+  const filter = `WHERE ${conditions.join(' AND ')}`
 
   const result = await pool.query(
     `
@@ -452,7 +582,9 @@ export async function nextSequenceOrder(degreeLevel, semester = '1') {
     `
       SELECT COALESCE(MAX(sequence_order), 0) + 1 AS "nextOrder"
       FROM milestone_templates
-      WHERE degree_level = $1 AND semester = $2
+      WHERE degree_level = $1
+        AND semester = $2
+        AND default_template_key IS NOT NULL
     `,
     [degreeLevel, semester],
   )
@@ -470,20 +602,22 @@ export async function createMilestone(input) {
   await pool.query(
     `
       INSERT INTO milestone_templates (
-        milestone_id, degree_level, semester, plans, prerequisite_milestone_ids,
-        title, description, sequence_order, open_date, deadline,
+        milestone_id, default_template_key, degree_level, semester, plans, prerequisite_milestone_ids,
+        title, description, reference_urls, sequence_order, open_date, deadline,
         first_reminder_date, second_reminder_date, is_enabled
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
     `,
     [
       milestoneId,
+      `admin-${milestoneId}`,
       input.degreeLevel,
       input.semester,
       input.plans,
       input.prerequisiteMilestoneIds,
       input.title,
       input.description,
+      input.references,
       sequenceOrder,
       input.openDate,
       input.deadline,
@@ -557,12 +691,13 @@ export async function updateMilestone(milestoneId, input) {
         prerequisite_milestone_ids = $5,
         title = $6,
         description = $7,
-        sequence_order = $8,
-        open_date = $9,
-        deadline = $10,
-        first_reminder_date = $11,
-        second_reminder_date = $12,
-        is_enabled = $13,
+        reference_urls = $8,
+        sequence_order = $9,
+        open_date = $10,
+        deadline = $11,
+        first_reminder_date = $12,
+        second_reminder_date = $13,
+        is_enabled = $14,
         updated_at = NOW()
       WHERE milestone_id = $1
     `,
@@ -574,6 +709,7 @@ export async function updateMilestone(milestoneId, input) {
       input.prerequisiteMilestoneIds,
       input.title,
       input.description,
+      input.references,
       input.sequenceOrder,
       input.openDate,
       input.deadline,
@@ -617,7 +753,9 @@ export async function removeMilestone(milestoneId) {
             milestone_id,
             ROW_NUMBER() OVER (ORDER BY sequence_order, created_at) AS next_order
           FROM milestone_templates
-          WHERE degree_level = $1 AND semester = $2
+          WHERE degree_level = $1
+            AND semester = $2
+            AND default_template_key IS NOT NULL
         )
         UPDATE milestone_templates mt
         SET sequence_order = ordered_milestones.next_order,
@@ -679,7 +817,10 @@ export async function moveMilestone(milestoneId, direction) {
       `
         SELECT milestone_id, sequence_order
         FROM milestone_templates
-        WHERE degree_level = $1 AND semester = $2 AND sequence_order ${operator} $3
+        WHERE degree_level = $1
+          AND semester = $2
+          AND default_template_key IS NOT NULL
+          AND sequence_order ${operator} $3
         ORDER BY sequence_order ${order}
         LIMIT 1
         FOR UPDATE
@@ -747,8 +888,8 @@ export async function copyMilestones({
 
     const source = await client.query(
       `
-        SELECT milestone_id, title, description, sequence_order, open_date, deadline,
-          first_reminder_date, second_reminder_date, is_enabled
+        SELECT milestone_id, title, description, reference_urls, sequence_order, open_date, deadline,
+          first_reminder_date, second_reminder_date, is_enabled, prerequisite_milestone_ids
         FROM milestone_templates
         WHERE degree_level = $1
         ${semesterFilter}
@@ -762,7 +903,9 @@ export async function copyMilestones({
       `
         SELECT milestone_id
         FROM milestone_templates
-        WHERE degree_level = $1 AND semester = $2
+        WHERE degree_level = $1
+          AND semester = $2
+          AND default_template_key IS NOT NULL
         FOR UPDATE
       `,
       [toDegreeLevel, toSemester],
@@ -772,23 +915,31 @@ export async function copyMilestones({
       `
         SELECT COALESCE(MAX(sequence_order), 0) AS "maxOrder"
         FROM milestone_templates
-        WHERE degree_level = $1 AND semester = $2
+        WHERE degree_level = $1
+          AND semester = $2
+          AND default_template_key IS NOT NULL
       `,
       [toDegreeLevel, toSemester],
     )
     let nextOrder = Number(orderResult.rows[0].maxOrder) + 1
     const copiedMilestones = []
+    const copiedIdBySourceId = new Map(
+      source.rows.map((row) => [row.milestone_id, randomUUID()]),
+    )
 
     for (const row of source.rows) {
-      const milestoneId = randomUUID()
+      const milestoneId = copiedIdBySourceId.get(row.milestone_id)
       const copiedMilestone = {
         milestoneId,
         degreeLevel: toDegreeLevel,
         semester: toSemester,
         plans: ['All'],
-        prerequisiteMilestoneIds: [],
+        prerequisiteMilestoneIds: row.prerequisite_milestone_ids
+          .map((prerequisiteId) => copiedIdBySourceId.get(prerequisiteId))
+          .filter(Boolean),
         title: row.title,
         description: row.description,
+        references: row.reference_urls,
         sequenceOrder: nextOrder,
         openDate: shiftDateToYear(row.open_date, toYear),
         deadline: shiftDateToYear(row.deadline, toYear),
@@ -800,20 +951,22 @@ export async function copyMilestones({
       await client.query(
         `
           INSERT INTO milestone_templates (
-            milestone_id, degree_level, semester, plans, prerequisite_milestone_ids,
-            title, description, sequence_order, open_date, deadline,
+            milestone_id, default_template_key, degree_level, semester, plans, prerequisite_milestone_ids,
+            title, description, reference_urls, sequence_order, open_date, deadline,
             first_reminder_date, second_reminder_date, is_enabled
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         `,
         [
           copiedMilestone.milestoneId,
+          `copy-${copiedMilestone.milestoneId}`,
           copiedMilestone.degreeLevel,
           copiedMilestone.semester,
           copiedMilestone.plans,
           copiedMilestone.prerequisiteMilestoneIds,
           copiedMilestone.title,
           copiedMilestone.description,
+          copiedMilestone.references,
           copiedMilestone.sequenceOrder,
           copiedMilestone.openDate,
           copiedMilestone.deadline,

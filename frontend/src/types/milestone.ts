@@ -9,6 +9,7 @@ export interface Milestone {
   plans: EducationPlan[]
   title: string
   description: string | null
+  references: string[]
   sequenceOrder: number
   openDate: string | null
   deadline: string | null
@@ -25,6 +26,7 @@ export interface MilestoneInput {
   plans: EducationPlan[]
   title: string
   description: string
+  references: string[]
   sequenceOrder: number | null
   openDate: string
   deadline: string

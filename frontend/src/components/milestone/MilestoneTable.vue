@@ -69,10 +69,10 @@ const tableRows = computed(() => {
         <tr class="border-b border-slate-200 text-xs">
           <th class="w-[10%] py-3 font-semibold">Order</th>
           <th class="w-[20%] py-3 font-semibold">Title</th>
-          <th class="w-[19%] py-3 font-semibold">Description</th>
+          <th class="w-[16%] py-3 font-semibold">Description</th>
+          <th class="w-[13%] py-3 font-semibold">Reference</th>
           <th class="w-[10%] py-3 text-center font-semibold">Program</th>
           <th class="w-[11%] py-3 text-center font-semibold">Plan</th>
-          <th class="w-[9%] py-3 text-center font-semibold">Semester</th>
           <th class="w-[12%] py-3 pl-4 font-semibold">Deadline</th>
           <th class="w-[10%] py-3 text-right font-semibold">Actions</th>
         </tr>
@@ -145,6 +145,22 @@ const tableRows = computed(() => {
               <td class="py-4 align-top leading-snug text-slate-500">
                 {{ row.milestone.description || '-' }}
               </td>
+              <td class="py-4 align-top leading-snug">
+                <div v-if="row.milestone.references.length" class="space-y-1">
+                  <a
+                    v-for="(reference, index) in row.milestone.references"
+                    :key="reference"
+                    :href="reference"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="block max-w-32 truncate text-[#7D2923] underline"
+                    :title="reference"
+                  >
+                    Link {{ index + 1 }}
+                  </a>
+                </div>
+                <span v-else class="text-slate-500">-</span>
+              </td>
 
               <td class="py-4 text-center align-middle">
                 <span
@@ -169,14 +185,6 @@ const tableRows = computed(() => {
                       ? 'All Plan'
                       : row.milestone.plans.join(', ')
                   }}
-                </span>
-              </td>
-
-              <td class="py-4 text-center align-middle">
-                <span
-                  class="inline-flex min-w-14 items-center justify-center rounded-md border border-slate-200 px-3 py-1 leading-none"
-                >
-                  {{ row.milestone.semester === 'all' ? 'All' : row.milestone.semester }}
                 </span>
               </td>
 

@@ -4,11 +4,16 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import CopyMilestoneModal from '@/components/milestone/CopyMilestoneModal.vue'
 import MilestoneFormModal from '@/components/milestone/MilestoneFormModal.vue'
 import MilestoneTable from '@/components/milestone/MilestoneTable.vue'
-import { standardMilestones } from '@/data/standard-milestones'
+import {
+  copyMilestones,
+  createMilestone,
+  deleteMilestone,
+  getMilestones,
+  moveMilestone,
+  setMilestoneEnabled,
+  updateMilestone,
+} from '@/services/milestones.api'
 import type { EducationPlan, Milestone, MilestoneInput, MilestoneProgram } from '@/types/milestone'
-
-const storageKey = 'grad-tracking-milestone-management-frontend-v2'
-const doctoralPlanMigrationKey = 'grad-tracking-milestone-02-doctoral-plans-v1'
 
 const milestones = ref<Milestone[]>([])
 const isLoading = ref(false)
@@ -16,7 +21,6 @@ const message = ref('')
 const errorMessage = ref('')
 const notificationType = ref<'success' | 'error'>('success')
 let notificationTimer: ReturnType<typeof setTimeout> | undefined
-const selectedSemester = ref('all')
 const selectedDegreeLevel = ref<MilestoneProgram>('All')
 const selectedPlan = ref<EducationPlan>('All')
 const selectedYear = ref('all')
@@ -26,30 +30,28 @@ const editingMilestone = ref<Milestone | null>(null)
 const deletingMilestone = ref<Milestone | null>(null)
 const isDeleteConfirmed = ref(false)
 const isDeleting = ref(false)
-type MilestoneFilterKey = 'semester' | 'year' | 'degreeLevel' | 'plan'
+type MilestoneFilterKey = 'year' | 'degreeLevel' | 'plan'
 const openFilter = ref<MilestoneFilterKey | null>(null)
 
 const filteredMilestones = computed(() =>
-  milestones.value.filter((milestone) => {
-    const matchesSemester =
-      selectedSemester.value === 'all' ||
-      milestone.semester === 'all' ||
-      milestone.semester === selectedSemester.value
-    const matchesDegree =
-      selectedDegreeLevel.value === 'All' ||
-      milestone.degreeLevel === 'All' ||
-      milestone.degreeLevel === selectedDegreeLevel.value
-    const matchesPlan =
-      selectedPlan.value === 'All' ||
-      milestone.plans.includes('All') ||
-      milestone.plans.includes(selectedPlan.value)
-    const matchesYear =
-      selectedYear.value === 'all' ||
-      !milestone.deadline ||
-      new Date(milestone.deadline).getFullYear().toString() === selectedYear.value
+  milestones.value
+    .filter((milestone) => {
+      const matchesDegree =
+        selectedDegreeLevel.value === 'All' ||
+        milestone.degreeLevel === 'All' ||
+        milestone.degreeLevel === selectedDegreeLevel.value
+      const matchesPlan =
+        selectedPlan.value === 'All' ||
+        milestone.plans.includes('All') ||
+        milestone.plans.includes(selectedPlan.value)
+      const matchesYear =
+        selectedYear.value === 'all' ||
+        !milestone.deadline ||
+        new Date(milestone.deadline).getFullYear().toString() === selectedYear.value
 
-    return matchesSemester && matchesDegree && matchesPlan && matchesYear
-  }),
+      return matchesDegree && matchesPlan && matchesYear
+    })
+    .sort((first, second) => first.sequenceOrder - second.sequenceOrder),
 )
 
 const yearOptions = computed(() => {
@@ -90,15 +92,6 @@ const filterDefinitions = computed(() => [
     ],
   },
   {
-    key: 'semester' as const,
-    label: selectedSemester.value === 'all' ? 'All Semester' : selectedSemester.value,
-    options: [
-      { label: 'All Semester', value: 'all' },
-      { label: '1', value: '1' },
-      { label: '2', value: '2' },
-    ],
-  },
-  {
     key: 'year' as const,
     label: selectedYear.value === 'all' ? 'All Year' : selectedYear.value,
     options: [
@@ -114,10 +107,6 @@ const nextOrder = computed(() => {
       0,
       ...milestones.value
         .filter((milestone) => milestone.degreeLevel === selectedDegreeLevel.value)
-        .filter(
-          (milestone) =>
-            selectedSemester.value === 'all' || milestone.semester === selectedSemester.value,
-        )
         .map((milestone) => milestone.sequenceOrder),
     ) + 1
   )
@@ -141,49 +130,22 @@ function formatMilestoneError(error: unknown, fallback: string) {
   const text = error instanceof Error ? error.message : fallback
   const readableMessages: Record<string, string> = {
     'title is required': 'Milestone could not be saved because the title is missing.',
-    'openDate is required': 'Milestone could not be saved because the start date is missing.',
-    'deadline is required': 'Milestone could not be saved because the deadline is missing.',
     'degreeLevel is required': 'Milestone could not be saved because the program is missing.',
-    'semester is required': 'Milestone could not be saved because the semester is missing.',
     'sequenceOrder is required': 'Milestone could not be saved because the order is missing.',
   }
 
   return readableMessages[text] ?? text
 }
 
-function persistMilestones() {
-  localStorage.setItem(storageKey, JSON.stringify(milestones.value))
-}
-
 async function loadMilestones() {
   isLoading.value = true
   errorMessage.value = ''
   try {
-    const saved = localStorage.getItem(storageKey)
-    const localMilestones = saved
-      ? (JSON.parse(saved) as Milestone[])
-      : standardMilestones.map((milestone) => ({
-          ...milestone,
-          plans: [...milestone.plans],
-          prerequisiteMilestoneIds: [...milestone.prerequisiteMilestoneIds],
-        }))
-
-    if (!localStorage.getItem(doctoralPlanMigrationKey)) {
-      const qualifyingExam = localMilestones.find(
-        (milestone) => milestone.milestoneId === 'standard-milestone-02',
-      )
-      if (qualifyingExam?.plans.includes('All')) {
-        qualifyingExam.plans = ['1.1', '2.1', '2.2']
-      }
-      localStorage.setItem(doctoralPlanMigrationKey, 'complete')
-    }
-
-    milestones.value = localMilestones
-    persistMilestones()
+    milestones.value = await getMilestones()
   } catch (error) {
     milestones.value = []
     showNotification(
-      formatMilestoneError(error, 'Unable to load standard milestones.'),
+      formatMilestoneError(error, 'Unable to load milestones.'),
       'error',
     )
   } finally {
@@ -222,41 +184,24 @@ async function saveMilestone(input: MilestoneInput) {
     const normalizedPlans: EducationPlan[] = input.plans.includes('All')
       ? ['All']
       : [...input.plans]
+    const normalizedInput: MilestoneInput = {
+      ...input,
+      semester: 'all',
+      plans: normalizedPlans,
+      description: input.description.trim(),
+      references: input.references.map((reference) => reference.trim()).filter(Boolean),
+      openDate: '',
+    }
 
     if (editingMilestone.value) {
-      const index = milestones.value.findIndex(
-        (milestone) => milestone.milestoneId === editingMilestone.value?.milestoneId,
-      )
-      if (index >= 0) milestones.value[index] = {
-        ...editingMilestone.value,
-        ...input,
-        plans: normalizedPlans,
-        sequenceOrder: input.sequenceOrder as number,
-        description: input.description.trim() || null,
-        openDate: input.openDate || null,
-        deadline: input.deadline || null,
-        firstReminderDate: input.firstReminderDate || null,
-        secondReminderDate: input.secondReminderDate || null,
-      }
+      await updateMilestone(editingMilestone.value.milestoneId, normalizedInput)
       showNotification('Milestone updated successfully')
     } else {
-      milestones.value.push({
-        ...input,
-        milestoneId: `local-${crypto.randomUUID()}`,
-        plans: normalizedPlans,
-        sequenceOrder: input.sequenceOrder as number,
-        prerequisiteMilestoneIds: [...input.prerequisiteMilestoneIds],
-        description: input.description.trim() || null,
-        openDate: input.openDate || null,
-        deadline: input.deadline || null,
-        firstReminderDate: input.firstReminderDate || null,
-        secondReminderDate: input.secondReminderDate || null,
-      })
+      await createMilestone(normalizedInput)
       showNotification('Milestone added successfully')
     }
-    persistMilestones()
+    await loadMilestones()
     selectedDegreeLevel.value = input.degreeLevel
-    selectedSemester.value = 'all'
     selectedPlan.value = 'All'
     selectedYear.value = input.deadline ? new Date(input.deadline).getFullYear().toString() : 'all'
     isFormOpen.value = false
@@ -270,10 +215,8 @@ async function removeMilestone() {
   errorMessage.value = ''
   isDeleting.value = true
   try {
-    milestones.value = milestones.value.filter(
-      (milestone) => milestone.milestoneId !== deletingMilestone.value?.milestoneId,
-    )
-    persistMilestones()
+    await deleteMilestone(deletingMilestone.value.milestoneId)
+    await loadMilestones()
     showNotification('Milestone deleted successfully')
     closeDeleteModal(true)
   } catch (error) {
@@ -286,8 +229,9 @@ async function removeMilestone() {
 async function setMilestoneStatus(milestone: Milestone, isEnabled: boolean) {
   errorMessage.value = ''
   try {
-    milestone.isEnabled = isEnabled
-    persistMilestones()
+    if (milestone.isEnabled === isEnabled) return
+    await setMilestoneEnabled(milestone.milestoneId, isEnabled)
+    await loadMilestones()
     showNotification(
       isEnabled ? 'Milestone enabled successfully' : 'Milestone disabled successfully',
     )
@@ -299,20 +243,8 @@ async function setMilestoneStatus(milestone: Milestone, isEnabled: boolean) {
 async function moveMilestoneOrder(milestoneId: string, direction: 'up' | 'down') {
   errorMessage.value = ''
   try {
-    const current = milestones.value.find((milestone) => milestone.milestoneId === milestoneId)
-    if (!current) throw new Error('Milestone not found')
-    const siblings = milestones.value
-      .filter((milestone) => milestone.degreeLevel === current.degreeLevel)
-      .filter((milestone) => milestone.semester === current.semester)
-      .sort((first, second) => first.sequenceOrder - second.sequenceOrder)
-    const currentIndex = siblings.findIndex((milestone) => milestone.milestoneId === milestoneId)
-    const target = siblings[currentIndex + (direction === 'up' ? -1 : 1)]
-    if (target) {
-      const currentOrder = current.sequenceOrder
-      current.sequenceOrder = target.sequenceOrder
-      target.sequenceOrder = currentOrder
-      persistMilestones()
-    }
+    await moveMilestone(milestoneId, direction)
+    await loadMilestones()
     showNotification('Milestone order updated successfully')
   } catch (error) {
     showNotification(formatMilestoneError(error, 'Unable to reorder milestone'), 'error')
@@ -322,45 +254,22 @@ async function moveMilestoneOrder(milestoneId: string, direction: 'up' | 'down')
 async function copyMilestoneTemplates(
   fromDegreeLevel: Exclude<MilestoneProgram, 'All'>,
   toDegreeLevel: Exclude<MilestoneProgram, 'All'>,
-  fromSemester: string,
-  toSemester: string,
   toYear: string,
   milestoneIds: string[],
 ) {
   errorMessage.value = ''
   try {
-    const selected = milestones.value.filter((milestone) =>
-      milestoneIds.includes(milestone.milestoneId),
+    const result = await copyMilestones(
+      fromDegreeLevel,
+      toDegreeLevel,
+      'all',
+      'all',
+      toYear,
+      milestoneIds,
     )
-    const nextOrderStart = Math.max(
-      0,
-      ...milestones.value
-        .filter((milestone) => milestone.degreeLevel === toDegreeLevel)
-        .filter((milestone) => milestone.semester === toSemester)
-        .map((milestone) => milestone.sequenceOrder),
-    )
-    const shiftYear = (value: string | null) =>
-      !value || toYear === 'all' ? value : `${toYear}${value.slice(4)}`
-    milestones.value.push(
-      ...selected.map((milestone, index) => ({
-        ...milestone,
-        milestoneId: `local-${crypto.randomUUID()}`,
-        degreeLevel: toDegreeLevel,
-        semester: toSemester,
-        plans: ['All' as const],
-        prerequisiteMilestoneIds: [],
-        sequenceOrder: nextOrderStart + index + 1,
-        openDate: shiftYear(milestone.openDate),
-        deadline: shiftYear(milestone.deadline),
-        firstReminderDate: shiftYear(milestone.firstReminderDate),
-        secondReminderDate: shiftYear(milestone.secondReminderDate),
-        isStandard: false,
-      })),
-    )
-    persistMilestones()
-    showNotification(`Copied ${selected.length} milestones successfully`)
+    await loadMilestones()
+    showNotification(`Copied ${result.copiedRecords} milestones successfully`)
     selectedDegreeLevel.value = toDegreeLevel
-    selectedSemester.value = 'all'
     selectedYear.value = toYear
     isCopyOpen.value = false
   } catch (error) {
@@ -369,14 +278,12 @@ async function copyMilestoneTemplates(
 }
 
 function selectedFilterValue(key: MilestoneFilterKey) {
-  if (key === 'semester') return selectedSemester.value
   if (key === 'year') return selectedYear.value
   if (key === 'plan') return selectedPlan.value
   return selectedDegreeLevel.value
 }
 
 function selectFilter(key: MilestoneFilterKey, value: string) {
-  if (key === 'semester') selectedSemester.value = value
   if (key === 'year') selectedYear.value = value
   if (key === 'plan') selectedPlan.value = value as EducationPlan
   if (key === 'degreeLevel') {
@@ -404,8 +311,10 @@ onBeforeUnmount(() => {
   <div class="min-h-screen bg-[#f7f7f7] px-8 py-6 font-sans text-slate-900">
     <header class="flex items-start justify-between gap-4">
       <div>
-        <h1 class="text-3xl font-bold tracking-tight">Milestone Management</h1>
-        <p class="mt-1 text-sm text-slate-500">Create, Edit and manage milestone</p>
+        <h1 class="text-3xl font-bold tracking-tight">Default Milestone Templates</h1>
+        <p class="mt-1 text-sm text-slate-500">
+          Create and manage reusable milestone templates by program and plan
+        </p>
       </div>
 
       <div class="flex gap-3">
@@ -506,7 +415,8 @@ onBeforeUnmount(() => {
       :milestone="editingMilestone"
       :milestones="milestones"
       :default-degree-level="selectedDegreeLevel"
-      :default-semester="selectedSemester"
+      :filter-degree-level="selectedDegreeLevel"
+      :filter-plan="selectedPlan"
       :default-order="nextOrder"
       @close="isFormOpen = false"
       @save="saveMilestone"

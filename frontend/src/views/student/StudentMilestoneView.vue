@@ -49,7 +49,14 @@ function normalizeTitle(title: string) {
 }
 
 function prerequisiteIdsFor(milestone: StudentMilestone) {
-  if (milestone.prerequisiteMilestoneIds?.length) return milestone.prerequisiteMilestoneIds
+  if (milestone.prerequisiteMilestoneIds?.length) {
+    const assignedMilestoneIds = new Set(
+      milestones.value.map((assignedMilestone) => assignedMilestone.milestoneId),
+    )
+    return milestone.prerequisiteMilestoneIds.filter((milestoneId) =>
+      assignedMilestoneIds.has(milestoneId),
+    )
+  }
 
   const template = milestoneTemplates.value.find(
     (candidate) => normalizeTitle(candidate.title) === normalizeTitle(milestone.title),
@@ -71,9 +78,7 @@ function prerequisiteIdsFor(milestone: StudentMilestone) {
 
 const visibleMilestones = computed(() =>
   milestones.value.map((milestone) => {
-    const incompletePrerequisiteIds = prerequisiteIdsFor(milestone).filter(
-      (milestoneId) => !completedMilestoneIds.value.has(milestoneId),
-    )
+    const incompletePrerequisiteIds: string[] = []
     const prerequisiteTitles = incompletePrerequisiteIds.map(
       (milestoneId) =>
         milestones.value.find((candidate) => candidate.milestoneId === milestoneId)?.title ??
