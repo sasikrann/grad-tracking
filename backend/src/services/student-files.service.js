@@ -7,32 +7,112 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const degreeLevels = new Set(['Master', 'Doctoral'])
 const importRequiredFields = [
   'studentId',
-  'email',
-  'fullName',
-  'program',
-  'degreeLevel',
-  'expectedGraduationYear',
 ]
 
+const studentProgramCodes = {
+  1303: 'DTT',
+  1501: 'CE',
+}
+
+const studentDegreeCodes = {
+  5: 'Master',
+  7: 'Doctoral',
+}
+
+const studentSemesterCodes = {
+  0: '1',
+  5: '2',
+}
+
 const headerAliases = {
-  studentId: ['studentid', 'student id', 'student code', 'รหัสนักศึกษา', 'รหัส นศ.'],
-  email: ['email', 'e-mail', 'อีเมล', 'อีเมล์'],
-  fullName: ['fullname', 'full name', 'name', 'student name', 'ชื่อ-นามสกุล', 'ชื่อนามสกุล'],
+  studentId: [
+    'studentid',
+    'student id',
+    'student code',
+    'student number',
+    'id student',
+    'รหัสนักศึกษา',
+    'รหัสประจำตัวนักศึกษา',
+    'เลขประจำตัวนักศึกษา',
+    'รหัส นศ.',
+  ],
+  email: [
+    'email',
+    'e-mail',
+    'email address',
+    'student email',
+    'student e-mail',
+    'อีเมล',
+    'อีเมล์',
+    'อีเมลนักศึกษา',
+    'อีเมล์นักศึกษา',
+    'ที่อยู่อีเมล',
+    'ที่อยู่อีเมล์',
+  ],
+  fullName: [
+    'fullname',
+    'full name',
+    'name',
+    'student name',
+    'student full name',
+    'name surname',
+    'first name last name',
+    'ชื่อ-สกุล',
+    'ชื่อ สกุล',
+    'ชื่อ-นามสกุล',
+    'ชื่อ นามสกุล',
+    'ชื่อนามสกุล',
+    'ชื่อและนามสกุล',
+    'ชื่อสกุล',
+    'ชื่อนักศึกษา',
+  ],
   program: ['program', 'programme', 'major', 'สาขาวิชา', 'หลักสูตร'],
-  educationPlan: ['plan', 'education plan', 'study plan', 'แผนการศึกษา', 'แผน'],
+  educationPlan: [
+    'plan',
+    'education plan',
+    'study plan',
+    'student plan',
+    'แผนการเรียน',
+    'แผนการศึกษา',
+    'แผนการเรียนของนักศึกษา',
+    'แผน',
+  ],
   degreeLevel: ['degreelevel', 'degree level', 'degree', 'ระดับการศึกษา', 'ระดับปริญญา'],
   enrollmentAcademicYear: ['enrollmentacademicyear', 'enrollment academic year', 'admission year', 'entry year', 'ปีเข้าศึกษา', 'ปีการศึกษา'],
   semester: ['semester', 'term', 'ภาคการศึกษา', 'เทอม'],
-  expectedGraduationYear: ['expectedgraduationyear', 'expected graduation year', 'graduation year', 'year', 'ปีที่คาดว่าจะจบ'],
+  expectedGraduationYear: [
+    'expectedgraduationyear',
+    'expected graduation year',
+    'expected year of graduation',
+    'graduation year',
+    'year',
+    'ปีที่คาดว่าจะจบ',
+    'ปีที่คาดว่าจบ',
+    'ปีคาดว่าจะจบ',
+    'ปีคาดว่าจบ',
+    'ปีที่คาดว่าจะสำเร็จการศึกษา',
+    'ปีการศึกษาที่คาดว่าจะจบ',
+    'ปีสำเร็จการศึกษา',
+  ],
   advisorId: ['advisorid', 'advisor id', 'รหัสอาจารย์ที่ปรึกษา'],
   advisorEmail: ['advisoremail', 'advisor email', 'อีเมลอาจารย์ที่ปรึกษา'],
   advisorName: ['advisorname', 'advisor name', 'advisor', 'อาจารย์ที่ปรึกษา'],
+  studentStatus: [
+    'status',
+    'student status',
+    'studentstatus',
+    'สถานะ',
+    'สถานภาพ',
+    'สถานะนักศึกษา',
+    'สถานภาพนักศึกษา',
+  ],
 }
 
 const studentTemplateColumns = [
   { header: 'Student ID', key: 'studentId', width: 16 },
   { header: 'Email', key: 'email', width: 32 },
   { header: 'Full Name', key: 'fullName', width: 28 },
+  { header: 'Plan', key: 'educationPlan', width: 18 },
   { header: 'Program', key: 'program', width: 18 },
   { header: 'Degree Level', key: 'degreeLevel', width: 16 },
   { header: 'Enrollment Academic Year', key: 'enrollmentAcademicYear', width: 25 },
@@ -40,12 +120,53 @@ const studentTemplateColumns = [
   { header: 'Year', key: 'expectedGraduationYear', width: 12 },
 ]
 
-const studentExportColumns = [
-  ...studentTemplateColumns,
-  { header: 'Plan', key: 'educationPlan', width: 18 },
-  { header: 'Advisor Email', key: 'advisorEmail', width: 32 },
-  { header: 'Advisor Name', key: 'advisorName', width: 28 },
-]
+function studentExportColumns(language) {
+  return [
+    ...studentTemplateColumns,
+    { header: 'Advisor Name', key: 'advisorName', width: 28 },
+    {
+      header: language === 'th' ? 'รายงานภาพรวม' : 'Milestone Status',
+      key: 'milestoneStatus',
+      width: 80,
+    },
+  ]
+}
+
+function formatMilestoneDate(value, language) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const day = date.getUTCDate()
+  const month = date.getUTCMonth() + 1
+  const year = date.getUTCFullYear()
+  return language === 'th' ? `${day}/${month}/${String(year + 543).slice(-2)}` : `${day}/${month}/${year}`
+}
+
+function formatMilestoneReport(milestones) {
+  if (!Array.isArray(milestones)) return ''
+
+  return milestones
+    .map((milestone, index) => {
+      const status = String(milestone.status ?? 'In Progress')
+      const completedDate = formatMilestoneDate(
+        milestone.reviewedAt || milestone.submittedAt,
+        'th',
+      )
+      let statusText
+
+      if (['Approved', 'Completed'].includes(status)) {
+        statusText = completedDate ? `สำเร็จเมื่อ ${completedDate}` : 'สำเร็จ'
+      } else if (status === 'Missing') {
+        statusText = 'เกินกำหนด'
+      } else {
+        statusText = 'กำลังดำเนินการ'
+      }
+
+      return `${index + 1}. ${milestone.title} (${statusText})`
+    })
+    .join('\n')
+}
 
 function requiredText(value, field) {
   const result = String(value ?? '').trim()
@@ -70,7 +191,10 @@ function optionalEmail(value) {
   return email
 }
 
-export function normalizeStudent(body, { studentId, requireEmail = true } = {}) {
+export function normalizeStudent(
+  body,
+  { studentId, requireEmail = true, requireFullName = true } = {},
+) {
   const email = requireEmail
     ? requiredText(normalizeEmailText(body.email), 'email').toLowerCase()
     : optionalEmail(body.email)
@@ -83,7 +207,9 @@ export function normalizeStudent(body, { studentId, requireEmail = true } = {}) 
   return {
     studentId: studentId || requiredText(body.studentId, 'studentId'),
     email,
-    fullName: requiredText(body.fullName, 'fullName'),
+    fullName: requireFullName
+      ? requiredText(body.fullName, 'fullName')
+      : String(body.fullName ?? '').trim() || null,
     program: requiredText(body.program, 'program'),
     educationPlan: String(body.educationPlan ?? '').trim() || null,
     degreeLevel,
@@ -179,7 +305,85 @@ function normalizeImportStudent(rawStudent) {
     throw new ApiError(400, rowErrors.join('; '))
   }
 
-  return normalizeStudent(rawStudent)
+  const derived = parseStudentId(rawStudent.studentId)
+  return normalizeStudent(
+    {
+      ...rawStudent,
+      ...derived,
+      educationPlan: normalizeEducationPlan(rawStudent.educationPlan, derived.degreeLevel),
+      email: String(rawStudent.email ?? '').trim() || `${derived.studentId}@lamduan.mfu.ac.th`,
+      expectedGraduationYear:
+        String(rawStudent.expectedGraduationYear ?? '').trim() ||
+        derived.enrollmentAcademicYear + (derived.degreeLevel === 'Doctoral' ? 4 : 3),
+    },
+    { requireFullName: false },
+  )
+}
+
+export function normalizeEducationPlan(value, degreeLevel) {
+  const plan = String(value ?? '')
+    .trim()
+    .replace(/๑/g, '1')
+    .replace(/๒/g, '2')
+    .replace(/\s+/g, '')
+    .toUpperCase()
+
+  if (!plan) return null
+
+  if (degreeLevel === 'Master') {
+    const masterPlans = {
+      A1: 'A1',
+      'ก.1': 'A1',
+      'ก1': 'A1',
+      A2: 'A2',
+      'ก.2': 'A2',
+      'ก2': 'A2',
+      B: 'B',
+      'ข': 'B',
+    }
+    if (masterPlans[plan]) return masterPlans[plan]
+    throw new ApiError(400, 'Master education plan must be A1 (ก1), A2 (ก2), or B (ข)')
+  }
+
+  if (degreeLevel === 'Doctoral') {
+    if (['1.1', '2.1', '2.2'].includes(plan)) return plan
+    throw new ApiError(400, 'Doctoral education plan must be 1.1, 2.1, or 2.2')
+  }
+
+  throw new ApiError(400, 'Unsupported degree level for education plan')
+}
+
+export function parseStudentId(value) {
+  const studentId = String(value ?? '').trim()
+  if (!/^\d{10}$/.test(studentId)) {
+    throw new ApiError(400, 'Student ID must contain exactly 10 digits')
+  }
+
+  const entryYear = Number(studentId.slice(0, 2))
+  const degreeCode = studentId[2]
+  const programCode = studentId.slice(3, 7)
+  const semesterCode = studentId[7]
+  const degreeLevel = studentDegreeCodes[degreeCode]
+  const program = studentProgramCodes[programCode]
+  const semester = studentSemesterCodes[semesterCode]
+
+  if (!degreeLevel) {
+    throw new ApiError(400, `Student ID degree code must be 5 (Master) or 7 (Doctoral)`)
+  }
+  if (!program) {
+    throw new ApiError(400, `Student ID program code ${programCode} is not supported`)
+  }
+  if (!semester) {
+    throw new ApiError(400, `Student ID semester code must be 0 (semester 1) or 5 (semester 2)`)
+  }
+
+  return {
+    studentId,
+    enrollmentAcademicYear: 2500 + entryYear - 543,
+    degreeLevel,
+    program,
+    semester,
+  }
 }
 
 function cellValue(row, headerMap, names) {
@@ -187,6 +391,18 @@ function cellValue(row, headerMap, names) {
   if (!key) return ''
   const value = row.getCell(headerMap.get(normalizeHeader(key))).value
   return normalizeCellText(value)
+}
+
+function hasMappedHeader(headerMap, names) {
+  return names.some((name) => headerMap.has(normalizeHeader(name)))
+}
+
+function isNormalStudentStatus(value) {
+  const status = normalizeCellText(value)
+    .toLowerCase()
+    .replace(/[\s_.\-/()]+/g, '')
+
+  return status === 'ปกติ' || status === 'normal' || status === 'active'
 }
 
 function addHeaders(worksheet, columns = studentExportColumns) {
@@ -210,11 +426,29 @@ export async function readStudentImportFile(file) {
     headerMap.set(normalizeHeader(cell.value), column)
   })
 
+  const headerTexts = sheet.getRow(1).values.slice(1).map(normalizeCellText).filter(Boolean)
+  if (
+    headerTexts.length > 0 &&
+    headerTexts.every((header) => /^[?\s_-]+$/.test(header))
+  ) {
+    throw new ApiError(
+      400,
+      'The CSV text encoding is corrupted and Thai characters were replaced with ?. Please export or save the original file as UTF-8 CSV and import it again.',
+    )
+  }
+
   const records = []
   const validationErrors = []
   const missingFieldErrors = new Set()
+  const hasStudentStatusColumn = hasMappedHeader(headerMap, headerAliases.studentStatus)
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1 || !row.hasValues) return
+    if (
+      hasStudentStatusColumn &&
+      !isNormalStudentStatus(cellValue(row, headerMap, headerAliases.studentStatus))
+    ) {
+      return
+    }
     try {
       records.push(
         normalizeImportStudent({
@@ -266,11 +500,25 @@ export async function readStudentImportFile(file) {
   return records
 }
 
-export async function createStudentExportBuffer(students) {
+export async function createStudentExportBuffer(students, { language = 'en' } = {}) {
   const workbook = new ExcelJS.Workbook()
   const worksheet = workbook.addWorksheet('Students')
-  addHeaders(worksheet)
-  worksheet.addRows(students)
+  addHeaders(worksheet, studentExportColumns(language))
+  worksheet.addRows(
+    students.map((student) => ({
+      ...student,
+      milestoneStatus: formatMilestoneReport(student.milestoneReport),
+    })),
+  )
+  const milestoneStatusColumn = worksheet.getColumn('milestoneStatus')
+  milestoneStatusColumn.alignment = { vertical: 'top', horizontal: 'left', wrapText: true }
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return
+    const reportCell = row.getCell(milestoneStatusColumn.number)
+    reportCell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true }
+    const lineCount = String(reportCell.value ?? '').split('\n').length
+    row.height = Math.min(180, Math.max(30, lineCount * 16))
+  })
 
   return Buffer.from(await workbook.xlsx.writeBuffer())
 }
@@ -280,14 +528,15 @@ export async function createStudentTemplateBuffer() {
   const worksheet = workbook.addWorksheet('Students')
   addHeaders(worksheet, studentTemplateColumns)
   worksheet.addRow({
-    studentId: '6631500001',
+    studentId: '6551303009',
     email: 'student@lamduan.mfu.ac.th',
     fullName: 'Example Student',
-    program: 'CE',
-    degreeLevel: 'Doctoral',
-    enrollmentAcademicYear: 2023,
-    semester: '2',
-    expectedGraduationYear: 2026,
+    educationPlan: 'A1',
+    program: 'DTT',
+    degreeLevel: 'Master',
+    enrollmentAcademicYear: 2022,
+    semester: '1',
+    expectedGraduationYear: 2025,
   })
 
   return Buffer.from(await workbook.xlsx.writeBuffer())

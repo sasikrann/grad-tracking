@@ -14,7 +14,7 @@ export interface AdvisorMilestoneSubmission {
   milestoneId: string
   title: string
   description: string | null
-  deadline: string
+  deadline: string | null
   status: StudentMilestoneStatus
   evidenceUrl: string
   advisorComment: string | null

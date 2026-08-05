@@ -13,6 +13,7 @@ const milestoneColumns = `
   prerequisite_milestone_ids AS "prerequisiteMilestoneIds",
   title,
   description,
+  reference_url AS "referenceUrl",
   sequence_order AS "sequenceOrder",
   open_date AS "openDate",
   deadline,
@@ -41,6 +42,10 @@ export async function ensureMilestoneSchema() {
     .then(() => pool.query(`
       ALTER TABLE milestone_templates
       ADD COLUMN IF NOT EXISTS prerequisite_milestone_ids VARCHAR[] NOT NULL DEFAULT ARRAY[]::VARCHAR[]
+    `))
+    .then(() => pool.query(`
+      ALTER TABLE milestone_templates
+      ADD COLUMN IF NOT EXISTS reference_url TEXT
     `))
     .then(() => pool.query(`
       ALTER TABLE milestone_templates
@@ -105,6 +110,7 @@ export async function findStudentMilestonesByUserId(userId) {
         mt.prerequisite_milestone_ids AS "prerequisiteMilestoneIds",
         mt.title,
         mt.description,
+        mt.reference_url AS "referenceUrl",
         mt.sequence_order AS "sequenceOrder",
         mt.open_date AS "openDate",
         mt.deadline,
@@ -159,6 +165,7 @@ export async function findStudentMilestonesByStudentId(studentId) {
         mt.prerequisite_milestone_ids AS "prerequisiteMilestoneIds",
         mt.title,
         mt.description,
+        mt.reference_url AS "referenceUrl",
         mt.sequence_order AS "sequenceOrder",
         mt.open_date AS "openDate",
         mt.deadline,
@@ -219,6 +226,7 @@ export async function findAdvisorStudentMilestones(advisorUserId, studentId) {
         mt.prerequisite_milestone_ids AS "prerequisiteMilestoneIds",
         mt.title,
         mt.description,
+        mt.reference_url AS "referenceUrl",
         mt.sequence_order AS "sequenceOrder",
         mt.open_date AS "openDate",
         mt.deadline,
@@ -471,10 +479,10 @@ export async function createMilestone(input) {
     `
       INSERT INTO milestone_templates (
         milestone_id, degree_level, semester, plans, prerequisite_milestone_ids,
-        title, description, sequence_order, open_date, deadline,
+        title, description, reference_url, sequence_order, open_date, deadline,
         first_reminder_date, second_reminder_date, is_enabled
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
     `,
     [
       milestoneId,
@@ -484,6 +492,7 @@ export async function createMilestone(input) {
       input.prerequisiteMilestoneIds,
       input.title,
       input.description,
+      input.referenceUrl,
       sequenceOrder,
       input.openDate,
       input.deadline,
@@ -557,12 +566,13 @@ export async function updateMilestone(milestoneId, input) {
         prerequisite_milestone_ids = $5,
         title = $6,
         description = $7,
-        sequence_order = $8,
-        open_date = $9,
-        deadline = $10,
-        first_reminder_date = $11,
-        second_reminder_date = $12,
-        is_enabled = $13,
+        reference_url = $8,
+        sequence_order = $9,
+        open_date = $10,
+        deadline = $11,
+        first_reminder_date = $12,
+        second_reminder_date = $13,
+        is_enabled = $14,
         updated_at = NOW()
       WHERE milestone_id = $1
     `,
@@ -574,6 +584,7 @@ export async function updateMilestone(milestoneId, input) {
       input.prerequisiteMilestoneIds,
       input.title,
       input.description,
+      input.referenceUrl,
       input.sequenceOrder,
       input.openDate,
       input.deadline,
@@ -747,7 +758,7 @@ export async function copyMilestones({
 
     const source = await client.query(
       `
-        SELECT milestone_id, title, description, sequence_order, open_date, deadline,
+        SELECT milestone_id, title, description, reference_url, sequence_order, open_date, deadline,
           first_reminder_date, second_reminder_date, is_enabled
         FROM milestone_templates
         WHERE degree_level = $1
@@ -789,6 +800,7 @@ export async function copyMilestones({
         prerequisiteMilestoneIds: [],
         title: row.title,
         description: row.description,
+        referenceUrl: row.reference_url,
         sequenceOrder: nextOrder,
         openDate: shiftDateToYear(row.open_date, toYear),
         deadline: shiftDateToYear(row.deadline, toYear),
@@ -801,10 +813,10 @@ export async function copyMilestones({
         `
           INSERT INTO milestone_templates (
             milestone_id, degree_level, semester, plans, prerequisite_milestone_ids,
-            title, description, sequence_order, open_date, deadline,
+            title, description, reference_url, sequence_order, open_date, deadline,
             first_reminder_date, second_reminder_date, is_enabled
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         `,
         [
           copiedMilestone.milestoneId,
@@ -814,6 +826,7 @@ export async function copyMilestones({
           copiedMilestone.prerequisiteMilestoneIds,
           copiedMilestone.title,
           copiedMilestone.description,
+          copiedMilestone.referenceUrl,
           copiedMilestone.sequenceOrder,
           copiedMilestone.openDate,
           copiedMilestone.deadline,

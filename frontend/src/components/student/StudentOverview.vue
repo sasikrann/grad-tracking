@@ -6,14 +6,17 @@ import type { StudentFiltersState, StudentTableItem } from '@/types/student'
 withDefaults(
   defineProps<{
     students: StudentTableItem[]
+    availableStudents?: StudentTableItem[]
     isLoading: boolean
     error: string
     yearOptions?: string[]
     advisorMode?: 'default' | 'all-only'
+    buddhistYear?: boolean
   }>(),
   {
     advisorMode: 'default',
     yearOptions: () => [],
+    availableStudents: () => [],
   },
 )
 
@@ -29,11 +32,14 @@ const filters = defineModel<StudentFiltersState>('filters', { required: true })
   <section
     class="mt-4 rounded-xl border border-[#ececec] bg-white px-7 pt-5 pb-4 shadow-[0_2px_4px_rgba(0,0,0,0.18)]"
   >
-    <header>
-      <h2 class="text-lg font-semibold">Student Overview</h2>
-      <p class="mt-1 text-sm font-medium text-[#7d7d7d]">
-        Filter and view student progress details
-      </p>
+    <header class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h2 class="text-lg font-semibold">Student Overview</h2>
+        <p class="mt-1 text-sm font-medium text-[#7d7d7d]">
+          Filter and view student progress details
+        </p>
+      </div>
+      <slot name="action" />
     </header>
 
     <StudentFilters
@@ -41,12 +47,15 @@ const filters = defineModel<StudentFiltersState>('filters', { required: true })
       v-model:search="search"
       :advisor-mode="advisorMode"
       :year-options="yearOptions"
+      :buddhist-year="buddhistYear"
+      :available-students="availableStudents"
     />
     <StudentTable
       :students="students"
       :is-loading="isLoading"
       :error="error"
       :use-doctoral-label="advisorMode === 'all-only'"
+      :buddhist-year="buddhistYear"
       @view="emit('view', $event)"
     />
   </section>

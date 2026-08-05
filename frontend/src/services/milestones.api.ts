@@ -9,6 +9,7 @@ interface ApiResponse<T> {
 
 async function request<T>(path: string, options?: RequestInit) {
   const response = await authenticatedFetch(`${apiBaseUrl}${path}`, {
+    cache: 'no-store',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     ...options,
   })

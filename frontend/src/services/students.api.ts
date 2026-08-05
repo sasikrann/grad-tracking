@@ -64,6 +64,7 @@ export interface StudentImportResult {
   errors: string[]
   createdRecords?: number
   updatedRecords?: number
+  unchangedRecords?: number
 }
 
 export class StudentImportConflictError extends Error {
@@ -103,7 +104,7 @@ function toStudent(student: StudentApiResponse, currentAdvisorId?: string): Stud
 }
 
 async function requestStudents(path: string, currentAdvisorId?: string) {
-  const response = await authenticatedFetch(`${apiBaseUrl}${path}`)
+  const response = await authenticatedFetch(`${apiBaseUrl}${path}`, { cache: 'no-store' })
 
   if (response.status === 404 || response.status === 204) {
     return []
@@ -161,10 +162,23 @@ async function downloadStudentFile(path: string, fallbackName: string) {
   URL.revokeObjectURL(url)
 }
 
-export function exportStudents(enrollmentYear = 'all') {
-  const query =
-    enrollmentYear === 'all' ? '' : `?enrollmentYear=${encodeURIComponent(enrollmentYear)}`
-  return downloadStudentFile(`/api/students/export${query}`, 'students.xlsx')
+export async function exportStudents(studentIds: string[], language: 'en' | 'th' = 'en') {
+  const response = await authenticatedFetch(`${apiBaseUrl}/api/students/export`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ studentIds, language }),
+  })
+  if (!response.ok) throw new Error(`Unable to export students (${response.status})`)
+
+  const blob = await response.blob()
+  const disposition = response.headers.get('content-disposition') ?? ''
+  const fileName = disposition.match(/filename="?([^";]+)"?/i)?.[1] ?? 'students.xlsx'
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 export function downloadStudentTemplate() {

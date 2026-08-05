@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 import StudentOverview from '@/components/student/StudentOverview.vue'
 import SummaryCard from '@/components/student/SummaryCard.vue'
 import { useStudentOverview } from '@/composables/useStudentOverview'
+import { useLanguage } from '@/composables/useLanguage'
 import { currentUser } from '@/services/auth'
 import { getAdvisorStudentOverview, getAdvisorStudents } from '@/services/students.api'
 import type { Student } from '@/types/student'
 
 const router = useRouter()
+const { isThai } = useLanguage()
 
 async function loadAdvisorStudentOverview() {
   const advisorId = currentUser.value?.advisorId
@@ -30,10 +32,37 @@ async function loadAdvisorStudentOverview() {
   return Array.from(studentsById.values())
 }
 
-const { filteredStudents, filters, isLoading, loadError, search, statistics, yearOptions } = useStudentOverview(
-  loadAdvisorStudentOverview,
-  'default',
-)
+const {
+  filteredStudents,
+  filters,
+  isLoading,
+  loadError,
+  loadStudents,
+  search,
+  statistics,
+  students,
+  yearOptions,
+} = useStudentOverview(loadAdvisorStudentOverview, 'default')
+
+let refreshTimer: ReturnType<typeof window.setInterval> | undefined
+
+function refreshWhenVisible() {
+  if (document.visibilityState === 'visible') {
+    void loadStudents()
+  }
+}
+
+onMounted(() => {
+  refreshTimer = window.setInterval(refreshWhenVisible, 15_000)
+  window.addEventListener('focus', refreshWhenVisible)
+  document.addEventListener('visibilitychange', refreshWhenVisible)
+})
+
+onBeforeUnmount(() => {
+  if (refreshTimer) window.clearInterval(refreshTimer)
+  window.removeEventListener('focus', refreshWhenVisible)
+  document.removeEventListener('visibilitychange', refreshWhenVisible)
+})
 
 const totalStudentsTitle = computed(() =>
   filters.value.advisor === 'all' ? 'Total Students' : 'Advised Students',
@@ -42,6 +71,7 @@ const totalStudentsTitle = computed(() =>
 function viewStudentMilestones(studentId: string) {
   void router.push({ name: 'advisor-student-milestones', params: { studentId } })
 }
+
 </script>
 
 <template>
@@ -58,6 +88,7 @@ function viewStudentMilestones(studentId: string) {
       <SummaryCard title="On-track" :value="statistics.onTrack" icon="on-track" />
       <SummaryCard title="Overdue" :value="statistics.overdue" icon="overdue" />
     </section>
+
     <StudentOverview
       v-model:filters="filters"
       v-model:search="search"
@@ -65,6 +96,8 @@ function viewStudentMilestones(studentId: string) {
       :is-loading="isLoading"
       :error="loadError"
       :year-options="yearOptions"
+      :available-students="students"
+      :buddhist-year="isThai"
       @view="viewStudentMilestones"
     />
   </div>

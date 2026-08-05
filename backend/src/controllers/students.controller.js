@@ -88,9 +88,15 @@ export async function importStudentFile(request, response) {
 }
 
 export async function exportStudents(request, response) {
-  const enrollmentYear = String(request.query.enrollmentYear ?? '').trim()
+  const studentIds = Array.isArray(request.body.studentIds)
+    ? request.body.studentIds.map((value) => String(value).trim()).filter(Boolean)
+    : []
+  if (!studentIds.length) throw new ApiError(400, 'At least one displayed student is required')
+
+  const language = request.body.language === 'th' ? 'th' : 'en'
   const buffer = await createStudentExportBuffer(
-    await findStudentsForExport({ enrollmentYear: enrollmentYear || null }),
+    await findStudentsForExport({ studentIds }),
+    { language },
   )
 
   response.setHeader(
@@ -99,7 +105,7 @@ export async function exportStudents(request, response) {
   )
   response.setHeader(
     'Content-Disposition',
-    `attachment; filename="students${enrollmentYear ? `-enrollment-${enrollmentYear}` : ''}.xlsx"`,
+    'attachment; filename="students-visible-table.xlsx"',
   )
   response.send(buffer)
 }

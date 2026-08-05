@@ -77,6 +77,7 @@ function normalizeMilestone(body) {
     ),
     title: requiredText(body.title, 'title'),
     description: optionalText(body.description),
+    referenceUrl: optionalText(body.referenceUrl),
     sequenceOrder: body.sequenceOrder ? Number(body.sequenceOrder) : null,
     openDate: optionalDate(body.openDate, 'openDate'),
     deadline: optionalDate(body.deadline, 'deadline'),
