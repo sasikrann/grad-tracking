@@ -6,13 +6,20 @@ withDefaults(defineProps<{
   isLoading: boolean
   error: string
   useDoctoralLabel?: boolean
+  buddhistYear?: boolean
 }>(), {
   useDoctoralLabel: false,
+  buddhistYear: false,
 })
 
 defineEmits<{
   view: [studentId: string]
 }>()
+
+function displayYear(year: string) {
+  const numericYear = Number(year)
+  return Number.isFinite(numericYear) ? String(numericYear + 543) : year
+}
 </script>
 
 <template>
@@ -21,8 +28,8 @@ defineEmits<{
       <thead>
         <tr class="border-b border-[#dddddd] text-xs">
           <th class="w-[25%] pb-3 font-semibold">Student</th>
-          <th class="w-[13%] pb-3 font-semibold">Program</th>
-          <th class="w-[10%] -translate-x-8 pb-3 text-center font-semibold">Plan</th>
+          <th class="w-[13%] pb-3 text-center font-semibold">Program</th>
+          <th class="w-[10%] -translate-x-2 pb-3 text-center font-semibold">Plan</th>
           <th class="w-[10%] pb-3 font-semibold">Semester</th>
           <th class="w-[10%] pb-3 text-center font-semibold">Year</th>
           <th class="w-[22%] pb-3 text-center font-semibold">Progress</th>
@@ -59,8 +66,8 @@ defineEmits<{
               </div>
             </div>
           </td>
-          <td>
-            <div class="flex flex-col items-start gap-1">
+          <td class="text-center">
+            <div class="inline-flex flex-col items-center gap-1">
               <span
                 class="rounded-md border border-[#dedede] px-2 py-0.5 text-xs font-semibold leading-none"
               >
@@ -73,7 +80,7 @@ defineEmits<{
               </span>
             </div>
           </td>
-          <td class="-translate-x-8 text-center">
+          <td class="-translate-x-2 text-center">
             <span class="inline-flex min-w-12 justify-center px-3 py-0.5 text-xs leading-none">
               {{ student.educationPlan || '-' }}
             </span>
@@ -89,7 +96,7 @@ defineEmits<{
             <span
               class="inline-flex min-w-14 justify-center px-3 py-0.5 text-xs leading-none"
             >
-              {{ student.year }}
+              {{ buddhistYear ? displayYear(student.year) : student.year }}
             </span>
           </td>
           <td>

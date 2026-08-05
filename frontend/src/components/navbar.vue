@@ -34,7 +34,7 @@ const emit = defineEmits<{
 const menus: Record<MenuRole, MenuItem[]> = {
   admin: [
     {
-      label: 'Student Dashboard',
+      label: 'Student Management',
       to: '/admin/student-dashboard',
       icon: 'dashboard',
       activePaths: ['/admin/students/'],

@@ -4,10 +4,10 @@ import { useRouter } from 'vue-router'
 
 import DashboardActionCard from '@/components/admin/DashboardActionCard.vue'
 import ImportFileModal from '@/components/admin/ImportFileModal.vue'
-import ExportYearSelect from '@/components/student/ExportYearSelect.vue'
 import StudentOverview from '@/components/student/StudentOverview.vue'
 import SummaryCard from '@/components/student/SummaryCard.vue'
 import { useStudentOverview } from '@/composables/useStudentOverview'
+import { formatAcademicYear, useLanguage } from '@/composables/useLanguage'
 import {
   exportStudents,
   getStudents,
@@ -17,6 +17,7 @@ import {
 import type { StudentImportConflict, StudentImportResult } from '@/services/students.api'
 
 const router = useRouter()
+const { isThai } = useLanguage()
 
 const {
   filteredStudents,
@@ -26,7 +27,7 @@ const {
   loadStudents,
   search,
   statistics,
-  yearOptions,
+  students,
 } = useStudentOverview(getStudents, 'all')
 
 const message = ref('')
@@ -35,12 +36,10 @@ const notificationType = ref<'success' | 'error'>('success')
 const isImporting = ref(false)
 const isExporting = ref(false)
 const isImportModalOpen = ref(false)
-const isExportModalOpen = ref(false)
 const isDuplicateStudentModalOpen = ref(false)
 const importConflicts = ref<StudentImportConflict[]>([])
 const importResolutions = ref<Record<string, string>>({})
 const selectedImportFile = ref<File | null>(null)
-const selectedExportEnrollmentYear = ref('all')
 let messageTimer: ReturnType<typeof setTimeout> | undefined
 
 const notificationText = computed(() => errorMessage.value || message.value)
@@ -49,19 +48,6 @@ const hasResolvedImportConflicts = computed(() =>
 )
 const duplicateStudentMessage =
   'Some student IDs already exist. Please choose which student record to keep before importing.'
-
-const exportEnrollmentYearOptions = computed(() => {
-  const years = new Set(filteredStudents.value.map((student) => student.enrollmentAcademicYear))
-  return ['all', ...Array.from(years).sort()]
-})
-
-const exportStudentCount = computed(() =>
-  selectedExportEnrollmentYear.value === 'all'
-    ? filteredStudents.value.length
-    : filteredStudents.value.filter(
-        (student) => student.enrollmentAcademicYear === selectedExportEnrollmentYear.value,
-      ).length,
-)
 
 function showNotification(text: string, type: 'success' | 'error' = 'success') {
   message.value = type === 'success' ? text : ''
@@ -108,6 +94,9 @@ function shortenImportMessage(text: string) {
 
 function formatStudentImportError(error: unknown) {
   const text = shortenImportMessage(removeRowPrefix(error instanceof Error ? error.message : ''))
+  if (/\b(missing|required)\b/i.test(text)) {
+    return isThai.value ? 'กรุณากรอกข้อมูลให้ครบถ้วน' : 'Please complete all required fields.'
+  }
   if (/email is missing|email is required/i.test(text)) {
     return text.replace(/email is required/gi, 'Email is missing.')
   }
@@ -132,15 +121,27 @@ function resetImportState() {
 }
 
 function showImportResult(result: StudentImportResult) {
+  if (!(result.createdRecords ?? 0) && !(result.updatedRecords ?? 0) && !result.failedRecords) {
+    return
+  }
+
   const errorText = result.errors?.length
     ? ` ${result.errors.map((error) => shortenImportMessage(removeRowPrefix(error))).join('; ')}`
     : ''
+  const successText = isThai.value
+    ? `นำเข้าสำเร็จ จำนวน ${result.successRecords} คน`
+    : `Import successful. ${result.successRecords} ${result.successRecords === 1 ? 'student' : 'students'} imported.`
+  const hasMissingRequiredFields = result.errors?.some((error) => /\b(missing|required)\b/i.test(error))
+  const partialSuccessText = hasMissingRequiredFields
+    ? isThai.value
+      ? 'กรุณากรอกข้อมูลให้ครบถ้วน'
+      : 'Please complete all required fields.'
+    : isThai.value
+      ? `นำเข้าสำเร็จ ${result.successRecords} จาก ${result.totalRecords} คน แต่มีบางรายการไม่สำเร็จ${errorText}`
+      : `Import completed. ${result.successRecords} of ${result.totalRecords} students were imported successfully, but some records could not be imported.${errorText}`
+
   showNotificationAfterImportModalCloses(
-    result.failedRecords
-      ? `Imported ${result.successRecords}/${result.totalRecords} students.${errorText}`
-      : result.updatedRecords
-        ? `Imported ${result.successRecords} students: created ${result.createdRecords ?? 0}, updated ${result.updatedRecords}.`
-        : `Imported ${result.successRecords} students successfully`,
+    result.failedRecords ? partialSuccessText : successText,
     result.failedRecords ? 'error' : 'success',
   )
 }
@@ -159,16 +160,6 @@ function closeImportModal() {
 function handleImportFileSelect(file: File | null) {
   selectedImportFile.value = file
   resetImportConflicts()
-}
-
-function openExportModal() {
-  selectedExportEnrollmentYear.value = 'all'
-  isExportModalOpen.value = true
-}
-
-function closeExportModal() {
-  if (isExporting.value) return
-  isExportModalOpen.value = false
 }
 
 async function finishImport(result: StudentImportResult) {
@@ -218,13 +209,20 @@ function optionLabel(source: 'existing' | 'file') {
 }
 
 async function handleExport() {
+  if (!filteredStudents.value.length) {
+    showNotification(isThai.value ? 'ไม่มีข้อมูลในตารางสำหรับส่งออก' : 'There are no displayed students to export.', 'error')
+    return
+  }
+
   message.value = ''
   errorMessage.value = ''
   isExporting.value = true
   try {
-    await exportStudents(selectedExportEnrollmentYear.value)
+    await exportStudents(
+      filteredStudents.value.map((student) => student.studentId),
+      isThai.value ? 'th' : 'en',
+    )
     showNotification('Exported students successfully')
-    isExportModalOpen.value = false
   } catch (error) {
     showNotification(error instanceof Error ? error.message : 'Unable to export students', 'error')
   } finally {
@@ -245,7 +243,7 @@ onBeforeUnmount(() => {
   <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 class="text-3xl font-bold tracking-tight">Student Dashboard</h1>
+        <h1 class="text-3xl font-bold tracking-tight">Student Management</h1>
         <p class="mt-1 text-sm text-slate-500">
           Manage student data, track progress, and monitor thesis status
         </p>
@@ -253,23 +251,15 @@ onBeforeUnmount(() => {
 
     </header>
 
-    <section class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2" aria-label="Import and export">
+    <section class="mt-4" aria-label="Import">
       <DashboardActionCard
+        class="w-full"
         title="Import Excel"
         description="Upload student records from CSV or Excel."
         tone="red"
         :busy="isImporting"
         busy-label="Importing..."
         @click="openImportModal"
-      />
-
-      <DashboardActionCard
-        title="Export Excel"
-        description="Download all student information."
-        tone="green"
-        :busy="isExporting"
-        busy-label="Exporting..."
-        @click="openExportModal"
       />
     </section>
 
@@ -285,10 +275,24 @@ onBeforeUnmount(() => {
       :students="filteredStudents"
       :is-loading="isLoading"
       :error="loadError"
-      :year-options="yearOptions"
+      :available-students="students"
+      :buddhist-year="isThai"
       advisor-mode="all-only"
       @view="viewStudentMilestones"
-    />
+    >
+      <template #action>
+        <DashboardActionCard
+          class="-mt-2"
+          compact
+          title="Export Excel"
+          description="Download the students currently shown in the table."
+          tone="green"
+          :busy="isExporting"
+          busy-label="Exporting..."
+          @click="handleExport"
+        />
+      </template>
+    </StudentOverview>
 
     <ImportFileModal
       v-if="isImportModalOpen && !isDuplicateStudentModalOpen"
@@ -360,9 +364,14 @@ onBeforeUnmount(() => {
                     <span>Email: {{ option.email || '-' }}</span>
                     <span>Program: {{ option.program }}</span>
                     <span>Degree: {{ option.degreeLevel }}</span>
-                    <span>Enrollment Year: {{ option.enrollmentAcademicYear }}</span>
+                    <span>
+                      Enrollment Year: {{ formatAcademicYear(option.enrollmentAcademicYear) }}
+                    </span>
                     <span>Semester: {{ option.semester }}</span>
-                    <span>Expected Graduation: {{ option.expectedGraduationYear }}</span>
+                    <span>
+                      Expected Graduation:
+                      {{ formatAcademicYear(option.expectedGraduationYear) }}
+                    </span>
                     <span>Advisor: {{ option.advisorName || option.advisorId || '-' }}</span>
                   </span>
                 </span>
@@ -386,66 +395,6 @@ onBeforeUnmount(() => {
             @click="handleImportConflictConfirm"
           >
             {{ isImporting ? 'Importing...' : 'Import Selected Student' }}
-          </button>
-        </div>
-      </section>
-    </div>
-
-    <div
-      v-if="isExportModalOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="export-modal-title"
-    >
-      <section class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
-        <h2 id="export-modal-title" class="text-base font-semibold">Export Excel</h2>
-        <p class="mt-1 text-xs text-slate-500">Download user data as an Excel or CSV file</p>
-
-        <ExportYearSelect
-          v-model="selectedExportEnrollmentYear"
-          :options="exportEnrollmentYearOptions"
-        />
-
-        <div class="mt-5 rounded-lg bg-slate-100 px-4 py-5 text-center">
-          <svg
-            class="mx-auto size-9 text-slate-500"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.6"
-          >
-            <rect x="4" y="5" width="16" height="16" rx="2" />
-            <path d="M16 3v4M8 3v4M4 11h16" />
-          </svg>
-          <p class="mt-2 text-xs font-semibold">{{ exportStudentCount }} total students</p>
-          <p class="text-[10px] text-slate-500">Ready for export</p>
-        </div>
-
-        <div class="mt-3 rounded-lg bg-slate-100 p-4">
-          <p class="text-xs font-semibold">Export Includes</p>
-          <ul class="mt-2 space-y-1 text-xs text-slate-600">
-            <li>✓ Student information</li>
-            <li>✓ Program details</li>
-            <li>✓ Advisor assignments</li>
-          </ul>
-        </div>
-
-        <div class="mt-4 flex justify-end gap-2">
-          <button
-            type="button"
-            class="rounded border border-slate-200 px-3 py-2 text-xs font-medium hover:bg-slate-50"
-            @click="closeExportModal"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            :disabled="isExporting"
-            class="rounded bg-[#8b2a23] px-3 py-2 text-xs font-medium text-white hover:bg-[#7a211c] disabled:cursor-wait disabled:opacity-60"
-            @click="handleExport"
-          >
-            {{ isExporting ? 'Exporting...' : 'Export' }}
           </button>
         </div>
       </section>

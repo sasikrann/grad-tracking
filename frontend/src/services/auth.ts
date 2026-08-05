@@ -115,8 +115,9 @@ export async function loginWithGoogleCredential(credential: string) {
 }
 
 /*
- * DEVELOPMENT LOGIN BYPASS (disabled while Google Sign-In is in use)
- * Uncomment together with the backend /dev-login route and Login.vue block.
+ * DEVELOPMENT LOGIN BYPASS
+ * The backend accepts this request only when explicitly enabled on localhost.
+ */
 export async function loginForDevelopment(email: string) {
   const response = await fetch(`${apiUrl}/api/auth/dev-login`, {
     method: 'POST',
@@ -137,7 +138,6 @@ export async function loginForDevelopment(email: string) {
 
   return result.data.user
 }
-*/
 
 export async function authenticatedFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   await initializeAuth()

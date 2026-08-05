@@ -4,16 +4,14 @@ defineOptions({ name: 'LoginView' })
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { loginWithGoogleCredential } from '@/services/auth'
-// import { loginForDevelopment } from '@/services/auth' // Development login bypass
+import { loginForDevelopment, loginWithGoogleCredential } from '@/services/auth'
 
 const router = useRouter()
 const googleButton = ref<HTMLElement | null>(null)
 const errorMessage = ref('')
 const isLoading = ref(false)
-// Development login bypass (disabled while Google Sign-In is in use)
-// const devEmail = ref('')
-// const devLoginEnabled = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEV_LOGIN === 'true'
+const devEmail = ref('6631501108@lamduan.mfu.ac.th')
+const devLoginEnabled = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEV_LOGIN === 'true'
 
 function loadGoogleScript() {
   return new Promise<void>((resolve, reject) => {
@@ -63,7 +61,6 @@ async function handleGoogleCredential(response: GoogleCredentialResponse) {
   }
 }
 
-/* DEVELOPMENT LOGIN BYPASS
 async function handleDevelopmentLogin() {
   errorMessage.value = ''
   isLoading.value = true
@@ -77,13 +74,12 @@ async function handleDevelopmentLogin() {
     isLoading.value = false
   }
 }
-*/
 
 onMounted(async () => {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
   if (!clientId || clientId.startsWith('YOUR_')) {
-    errorMessage.value = 'Google SSO is not configured'
+    if (!devLoginEnabled) errorMessage.value = 'Google SSO is not configured'
     return
   }
 
@@ -132,7 +128,6 @@ onMounted(async () => {
         <div ref="googleButton" :class="{ 'pointer-events-none opacity-60': isLoading }"></div>
       </div>
 
-      <!-- DEVELOPMENT LOGIN BYPASS
       <form
         v-if="devLoginEnabled"
         class="mx-auto mt-5 w-full max-w-75 border-t border-white/20 pt-5"
@@ -158,7 +153,6 @@ onMounted(async () => {
         </button>
         <p class="mt-2 text-center text-[10px] text-white/60">Available only in local development</p>
       </form>
-      -->
 
       <div class="mx-auto mt-3 flex min-h-8 w-full max-w-75 flex-col justify-end gap-1.5 px-1">
         <div
