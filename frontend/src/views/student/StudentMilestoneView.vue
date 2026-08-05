@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
+import MilestoneStatusOverview from '@/components/student-milestone/MilestoneStatusOverview.vue'
 import StudentMilestoneCard from '@/components/student-milestone/StudentMilestoneCard.vue'
 import StudentMilestoneProgress from '@/components/student-milestone/StudentMilestoneProgress.vue'
-import {
-  getStandardMilestonesForStudent,
-  standardMilestones,
-  toFrontendStudentMilestones,
-} from '@/data/standard-milestones'
 import { getMyStudentProfile, type StudentProfile } from '@/services/student-profile.api'
-import type { Milestone, StudentMilestone } from '@/types/milestone'
+import {
+  getMyStudentMilestones,
+  removeMyMilestoneEvidence,
+  uploadMyMilestoneEvidence,
+} from '@/services/student-milestones.api'
+import type { StudentMilestone } from '@/types/milestone'
 
 const milestones = ref<StudentMilestone[]>([])
 const profile = ref<StudentProfile | null>(null)
@@ -20,7 +21,6 @@ const uploadErrorMilestoneId = ref<string | null>(null)
 const uploadErrorMessage = ref('')
 const maxMilestoneEvidenceFileSize = 2 * 1024 * 1024
 const notificationMessage = ref('')
-const milestoneTemplates = ref<Milestone[]>(standardMilestones)
 let refreshTimer: ReturnType<typeof window.setInterval> | undefined
 let notificationTimer: ReturnType<typeof window.setTimeout> | undefined
 
@@ -58,13 +58,13 @@ function prerequisiteIdsFor(milestone: StudentMilestone) {
     )
   }
 
-  const template = milestoneTemplates.value.find(
+  const template = milestones.value.find(
     (candidate) => normalizeTitle(candidate.title) === normalizeTitle(milestone.title),
   )
-  if (!template?.prerequisiteMilestoneIds.length) return []
+  if (!template?.prerequisiteMilestoneIds?.length) return []
 
   return template.prerequisiteMilestoneIds.flatMap((templateId) => {
-    const prerequisiteTemplate = milestoneTemplates.value.find(
+    const prerequisiteTemplate = milestones.value.find(
       (candidate) => candidate.milestoneId === templateId,
     )
     if (!prerequisiteTemplate) return []
@@ -95,10 +95,6 @@ const visibleMilestones = computed(() =>
   }),
 )
 
-function loadMilestoneTemplates() {
-  milestoneTemplates.value = standardMilestones
-}
-
 async function loadMilestones({ silent = false } = {}) {
   if (!silent) {
     isLoading.value = true
@@ -107,9 +103,7 @@ async function loadMilestones({ silent = false } = {}) {
   try {
     const studentProfile = await getMyStudentProfile()
     profile.value = studentProfile
-    milestones.value = toFrontendStudentMilestones(
-      getStandardMilestonesForStudent(studentProfile.degreeLevel, studentProfile.educationPlan),
-    )
+    milestones.value = await getMyStudentMilestones()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Unable to load milestones'
   } finally {
@@ -149,6 +143,7 @@ function showNotification(message: string) {
 }
 
 async function uploadEvidence(milestoneId: string, file: File) {
+  uploadingMilestoneId.value = milestoneId
   uploadErrorMilestoneId.value = milestoneId
   uploadErrorMessage.value = ''
 
@@ -156,24 +151,46 @@ async function uploadEvidence(milestoneId: string, file: File) {
     uploadErrorMilestoneId.value = null
     uploadErrorMessage.value = ''
     showNotification(advisorRequiredMessage)
+    uploadingMilestoneId.value = null
     return
   }
 
   if (file.size > maxMilestoneEvidenceFileSize) {
     uploadErrorMessage.value = 'Milestone evidence must not exceed 2 MB'
+    uploadingMilestoneId.value = null
     return
   }
 
-  void file
-  showNotification('Evidence upload is unavailable while standard frontend milestones are in use.')
+  try {
+    milestones.value = await uploadMyMilestoneEvidence(milestoneId, file)
+    uploadErrorMilestoneId.value = null
+    showNotification('Evidence uploaded successfully.')
+  } catch (error) {
+    uploadErrorMessage.value =
+      error instanceof Error ? error.message : 'Unable to upload milestone evidence'
+  } finally {
+    uploadingMilestoneId.value = null
+  }
 }
 
 async function removeEvidence(milestoneId: string) {
-  void milestoneId
+  uploadingMilestoneId.value = milestoneId
+  uploadErrorMilestoneId.value = milestoneId
+  uploadErrorMessage.value = ''
+
+  try {
+    milestones.value = await removeMyMilestoneEvidence(milestoneId)
+    uploadErrorMilestoneId.value = null
+    showNotification('Evidence removed successfully.')
+  } catch (error) {
+    uploadErrorMessage.value =
+      error instanceof Error ? error.message : 'Unable to remove milestone evidence'
+  } finally {
+    uploadingMilestoneId.value = null
+  }
 }
 
 onMounted(() => {
-  loadMilestoneTemplates()
   void loadMilestones()
   refreshTimer = window.setInterval(refreshWhenVisible, 15_000)
   window.addEventListener('focus', refreshWhenVisible)
@@ -190,9 +207,12 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
-    <header>
-      <h1 class="text-3xl font-bold tracking-tight text-black">Milestone</h1>
-      <p class="mt-1 text-sm text-slate-500">Track your academic progress and deadline</p>
+    <header class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-bold tracking-tight text-black">Milestone</h1>
+        <p class="mt-1 text-sm text-slate-500">Track your academic progress and deadline</p>
+      </div>
+      <MilestoneStatusOverview :milestones="milestones" />
     </header>
 
     <p v-if="errorMessage" class="mt-4 text-sm text-red-600" role="alert">
@@ -219,10 +239,11 @@ onBeforeUnmount(() => {
         ></div>
 
         <StudentMilestoneCard
-          v-for="(milestone, index) in visibleMilestones"
+          v-for="milestone in visibleMilestones"
           :key="milestone.milestoneId"
           :milestone="milestone"
-          :index="index + 1"
+          :index="milestone.sequenceOrder"
+          :reference-url="milestone.referenceUrl ?? undefined"
           :is-uploading="uploadingMilestoneId === milestone.milestoneId"
           :can-upload="hasAdvisor"
           :upload-error="uploadErrorMilestoneId === milestone.milestoneId ? uploadErrorMessage : ''"

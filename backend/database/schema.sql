@@ -1,5 +1,5 @@
--- ไฟล์นี้เป็น schema ข้อมูลเริ่มต้นของฐานข้อมูล PostgreSQL
--- ใช้สร้างตารางและชนิดข้อมูลที่จำเป็นสำหรับระบบ Thesis Progress Tracking 
+-- Initial PostgreSQL schema for the Thesis Progress Tracking application.
+-- Run this file once when provisioning a new database.
 CREATE TYPE user_role AS ENUM (
   'student',
   'advisor',
@@ -39,7 +39,7 @@ CREATE TABLE users (
 
 CREATE TABLE advisors (
   advisor_id VARCHAR PRIMARY KEY,
-  user_id UUID UNIQUE REFERENCES users(user_id),
+  user_id UUID UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
   full_name VARCHAR NOT NULL,
   email VARCHAR UNIQUE NOT NULL,
   status VARCHAR NOT NULL DEFAULT 'inactive' CHECK (status IN ('inactive', 'disabled')),
@@ -47,19 +47,27 @@ CREATE TABLE advisors (
 );
 
 CREATE TABLE students (
-  student_id VARCHAR PRIMARY KEY,
-  user_id UUID UNIQUE REFERENCES users(user_id),
+  student_id VARCHAR PRIMARY KEY CHECK (student_id ~ '^[0-9]{10}$'),
+  user_id UUID UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
   full_name VARCHAR NOT NULL,
+  school_name VARCHAR NOT NULL,
   program VARCHAR NOT NULL,
-  education_plan VARCHAR,
+  education_plan VARCHAR NOT NULL,
   degree_level degree_level NOT NULL,
-  enrollment_academic_year INT NOT NULL,
-  semester VARCHAR NOT NULL,
-  expected_graduation_year INT NOT NULL,
-  advisor_id VARCHAR REFERENCES advisors(advisor_id),
+  enrollment_academic_year INT NOT NULL CHECK (enrollment_academic_year BETWEEN 2000 AND 2200),
+  semester VARCHAR NOT NULL CHECK (semester IN ('1', '2')),
+  expected_graduation_year INT NOT NULL CHECK (
+    expected_graduation_year BETWEEN enrollment_academic_year AND 2200
+  ),
+  advisor_id VARCHAR REFERENCES advisors(advisor_id) ON DELETE SET NULL,
   advisor_evidence_url TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  updated_at TIMESTAMP DEFAULT NOW(),
+  CONSTRAINT students_education_plan_check CHECK (
+    (degree_level = 'Master' AND education_plan IN ('A1', 'A2', 'B'))
+    OR
+    (degree_level = 'Doctoral' AND education_plan IN ('1.1', '2.1', '2.2'))
+  )
 );
 
 CREATE TABLE milestone_templates (
@@ -67,13 +75,13 @@ CREATE TABLE milestone_templates (
   default_template_key VARCHAR UNIQUE,
   default_template_version INT NOT NULL DEFAULT 0,
   degree_level VARCHAR NOT NULL CHECK (degree_level IN ('All', 'Master', 'Doctoral')),
-  semester VARCHAR NOT NULL DEFAULT '1',
+  semester VARCHAR NOT NULL DEFAULT '1' CHECK (semester IN ('all', '1', '2')),
   plans VARCHAR[] NOT NULL DEFAULT ARRAY['All']::VARCHAR[],
   prerequisite_milestone_ids VARCHAR[] NOT NULL DEFAULT ARRAY[]::VARCHAR[],
   title VARCHAR NOT NULL,
   description TEXT,
   reference_urls TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-  sequence_order INT NOT NULL,
+  sequence_order INT NOT NULL CHECK (sequence_order > 0),
   open_date DATE,
   deadline DATE,
   first_reminder_date DATE,
@@ -85,15 +93,15 @@ CREATE TABLE milestone_templates (
 
 CREATE TABLE student_milestones (
   student_milestone_id UUID PRIMARY KEY,
-  student_id VARCHAR REFERENCES students(student_id),
-  milestone_id UUID REFERENCES milestone_templates(milestone_id),
+  student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
+  milestone_id UUID NOT NULL REFERENCES milestone_templates(milestone_id) ON DELETE CASCADE,
   status milestone_status NOT NULL,
   evidence_url TEXT,
   advisor_comment TEXT,
   rejection_count INT NOT NULL DEFAULT 0,
   submitted_at TIMESTAMP,
   reviewed_at TIMESTAMP,
-  reviewed_by VARCHAR REFERENCES advisors(advisor_id),
+  reviewed_by VARCHAR REFERENCES advisors(advisor_id) ON DELETE SET NULL,
   updated_at TIMESTAMP DEFAULT NOW(),
   CONSTRAINT student_milestones_student_milestone_unique UNIQUE (student_id, milestone_id)
 );
@@ -106,7 +114,7 @@ CREATE TABLE notifications (
   target_audience target_audience NOT NULL,
   send_email BOOLEAN NOT NULL DEFAULT FALSE,
   email_sent_at TIMESTAMP,
-  created_by UUID REFERENCES users(user_id),
+  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
   milestone_id UUID REFERENCES milestone_templates(milestone_id) ON DELETE CASCADE,
   reminder_stage VARCHAR,
   created_at TIMESTAMP DEFAULT NOW(),
@@ -127,12 +135,20 @@ CREATE INDEX notification_reads_user_id_idx ON notification_reads(user_id);
 
 CREATE TABLE import_logs (
   import_id UUID PRIMARY KEY,
-  imported_by UUID REFERENCES users(user_id),
+  imported_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
   import_type import_type NOT NULL,
   file_name VARCHAR NOT NULL,
-  total_records INT DEFAULT 0,
-  success_records INT DEFAULT 0,
-  failed_records INT DEFAULT 0,
+  total_records INT NOT NULL DEFAULT 0 CHECK (total_records >= 0),
+  success_records INT NOT NULL DEFAULT 0 CHECK (success_records >= 0),
+  failed_records INT NOT NULL DEFAULT 0 CHECK (failed_records >= 0),
   error_message TEXT,
   imported_at TIMESTAMP DEFAULT NOW()
 );
+
+-- PostgreSQL does not create indexes for foreign-key columns automatically.
+CREATE INDEX students_advisor_id_idx ON students(advisor_id);
+CREATE INDEX student_milestones_milestone_id_idx ON student_milestones(milestone_id);
+CREATE INDEX student_milestones_reviewed_by_idx ON student_milestones(reviewed_by);
+CREATE INDEX notifications_created_by_idx ON notifications(created_by);
+CREATE INDEX import_logs_imported_by_idx ON import_logs(imported_by);
+CREATE INDEX import_logs_imported_at_idx ON import_logs(imported_at DESC);

@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 const props = defineProps<{
   modelValue: string
   options: string[]
+  buddhistYear?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -12,7 +13,15 @@ const emit = defineEmits<{
 
 const isOpen = ref(false)
 
-const selectedLabel = computed(() => (props.modelValue === 'all' ? 'All Year' : props.modelValue))
+function yearLabel(year: string) {
+  if (year === 'all') return 'All Year'
+  if (!props.buddhistYear) return year
+
+  const numericYear = Number(year)
+  return Number.isFinite(numericYear) ? String(numericYear + 543) : year
+}
+
+const selectedLabel = computed(() => yearLabel(props.modelValue))
 
 function selectYear(year: string) {
   emit('update:modelValue', year)
@@ -56,7 +65,7 @@ function selectYear(year: string) {
           :class="{ 'bg-[#f8eeee] text-[#8a2b25]': modelValue === year }"
           @click="selectYear(year)"
         >
-          <span>{{ year === 'all' ? 'All Year' : year }}</span>
+          <span>{{ yearLabel(year) }}</span>
           <svg
             v-if="modelValue === year"
             class="size-4 text-[#777]"

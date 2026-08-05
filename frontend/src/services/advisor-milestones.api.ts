@@ -1,12 +1,7 @@
-import { authenticatedFetch } from '@/services/auth'
+import { apiRequest } from '@/services/api-client'
 import { resolveEvidenceUrl } from '@/services/student-milestones.api'
 import type { StudentMilestone, StudentMilestoneStatus } from '@/types/milestone'
 
-const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
-
-interface ApiResponse<T> {
-  data: T
-}
 
 export interface AdvisorMilestoneSubmission {
   studentId: string
@@ -14,7 +9,7 @@ export interface AdvisorMilestoneSubmission {
   milestoneId: string
   title: string
   description: string | null
-  deadline: string
+  deadline: string | null
   status: StudentMilestoneStatus
   evidenceUrl: string
   advisorComment: string | null
@@ -30,21 +25,8 @@ export interface AdvisorStudentMilestones {
   milestones: StudentMilestone[]
 }
 
-async function request<T>(path: string, options?: RequestInit) {
-  const response = await authenticatedFetch(`${apiBaseUrl}${path}`, {
-    cache: 'no-store',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    ...options,
-  })
-
-  if (!response.ok) {
-    const result = await response.json().catch(() => null)
-    throw new Error(result?.message ?? `Advisor milestone request failed (${response.status})`)
-  }
-
-  const result = (await response.json()) as ApiResponse<T>
-  return result.data
-}
+const request = <T>(path: string, options?: RequestInit) =>
+  apiRequest<T>(path, { ...options, errorMessage: 'Advisor milestone request failed' })
 
 export function getAdvisorMilestoneSubmissions() {
   return request<AdvisorMilestoneSubmission[]>('/api/advisors/milestone-submissions')

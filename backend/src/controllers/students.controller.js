@@ -57,40 +57,24 @@ export async function deleteStudent(request, response) {
 export async function importStudentFile(request, response) {
   if (!request.file) throw new ApiError(400, 'A CSV or XLSX file is required')
   const records = await readStudentImportFile(request.file)
-  let resolutions
+  const result = await importStudents(records, {
+    fileName: request.file.originalname,
+    importedBy: request.user.userId,
+  })
 
-  try {
-    resolutions = request.body.resolutions ? JSON.parse(request.body.resolutions) : undefined
-  } catch (_error) {
-    throw new ApiError(400, 'Invalid student import resolutions')
-  }
-
-  try {
-    const result = await importStudents(records, {
-      fileName: request.file.originalname,
-      importedBy: request.user.userId,
-      resolutions,
-    })
-
-    response.status(201).json({ data: result })
-  } catch (error) {
-    if (error.statusCode === 409 && Array.isArray(error.conflicts)) {
-      response.status(409).json({
-        status: 'error',
-        message: error.message,
-        conflicts: error.conflicts,
-      })
-      return
-    }
-
-    throw error
-  }
+  response.status(201).json({ data: result })
 }
 
 export async function exportStudents(request, response) {
-  const enrollmentYear = String(request.query.enrollmentYear ?? '').trim()
+  const studentIds = Array.isArray(request.body.studentIds)
+    ? request.body.studentIds.map((value) => String(value).trim()).filter(Boolean)
+    : []
+  if (!studentIds.length) throw new ApiError(400, 'At least one displayed student is required')
+
+  const language = request.body.language === 'th' ? 'th' : 'en'
   const buffer = await createStudentExportBuffer(
-    await findStudentsForExport({ enrollmentYear: enrollmentYear || null }),
+    await findStudentsForExport({ studentIds }),
+    { language },
   )
 
   response.setHeader(
@@ -99,7 +83,7 @@ export async function exportStudents(request, response) {
   )
   response.setHeader(
     'Content-Disposition',
-    `attachment; filename="students${enrollmentYear ? `-enrollment-${enrollmentYear}` : ''}.xlsx"`,
+    'attachment; filename="students-visible-table.xlsx"',
   )
   response.send(buffer)
 }

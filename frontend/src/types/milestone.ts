@@ -45,6 +45,7 @@ export interface StudentMilestone {
   plans: EducationPlan[]
   title: string
   description: string | null
+  referenceUrl?: string | null
   sequenceOrder: number
   openDate: string | null
   deadline: string | null

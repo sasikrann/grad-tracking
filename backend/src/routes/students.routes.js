@@ -31,7 +31,7 @@ const upload = multer({
 })
 
 router.get('/', getStudents)
-router.get('/export', exportStudents)
+router.post('/export', exportStudents)
 router.get('/template', downloadStudentTemplate)
 router.post('/import', upload.single('file'), importStudentFile)
 router.get('/:studentId/milestones', getStudentMilestones)

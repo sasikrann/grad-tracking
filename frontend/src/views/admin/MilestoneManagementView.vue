@@ -14,7 +14,6 @@ import {
   updateMilestone,
 } from '@/services/milestones.api'
 import type { EducationPlan, Milestone, MilestoneInput, MilestoneProgram } from '@/types/milestone'
-
 const milestones = ref<Milestone[]>([])
 const isLoading = ref(false)
 const message = ref('')

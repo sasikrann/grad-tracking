@@ -2,14 +2,13 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
+import MilestoneStatusOverview from '@/components/student-milestone/MilestoneStatusOverview.vue'
 import StudentMilestoneCard from '@/components/student-milestone/StudentMilestoneCard.vue'
 import StudentMilestoneProgress from '@/components/student-milestone/StudentMilestoneProgress.vue'
 import {
-  getStandardMilestonesForStudent,
-  toFrontendStudentMilestones,
-} from '@/data/standard-milestones'
-import { currentUser } from '@/services/auth'
-import { getAdvisorStudentOverview } from '@/services/students.api'
+  getAdvisorStudentMilestones,
+  reviewAdvisorMilestone,
+} from '@/services/advisor-milestones.api'
 import type { StudentMilestone } from '@/types/milestone'
 
 const route = useRoute()
@@ -37,16 +36,9 @@ async function loadMilestones() {
   errorMessage.value = ''
 
   try {
-    const advisorId = currentUser.value?.advisorId
-    if (!advisorId) throw new Error('Advisor profile is not linked to this account')
-    const students = await getAdvisorStudentOverview(advisorId)
-    const student = students.find((candidate) => candidate.studentId === studentId.value)
-    if (!student) throw new Error('Student not found')
-    studentName.value = student.name
-    const degreeLevel = student.degree === 'Ph. D.' ? 'Doctoral' : 'Master'
-    milestones.value = toFrontendStudentMilestones(
-      getStandardMilestonesForStudent(degreeLevel, student.educationPlan),
-    )
+    const result = await getAdvisorStudentMilestones(studentId.value)
+    studentName.value = result.student.studentName
+    milestones.value = result.milestones
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Unable to load student milestones'
   } finally {
@@ -59,7 +51,17 @@ function canReview(milestone: StudentMilestone) {
 }
 
 async function approveMilestone(milestone: StudentMilestone) {
-  void milestone
+  reviewingMilestoneId.value = milestone.milestoneId
+  errorMessage.value = ''
+
+  try {
+    await reviewAdvisorMilestone(studentId.value, milestone.milestoneId, 'approve')
+    await loadMilestones()
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : 'Unable to approve milestone'
+  } finally {
+    reviewingMilestoneId.value = null
+  }
 }
 
 function openRejectDialog(milestone: StudentMilestone) {
@@ -75,7 +77,24 @@ function closeRejectDialog() {
 async function submitReject() {
   if (!rejectMilestone.value || !rejectComment.value.trim()) return
 
-  closeRejectDialog()
+  const milestone = rejectMilestone.value
+  reviewingMilestoneId.value = milestone.milestoneId
+  errorMessage.value = ''
+
+  try {
+    await reviewAdvisorMilestone(
+      studentId.value,
+      milestone.milestoneId,
+      'reject',
+      rejectComment.value.trim(),
+    )
+    closeRejectDialog()
+    await loadMilestones()
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : 'Unable to reject milestone'
+  } finally {
+    reviewingMilestoneId.value = null
+  }
 }
 
 onMounted(loadMilestones)
@@ -92,14 +111,17 @@ onMounted(loadMilestones)
           </p>
         </div>
 
-        <div
-          v-if="studentName"
-          class="inline-flex flex-wrap items-center gap-2 rounded-lg border border-[#ead7d5] bg-white px-3 py-2 text-sm shadow-sm"
-        >
-          <span class="font-medium text-[#3b2f2e]">{{ studentName }}</span>
-          <span class="rounded-md bg-[#f5e6e5] px-2 py-0.5 text-xs font-medium text-[#8a2b25]">
-            {{ studentId }}
-          </span>
+        <div class="flex flex-col items-end gap-2">
+          <div
+            v-if="studentName"
+            class="inline-flex flex-wrap items-center gap-2 rounded-lg border border-[#ead7d5] bg-white px-3 py-2 text-sm shadow-sm"
+          >
+            <span class="font-medium text-[#3b2f2e]">{{ studentName }}</span>
+            <span class="rounded-md bg-[#f5e6e5] px-2 py-0.5 text-xs font-medium text-[#8a2b25]">
+              {{ studentId }}
+            </span>
+          </div>
+          <MilestoneStatusOverview :milestones="milestones" />
         </div>
       </header>
 
@@ -130,10 +152,11 @@ onMounted(loadMilestones)
           ></div>
 
           <StudentMilestoneCard
-            v-for="(milestone, index) in milestones"
+            v-for="milestone in milestones"
             :key="milestone.milestoneId"
             :milestone="milestone"
-            :index="index + 1"
+            :index="milestone.sequenceOrder"
+            :reference-url="milestone.referenceUrl ?? undefined"
             readonly
             :can-review="canReview(milestone)"
             :is-reviewing="reviewingMilestoneId === milestone.milestoneId"

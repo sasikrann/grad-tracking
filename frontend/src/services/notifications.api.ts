@@ -1,4 +1,4 @@
-import { authenticatedFetch } from '@/services/auth'
+import { apiRequest, resolveApiUrl } from '@/services/api-client'
 import type {
   Notification,
   NotificationInput,
@@ -7,27 +7,8 @@ import type {
   StudentNotification,
 } from '@/types/notification'
 
-const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
-
-interface ApiResponse<T> {
-  data: T
-}
-
-async function request<T>(path: string, options?: RequestInit) {
-  const response = await authenticatedFetch(`${apiBaseUrl}${path}`, {
-    cache: 'no-store',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    ...options,
-  })
-
-  if (!response.ok) {
-    const result = await response.json().catch(() => null)
-    throw new Error(result?.message ?? `Notification request failed (${response.status})`)
-  }
-
-  const result = (await response.json()) as ApiResponse<T>
-  return result.data
-}
+const request = <T>(path: string, options?: RequestInit) =>
+  apiRequest<T>(path, { ...options, errorMessage: 'Notification request failed' })
 
 export function getNotifications(targetAudience?: NotificationTargetAudience) {
   const query = targetAudience ? `?targetAudience=${encodeURIComponent(targetAudience)}` : ''
@@ -41,30 +22,18 @@ export function createNotification(input: NotificationInput) {
   })
 }
 
-export async function uploadNotificationAttachment(file: File) {
+export function uploadNotificationAttachment(file: File) {
   const body = new FormData()
   body.append('file', file)
 
-  const response = await authenticatedFetch(`${apiBaseUrl}/api/notifications/attachments`, {
+  return request<{ fileName: string; url: string }>('/api/notifications/attachments', {
     method: 'POST',
     body,
   })
-
-  if (!response.ok) {
-    const result = await response.json().catch(() => null)
-    throw new Error(result?.message ?? `Notification request failed (${response.status})`)
-  }
-
-  const result = (await response.json()) as ApiResponse<{ fileName: string; url: string }>
-  return result.data
 }
 
 export function resolveNotificationAttachmentUrl(attachmentUrl: string) {
-  if (attachmentUrl.startsWith('http://') || attachmentUrl.startsWith('https://')) {
-    return attachmentUrl
-  }
-
-  return `${apiBaseUrl}${attachmentUrl}`
+  return resolveApiUrl(attachmentUrl)
 }
 
 export function getMyNotifications() {

@@ -1,27 +1,8 @@
-import { authenticatedFetch } from '@/services/auth'
+import { apiRequest } from '@/services/api-client'
 import type { DegreeLevel, Milestone, MilestoneInput } from '@/types/milestone'
 
-const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
-
-interface ApiResponse<T> {
-  data: T
-}
-
-async function request<T>(path: string, options?: RequestInit) {
-  const response = await authenticatedFetch(`${apiBaseUrl}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    ...options,
-  })
-
-  if (!response.ok) {
-    const result = await response.json().catch(() => null)
-    throw new Error(result?.message ?? `Milestone request failed (${response.status})`)
-  }
-
-  if (response.status === 204) return null as T
-  const result = (await response.json()) as ApiResponse<T>
-  return result.data
-}
+const request = <T>(path: string, options?: RequestInit) =>
+  apiRequest<T>(path, { ...options, errorMessage: 'Milestone request failed' })
 
 export function getMilestones(degreeLevel?: DegreeLevel | 'all') {
   const query = degreeLevel && degreeLevel !== 'all' ? `?degreeLevel=${degreeLevel}` : ''
