@@ -1,12 +1,12 @@
 import type { Student, StudentStatus } from '@/types/student'
+import { apiUrl, downloadApiFile, readJson } from '@/services/api-client'
 import { authenticatedFetch } from '@/services/auth'
 import type { StudentMilestone } from '@/types/milestone'
-
-const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
 interface StudentApiResponse {
   studentId: string
   fullName: string
+  schoolName: string | null
   program: string
   educationPlan?: string | null
   degreeLevel: 'Master' | 'Doctoral'
@@ -31,30 +31,6 @@ interface ApiResponse<T> {
 interface ApiErrorResponse {
   message?: string
   errors?: Array<string | { row?: number; field?: string; message?: string }>
-  conflicts?: StudentImportConflict[]
-}
-
-export interface StudentImportConflictOption {
-  optionId: string
-  source: 'existing' | 'file'
-  rowNumber?: number
-  studentId: string
-  fullName: string
-  email: string | null
-  program: string
-  degreeLevel: 'Master' | 'Doctoral'
-  enrollmentAcademicYear: number
-  semester: string
-  expectedGraduationYear: number
-  advisorId: string | null
-  advisorName: string | null
-  advisorEmail: string | null
-}
-
-export interface StudentImportConflict {
-  key: string
-  studentId: string
-  options: StudentImportConflictOption[]
 }
 
 export interface StudentImportResult {
@@ -65,16 +41,6 @@ export interface StudentImportResult {
   createdRecords?: number
   updatedRecords?: number
   unchangedRecords?: number
-}
-
-export class StudentImportConflictError extends Error {
-  conflicts: StudentImportConflict[]
-
-  constructor(message: string, conflicts: StudentImportConflict[]) {
-    super(message)
-    this.name = 'StudentImportConflictError'
-    this.conflicts = conflicts
-  }
 }
 
 export interface AdminStudentMilestones {
@@ -104,7 +70,7 @@ function toStudent(student: StudentApiResponse, currentAdvisorId?: string): Stud
 }
 
 async function requestStudents(path: string, currentAdvisorId?: string) {
-  const response = await authenticatedFetch(`${apiBaseUrl}${path}`, { cache: 'no-store' })
+  const response = await authenticatedFetch(apiUrl(path), { cache: 'no-store' })
 
   if (response.status === 404 || response.status === 204) {
     return []
@@ -134,7 +100,7 @@ export function getAdvisorStudentOverview(advisorId: string) {
 
 export async function getStudentMilestones(studentId: string) {
   const response = await authenticatedFetch(
-    `${apiBaseUrl}/api/students/${encodeURIComponent(studentId)}/milestones`,
+    apiUrl(`/api/students/${encodeURIComponent(studentId)}/milestones`),
     { cache: 'no-store' },
   )
 
@@ -147,23 +113,8 @@ export async function getStudentMilestones(studentId: string) {
   return result.data
 }
 
-async function downloadStudentFile(path: string, fallbackName: string) {
-  const response = await authenticatedFetch(`${apiBaseUrl}${path}`)
-  if (!response.ok) throw new Error(`Unable to download file (${response.status})`)
-
-  const blob = await response.blob()
-  const disposition = response.headers.get('content-disposition') ?? ''
-  const fileName = disposition.match(/filename="?([^";]+)"?/i)?.[1] ?? fallbackName
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = fileName
-  link.click()
-  URL.revokeObjectURL(url)
-}
-
 export async function exportStudents(studentIds: string[], language: 'en' | 'th' = 'en') {
-  const response = await authenticatedFetch(`${apiBaseUrl}/api/students/export`, {
+  const response = await authenticatedFetch(apiUrl('/api/students/export'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ studentIds, language }),
@@ -171,28 +122,32 @@ export async function exportStudents(studentIds: string[], language: 'en' | 'th'
   if (!response.ok) throw new Error(`Unable to export students (${response.status})`)
 
   const blob = await response.blob()
-  const disposition = response.headers.get('content-disposition') ?? ''
-  const fileName = disposition.match(/filename="?([^";]+)"?/i)?.[1] ?? 'students.xlsx'
-  const url = URL.createObjectURL(blob)
+  const fileName = response.headers
+    .get('content-disposition')
+    ?.match(/filename="?([^";]+)"?/i)?.[1] ?? 'students.xlsx'
+  const objectUrl = URL.createObjectURL(blob)
   const link = document.createElement('a')
-  link.href = url
-  link.download = fileName
-  link.click()
-  URL.revokeObjectURL(url)
+  try {
+    link.href = objectUrl
+    link.download = fileName
+    link.click()
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
 }
 
 export function downloadStudentTemplate() {
-  return downloadStudentFile('/api/students/template', 'student_import_template.xlsx')
+  return downloadApiFile('/api/students/template', 'student_import_template.xlsx')
 }
 
 export async function importStudents(file: File) {
   const formData = new FormData()
   formData.append('file', file)
-  const response = await authenticatedFetch(`${apiBaseUrl}/api/students/import`, {
+  const response = await authenticatedFetch(apiUrl('/api/students/import'), {
     method: 'POST',
     body: formData,
   })
-  const result = (await response.json().catch(() => null)) as
+  const result = await readJson<
     | (ApiErrorResponse & {
         data?: {
           totalRecords: number
@@ -201,16 +156,8 @@ export async function importStudents(file: File) {
           errors: string[]
         }
       })
-    | null
+  >(response)
   if (!response.ok) {
-    if (response.status === 409 && Array.isArray(result?.conflicts)) {
-      throw new StudentImportConflictError(
-        result?.message ??
-          'Some student IDs already exist. Please choose which student record to keep before importing.',
-        result.conflicts,
-      )
-    }
-
     const details = Array.isArray(result?.errors)
       ? result.errors
           .map((error) =>

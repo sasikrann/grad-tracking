@@ -6,7 +6,10 @@ import { ensureMilestoneSchema } from './milestones.service.js'
 
 let studentSchemaReady
 async function ensureStudentSchema() {
-  studentSchemaReady ??= pool.query('ALTER TABLE students ADD COLUMN IF NOT EXISTS education_plan VARCHAR')
+  studentSchemaReady ??= pool.query(`
+    ALTER TABLE students ADD COLUMN IF NOT EXISTS education_plan VARCHAR;
+    ALTER TABLE students ADD COLUMN IF NOT EXISTS school_name VARCHAR;
+  `)
   await studentSchemaReady
 }
 
@@ -15,6 +18,7 @@ const studentDetailColumns = `
   s.user_id AS "userId",
   u.email,
   s.full_name AS "fullName",
+  s.school_name AS "schoolName",
   s.program,
   s.education_plan AS "educationPlan",
   s.degree_level AS "degreeLevel",
@@ -28,42 +32,17 @@ const studentDetailColumns = `
   s.created_at AS "createdAt",
   s.updated_at AS "updatedAt"
 `
-const duplicateStudentIdMessage =
-  'Some student IDs already exist. Please choose which student record to keep before importing.'
-const unresolvedStudentConflictMessage =
-  'Please choose one student record for each duplicated student ID.'
-
-function studentConflictKey({ studentId }) {
-  return String(studentId ?? '').trim()
-}
-
-function studentConflictOption(record, { optionId, source, rowNumber } = {}) {
-  return {
-    optionId,
-    source,
-    rowNumber,
-    studentId: record.studentId,
-    fullName: record.fullName,
-    email: record.email || null,
-    program: record.program,
-    degreeLevel: record.degreeLevel,
-    enrollmentAcademicYear: record.enrollmentAcademicYear,
-    semester: record.semester,
-    expectedGraduationYear: record.expectedGraduationYear,
-    advisorId: record.advisorId || null,
-    advisorName: record.advisorName || null,
-    advisorEmail: record.advisorEmail || null,
-  }
-}
-
 function normalizeComparableValue(value) {
-  return value === null || value === undefined ? '' : String(value).trim().toLowerCase()
+  return value === null || value === undefined
+    ? ''
+    : String(value).normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase()
 }
 
 function studentRecordsMatch(left, right) {
   return [
     'studentId',
     'fullName',
+    'schoolName',
     'email',
     'program',
     'educationPlan',
@@ -71,117 +50,7 @@ function studentRecordsMatch(left, right) {
     'enrollmentAcademicYear',
     'semester',
     'expectedGraduationYear',
-    'advisorId',
-    'advisorName',
-    'advisorEmail',
   ].every((field) => normalizeComparableValue(left[field]) === normalizeComparableValue(right[field]))
-}
-
-function uniqueStudentOptions(options) {
-  const unique = []
-
-  for (const option of options) {
-    if (!unique.some((current) => studentRecordsMatch(current, option))) {
-      unique.push(option)
-    }
-  }
-
-  return unique
-}
-
-async function findStudentImportConflicts(client, records) {
-  const groups = new Map()
-
-  records.forEach((record, index) => {
-    const key = studentConflictKey(record)
-    const group = groups.get(key) ?? {
-      key,
-      studentId: record.studentId,
-      fileRecords: [],
-      existingStudents: [],
-    }
-    group.fileRecords.push(
-      studentConflictOption(record, {
-        optionId: `file:${index}`,
-        source: 'file',
-        rowNumber: index + 2,
-      }),
-    )
-    groups.set(key, group)
-  })
-
-  for (const group of groups.values()) {
-    const existing = await client.query(
-      `
-        SELECT ${studentDetailColumns}
-        FROM students s
-        LEFT JOIN users u ON u.user_id = s.user_id
-        LEFT JOIN advisors a ON a.advisor_id = s.advisor_id
-        WHERE s.student_id = $1
-      `,
-      [group.studentId],
-    )
-    group.existingStudents = existing.rows.map((student) =>
-      studentConflictOption(student, {
-        optionId: `existing:${student.studentId}`,
-        source: 'existing',
-      }),
-    )
-  }
-
-  return Array.from(groups.values())
-    .map((group) => {
-      const fileRecords = uniqueStudentOptions(group.fileRecords)
-      const existingStudents = uniqueStudentOptions(group.existingStudents)
-      const hasDuplicateFileRecords = fileRecords.length > 1
-      const hasChangedExistingRecord = existingStudents.some(
-        (existing) => !fileRecords.some((fileRecord) => studentRecordsMatch(existing, fileRecord)),
-      )
-
-      return {
-        ...group,
-        fileRecords,
-        existingStudents,
-        hasConflict: hasDuplicateFileRecords || hasChangedExistingRecord,
-      }
-    })
-    .filter((group) => group.hasConflict)
-    .map((group) => ({
-      key: group.key,
-      studentId: group.studentId,
-      options: [...group.existingStudents, ...group.fileRecords],
-    }))
-}
-
-function applyStudentImportResolutions(records, conflicts, resolutions = {}) {
-  const conflictByKey = new Map(conflicts.map((conflict) => [conflict.key, conflict]))
-  const selectedFileRows = new Set()
-  const skippedKeys = new Set()
-
-  for (const conflict of conflicts) {
-    const selectedOptionId = resolutions[conflict.key]
-    const selectedOption = conflict.options.find((option) => option.optionId === selectedOptionId)
-
-    if (!selectedOption) {
-      const error = new Error(unresolvedStudentConflictMessage)
-      error.statusCode = 409
-      error.conflicts = conflicts
-      throw error
-    }
-
-    if (selectedOption.source === 'file') {
-      selectedFileRows.add(selectedOption.rowNumber)
-    } else {
-      skippedKeys.add(conflict.key)
-    }
-  }
-
-  return records.filter((record, index) => {
-    const key = studentConflictKey(record)
-    if (!conflictByKey.has(key)) return true
-    if (skippedKeys.has(key)) return false
-    return selectedFileRows.has(index + 2)
-  })
 }
 
 async function findStudents({ advisorId } = {}) {
@@ -195,6 +64,7 @@ async function findStudents({ advisorId } = {}) {
       SELECT
         s.student_id AS "studentId",
         s.full_name AS "fullName",
+        s.school_name AS "schoolName",
         s.program,
         s.education_plan AS "educationPlan",
         s.degree_level AS "degreeLevel",
@@ -217,15 +87,6 @@ async function findStudents({ advisorId } = {}) {
             WHERE mt.deadline < CURRENT_DATE
               AND COALESCE(sm.status, 'Missing') NOT IN ('Completed', 'Approved')
           ) > 0 THEN 'Overdue'
-          WHEN EXTRACT(YEAR FROM CURRENT_DATE)::INT > (s.enrollment_academic_year + 2)
-            AND COALESCE(
-              ROUND(
-                100.0 * COUNT(sm.student_milestone_id)
-                  FILTER (WHERE sm.status IN ('Completed', 'Approved'))
-                / NULLIF(COUNT(mt.milestone_id), 0)
-              ),
-              0
-            )::INT < 100 THEN 'Overdue'
           ELSE 'On-track'
         END AS status
       FROM students s
@@ -241,6 +102,7 @@ async function findStudents({ advisorId } = {}) {
       GROUP BY
         s.student_id,
         s.full_name,
+        s.school_name,
         s.program,
         s.education_plan,
         s.degree_level,
@@ -342,13 +204,14 @@ async function upsertStudentWithClient(client, input) {
     await client.query(
       `
         INSERT INTO students (
-          student_id, user_id, full_name, program, degree_level,
+          student_id, user_id, full_name, school_name, program, degree_level,
           enrollment_academic_year, semester, expected_graduation_year, advisor_id, education_plan
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         ON CONFLICT (student_id) DO UPDATE SET
           user_id = COALESCE(EXCLUDED.user_id, students.user_id),
           full_name = EXCLUDED.full_name,
+          school_name = EXCLUDED.school_name,
           program = EXCLUDED.program,
           degree_level = EXCLUDED.degree_level,
           enrollment_academic_year = EXCLUDED.enrollment_academic_year,
@@ -362,6 +225,7 @@ async function upsertStudentWithClient(client, input) {
         input.studentId,
         userId,
         input.fullName,
+        input.schoolName,
         input.program,
         input.degreeLevel,
         input.enrollmentAcademicYear,
@@ -565,7 +429,8 @@ export async function findStudentsForExport({ studentIds } = {}) {
   return result.rows
 }
 
-export async function importStudents(records, { fileName, importedBy, resolutions } = {}) {
+export async function importStudents(records, { fileName, importedBy } = {}) {
+  await ensureStudentSchema()
   const client = await pool.connect()
   const importId = randomUUID()
   let successRecords = 0
@@ -605,6 +470,20 @@ export async function importStudents(records, { fileName, importedBy, resolution
       unchangedRecords += 1
       return false
     })
+
+    if (!recordsToImport.length) {
+      await client.query('ROLLBACK')
+      return {
+        importId: null,
+        totalRecords: 0,
+        successRecords: 0,
+        createdRecords: 0,
+        updatedRecords: 0,
+        unchangedRecords,
+        failedRecords: 0,
+        errors: [],
+      }
+    }
 
     await client.query(
       `INSERT INTO import_logs

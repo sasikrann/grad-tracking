@@ -7,14 +7,9 @@ import ImportFileModal from '@/components/admin/ImportFileModal.vue'
 import StudentOverview from '@/components/student/StudentOverview.vue'
 import SummaryCard from '@/components/student/SummaryCard.vue'
 import { useStudentOverview } from '@/composables/useStudentOverview'
-import { formatAcademicYear, useLanguage } from '@/composables/useLanguage'
-import {
-  exportStudents,
-  getStudents,
-  importStudents,
-  StudentImportConflictError,
-} from '@/services/students.api'
-import type { StudentImportConflict, StudentImportResult } from '@/services/students.api'
+import { useLanguage } from '@/composables/useLanguage'
+import { exportStudents, getStudents, importStudents } from '@/services/students.api'
+import type { StudentImportResult } from '@/services/students.api'
 
 const router = useRouter()
 const { isThai } = useLanguage()
@@ -36,18 +31,10 @@ const notificationType = ref<'success' | 'error'>('success')
 const isImporting = ref(false)
 const isExporting = ref(false)
 const isImportModalOpen = ref(false)
-const isDuplicateStudentModalOpen = ref(false)
-const importConflicts = ref<StudentImportConflict[]>([])
-const importResolutions = ref<Record<string, string>>({})
 const selectedImportFile = ref<File | null>(null)
 let messageTimer: ReturnType<typeof setTimeout> | undefined
 
 const notificationText = computed(() => errorMessage.value || message.value)
-const hasResolvedImportConflicts = computed(() =>
-  importConflicts.value.every((conflict) => Boolean(importResolutions.value[conflict.key])),
-)
-const duplicateStudentMessage =
-  'Some student IDs already exist. Please choose which student record to keep before importing.'
 
 function showNotification(text: string, type: 'success' | 'error' = 'success') {
   message.value = type === 'success' ? text : ''
@@ -109,15 +96,8 @@ function formatStudentImportError(error: unknown) {
   return (readableMessages[text] ?? text) || 'Unable to import students'
 }
 
-function resetImportConflicts() {
-  importConflicts.value = []
-  importResolutions.value = {}
-  isDuplicateStudentModalOpen.value = false
-}
-
 function resetImportState() {
   selectedImportFile.value = null
-  resetImportConflicts()
 }
 
 function showImportResult(result: StudentImportResult) {
@@ -128,9 +108,19 @@ function showImportResult(result: StudentImportResult) {
   const errorText = result.errors?.length
     ? ` ${result.errors.map((error) => shortenImportMessage(removeRowPrefix(error))).join('; ')}`
     : ''
+  const createdRecords = result.createdRecords ?? result.successRecords
+  const updatedRecords = result.updatedRecords ?? 0
+  const importedStudentLabel = createdRecords === 1 ? 'student' : 'students'
+  const updatedStudentLabel = updatedRecords === 1 ? 'student' : 'students'
+  const englishSuccessText =
+    createdRecords && updatedRecords
+      ? `Imported ${createdRecords} new ${importedStudentLabel} and updated ${updatedRecords} ${updatedStudentLabel} successfully.`
+      : createdRecords
+        ? `Imported ${createdRecords} new ${importedStudentLabel} successfully.`
+        : `Updated ${updatedRecords} ${updatedStudentLabel} successfully.`
   const successText = isThai.value
-    ? `นำเข้าสำเร็จ จำนวน ${result.successRecords} คน`
-    : `Import successful. ${result.successRecords} ${result.successRecords === 1 ? 'student' : 'students'} imported.`
+    ? `นำเข้าสำเร็จ — เพิ่มใหม่ ${createdRecords} คน${updatedRecords ? `, อัปเดต ${updatedRecords} คน` : ''}`
+    : englishSuccessText
   const hasMissingRequiredFields = result.errors?.some((error) => /\b(missing|required)\b/i.test(error))
   const partialSuccessText = hasMissingRequiredFields
     ? isThai.value
@@ -159,7 +149,6 @@ function closeImportModal() {
 
 function handleImportFileSelect(file: File | null) {
   selectedImportFile.value = file
-  resetImportConflicts()
 }
 
 async function finishImport(result: StudentImportResult) {
@@ -169,7 +158,7 @@ async function finishImport(result: StudentImportResult) {
   await loadStudents()
 }
 
-async function handleImport(_resolutions?: Record<string, string>) {
+async function handleImport() {
   const file = selectedImportFile.value
   if (!file) return
 
@@ -180,12 +169,6 @@ async function handleImport(_resolutions?: Record<string, string>) {
     const result = await importStudents(file)
     await finishImport(result)
   } catch (error) {
-    if (error instanceof StudentImportConflictError) {
-      importConflicts.value = error.conflicts
-      importResolutions.value = {}
-      isDuplicateStudentModalOpen.value = true
-      return
-    }
     const text = formatStudentImportError(error)
     resetImportState()
     isImportModalOpen.value = false
@@ -193,19 +176,6 @@ async function handleImport(_resolutions?: Record<string, string>) {
   } finally {
     isImporting.value = false
   }
-}
-
-async function handleImportConflictConfirm() {
-  if (!hasResolvedImportConflicts.value) return
-  await handleImport(importResolutions.value)
-}
-
-function closeDuplicateStudentModal() {
-  isDuplicateStudentModalOpen.value = false
-}
-
-function optionLabel(source: 'existing' | 'file') {
-  return source === 'existing' ? 'Existing data' : 'New data'
 }
 
 async function handleExport() {
@@ -295,7 +265,7 @@ onBeforeUnmount(() => {
     </StudentOverview>
 
     <ImportFileModal
-      v-if="isImportModalOpen && !isDuplicateStudentModalOpen"
+      v-if="isImportModalOpen"
       title="Import Student"
       description="Upload an Excel or CSV file to import students in bulk"
       :selected-file="selectedImportFile"
@@ -305,100 +275,6 @@ onBeforeUnmount(() => {
       @close="closeImportModal"
       @import="handleImport"
     />
-
-    <div
-      v-if="isDuplicateStudentModalOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="duplicate-student-title"
-    >
-      <section class="w-full max-w-3xl rounded-lg bg-white p-5 shadow-xl">
-        <h2 id="duplicate-student-title" class="text-base font-semibold text-slate-900">
-          Duplicate student ID
-        </h2>
-        <p class="mt-2 text-sm text-slate-600">
-          {{ duplicateStudentMessage }}
-        </p>
-
-        <div class="mt-4 max-h-[60vh] space-y-4 overflow-y-auto pr-1">
-          <fieldset
-            v-for="conflict in importConflicts"
-            :key="conflict.key"
-            class="rounded-lg border border-slate-200 p-4"
-          >
-            <legend class="px-1 text-sm font-semibold text-slate-900">
-              Student ID: {{ conflict.studentId }}
-            </legend>
-
-            <div class="mt-3 grid gap-3 md:grid-cols-2">
-              <label
-                v-for="option in conflict.options"
-                :key="option.optionId"
-                class="flex cursor-pointer items-start gap-3 rounded border border-slate-200 p-3 text-sm transition hover:border-[#8b2a23] hover:bg-red-50/40"
-                :class="
-                  importResolutions[conflict.key] === option.optionId
-                    ? 'border-[#8b2a23] bg-red-50/60'
-                    : ''
-                "
-              >
-                <input
-                  v-model="importResolutions[conflict.key]"
-                  class="mt-1 accent-[#8b2a23]"
-                  type="radio"
-                  :name="`student-conflict-${conflict.key}`"
-                  :value="option.optionId"
-                />
-
-                <span class="min-w-0 flex-1">
-                  <span class="block text-xs font-semibold text-[#8b2a23]">
-                    {{ optionLabel(option.source) }}
-                    <span v-if="option.rowNumber" class="font-medium text-slate-500">
-                      (row {{ option.rowNumber }})
-                    </span>
-                  </span>
-                  <span class="mt-1 block font-semibold text-slate-900">
-                    {{ option.fullName }}
-                  </span>
-                  <span class="mt-2 grid grid-cols-1 gap-1 text-xs text-slate-600">
-                    <span>Email: {{ option.email || '-' }}</span>
-                    <span>Program: {{ option.program }}</span>
-                    <span>Degree: {{ option.degreeLevel }}</span>
-                    <span>
-                      Enrollment Year: {{ formatAcademicYear(option.enrollmentAcademicYear) }}
-                    </span>
-                    <span>Semester: {{ option.semester }}</span>
-                    <span>
-                      Expected Graduation:
-                      {{ formatAcademicYear(option.expectedGraduationYear) }}
-                    </span>
-                    <span>Advisor: {{ option.advisorName || option.advisorId || '-' }}</span>
-                  </span>
-                </span>
-              </label>
-            </div>
-          </fieldset>
-        </div>
-
-        <div class="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            class="rounded border border-slate-200 px-3 py-2 text-xs font-medium hover:bg-slate-50"
-            @click="closeDuplicateStudentModal"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            :disabled="!hasResolvedImportConflicts || isImporting"
-            class="rounded bg-[#8b2a23] px-3 py-2 text-xs font-medium text-white hover:bg-[#7a211c] disabled:cursor-not-allowed disabled:opacity-60"
-            @click="handleImportConflictConfirm"
-          >
-            {{ isImporting ? 'Importing...' : 'Import Selected Student' }}
-          </button>
-        </div>
-      </section>
-    </div>
 
     <div
       v-if="notificationText"

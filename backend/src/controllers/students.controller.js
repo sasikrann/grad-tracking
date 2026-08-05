@@ -57,34 +57,12 @@ export async function deleteStudent(request, response) {
 export async function importStudentFile(request, response) {
   if (!request.file) throw new ApiError(400, 'A CSV or XLSX file is required')
   const records = await readStudentImportFile(request.file)
-  let resolutions
+  const result = await importStudents(records, {
+    fileName: request.file.originalname,
+    importedBy: request.user.userId,
+  })
 
-  try {
-    resolutions = request.body.resolutions ? JSON.parse(request.body.resolutions) : undefined
-  } catch (_error) {
-    throw new ApiError(400, 'Invalid student import resolutions')
-  }
-
-  try {
-    const result = await importStudents(records, {
-      fileName: request.file.originalname,
-      importedBy: request.user.userId,
-      resolutions,
-    })
-
-    response.status(201).json({ data: result })
-  } catch (error) {
-    if (error.statusCode === 409 && Array.isArray(error.conflicts)) {
-      response.status(409).json({
-        status: 'error',
-        message: error.message,
-        conflicts: error.conflicts,
-      })
-      return
-    }
-
-    throw error
-  }
+  response.status(201).json({ data: result })
 }
 
 export async function exportStudents(request, response) {

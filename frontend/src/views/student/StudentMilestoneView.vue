@@ -234,7 +234,7 @@ onBeforeUnmount(() => {
         ></div>
 
         <StudentMilestoneCard
-          v-for="(milestone, index) in visibleMilestones"
+          v-for="milestone in visibleMilestones"
           :key="milestone.milestoneId"
           :milestone="milestone"
           :index="milestone.sequenceOrder"

@@ -159,7 +159,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
 </script>
 
 <template>
-  <div class="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-12">
+  <div class="mt-4 grid grid-cols-1 gap-2 lg:grid-cols-12">
     <label class="relative lg:col-span-5">
       <span class="sr-only">Search by name or ID</span>
       <svg
