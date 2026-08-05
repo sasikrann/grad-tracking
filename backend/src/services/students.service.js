@@ -66,6 +66,7 @@ function studentRecordsMatch(left, right) {
     'fullName',
     'email',
     'program',
+    'educationPlan',
     'degreeLevel',
     'enrollmentAcademicYear',
     'semester',
@@ -231,7 +232,7 @@ async function findStudents({ advisorId } = {}) {
       LEFT JOIN advisors a ON a.advisor_id = s.advisor_id
       LEFT JOIN milestone_templates mt
         ON (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
-        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR s.education_plan IS NULL OR s.education_plan = ANY(mt.plans))
+        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR (s.education_plan IS NOT NULL AND s.education_plan = ANY(mt.plans)))
         AND mt.is_enabled = TRUE
       LEFT JOIN student_milestones sm
         ON sm.student_id = s.student_id
@@ -517,19 +518,50 @@ export async function removeStudent(studentId) {
   }
 }
 
-export async function findStudentsForExport({ enrollmentYear } = {}) {
+export async function findStudentsForExport({ studentIds } = {}) {
   await ensureStudentSchema()
-  const values = enrollmentYear ? [enrollmentYear] : []
-  const yearFilter = enrollmentYear ? 'WHERE s.enrollment_academic_year = $1' : ''
+  const ids = Array.isArray(studentIds) ? studentIds : []
+  if (!ids.length) return []
 
   const result = await pool.query(`
-    SELECT ${studentDetailColumns}
+    SELECT
+      ${studentDetailColumns},
+      COALESCE(
+        (
+          SELECT JSON_AGG(
+            JSON_BUILD_OBJECT(
+              'title', mt.title,
+              'status', COALESCE(
+                sm.status,
+                CASE
+                  WHEN mt.deadline < CURRENT_DATE THEN 'Missing'::milestone_status
+                  ELSE 'In Progress'::milestone_status
+                END
+              ),
+              'submittedAt', sm.submitted_at,
+              'reviewedAt', sm.reviewed_at
+            )
+            ORDER BY
+              CASE WHEN mt.semester = 'all' THEN 0 ELSE mt.semester::int END,
+              mt.sequence_order,
+              mt.created_at
+          )
+          FROM milestone_templates mt
+          LEFT JOIN student_milestones sm
+            ON sm.student_id = s.student_id
+            AND sm.milestone_id = mt.milestone_id
+          WHERE (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
+            AND (mt.plans @> ARRAY['All']::VARCHAR[] OR (s.education_plan IS NOT NULL AND s.education_plan = ANY(mt.plans)))
+            AND mt.is_enabled = TRUE
+        ),
+        '[]'::json
+      ) AS "milestoneReport"
     FROM students s
     LEFT JOIN users u ON u.user_id = s.user_id
     LEFT JOIN advisors a ON a.advisor_id = s.advisor_id
-    ${yearFilter}
-    ORDER BY s.student_id
-  `, values)
+    WHERE s.student_id = ANY($1::varchar[])
+    ORDER BY array_position($1::varchar[], s.student_id)
+  `, [ids])
   return result.rows
 }
 
@@ -538,16 +570,41 @@ export async function importStudents(records, { fileName, importedBy, resolution
   const importId = randomUUID()
   let successRecords = 0
   let updatedRecords = 0
+  let unchangedRecords = 0
   const errors = []
 
   try {
     await client.query('BEGIN')
-    const existingIds = await client.query(
-      'SELECT student_id FROM students WHERE student_id = ANY($1::varchar[])',
+    const existingStudents = await client.query(
+      `SELECT ${studentDetailColumns}
+       FROM students s
+       LEFT JOIN users u ON u.user_id = s.user_id
+       LEFT JOIN advisors a ON a.advisor_id = s.advisor_id
+       WHERE s.student_id = ANY($1::varchar[])`,
       [records.map((record) => record.studentId)],
     )
-    const existingIdSet = new Set(existingIds.rows.map((row) => row.student_id))
-    const recordsToImport = records
+    const existingById = new Map(
+      existingStudents.rows.map((student) => [student.studentId, student]),
+    )
+    const mergedRecords = records.map((record) => {
+      const existing = existingById.get(record.studentId)
+      if (!existing) return record
+
+      return {
+        ...record,
+        fullName: record.fullName || existing.fullName,
+        educationPlan: record.educationPlan ?? existing.educationPlan,
+        advisorId: record.advisorId || existing.advisorId,
+        advisorName: record.advisorName || existing.advisorName,
+        advisorEmail: record.advisorEmail || existing.advisorEmail,
+      }
+    })
+    const recordsToImport = mergedRecords.filter((record) => {
+      const existing = existingById.get(record.studentId)
+      if (!existing || !studentRecordsMatch(existing, record)) return true
+      unchangedRecords += 1
+      return false
+    })
 
     await client.query(
       `INSERT INTO import_logs
@@ -560,9 +617,12 @@ export async function importStudents(records, { fileName, importedBy, resolution
       const savepoint = `student_row_${index}`
       await client.query(`SAVEPOINT ${savepoint}`)
       try {
+        if (!record.fullName) {
+          throw new Error('fullName is required')
+        }
         await upsertStudentWithClient(client, record)
         successRecords += 1
-        if (existingIdSet.has(record.studentId)) updatedRecords += 1
+        if (existingById.has(record.studentId)) updatedRecords += 1
         await client.query(`RELEASE SAVEPOINT ${savepoint}`)
       } catch (error) {
         await client.query(`ROLLBACK TO SAVEPOINT ${savepoint}`)
@@ -586,6 +646,7 @@ export async function importStudents(records, { fileName, importedBy, resolution
       successRecords,
       createdRecords: successRecords - updatedRecords,
       updatedRecords,
+      unchangedRecords,
       failedRecords: errors.length,
       errors,
     }

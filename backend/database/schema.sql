@@ -70,6 +70,7 @@ CREATE TABLE milestone_templates (
   prerequisite_milestone_ids VARCHAR[] NOT NULL DEFAULT ARRAY[]::VARCHAR[],
   title VARCHAR NOT NULL,
   description TEXT,
+  reference_url TEXT,
   sequence_order INT NOT NULL,
   open_date DATE,
   deadline DATE,

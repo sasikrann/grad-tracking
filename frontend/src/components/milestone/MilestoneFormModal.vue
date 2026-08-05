@@ -25,6 +25,7 @@ const form = reactive<MilestoneInput>({
   plans: ['All'],
   title: '',
   description: '',
+  referenceUrl: '',
   sequenceOrder: props.defaultOrder,
   openDate: '',
   deadline: '',
@@ -47,11 +48,7 @@ const semesterOptions = [
   { label: '1', value: '1' },
   { label: '2', value: '2' },
 ]
-const planOptions = computed<EducationPlan[]>(() => {
-  if (form.degreeLevel === 'Master') return ['All', 'A1', 'A2', 'B']
-  if (form.degreeLevel === 'Doctoral') return ['All', '1.1', '2.1', '2.2']
-  return ['All', 'A1', 'A2', 'B', '1.1', '2.1', '2.2']
-})
+const planOptions: EducationPlan[] = ['All', 'A1', 'A2', 'B', '1.1', '2.1', '2.2']
 const prerequisiteOptions = computed(() =>
   props.milestones.filter((milestone) => milestone.milestoneId !== props.milestone?.milestoneId),
 )
@@ -96,6 +93,7 @@ watch(
     form.plans = milestone?.plans?.length ? [...milestone.plans] : ['All']
     form.title = milestone?.title ?? ''
     form.description = milestone?.description ?? ''
+    form.referenceUrl = milestone?.referenceUrl ?? ''
     form.sequenceOrder = milestone?.sequenceOrder ?? props.defaultOrder
     form.openDate = milestone?.openDate?.slice(0, 10) ?? ''
     form.deadline = milestone?.deadline?.slice(0, 10) ?? ''
@@ -111,7 +109,7 @@ watch(
   () => form.degreeLevel,
   () => {
     openDropdown.value = null
-    const validPlans = form.plans.filter((plan) => planOptions.value.includes(plan))
+    const validPlans = form.plans.filter((plan) => planOptions.includes(plan))
     form.plans = validPlans.length ? validPlans : ['All']
   },
 )
@@ -158,6 +156,16 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
             placeholder="Describe this milestone..."
             class="mt-1 w-full rounded-md border border-[#c9827c] px-3 py-2 text-xs outline-none focus:border-[#7D2923]"
           ></textarea>
+        </label>
+
+        <label class="block text-xs font-semibold">
+          Reference
+          <input
+            v-model="form.referenceUrl"
+            type="url"
+            placeholder="https://example.com/"
+            class="mt-1 h-10 w-full rounded-md border border-[#c9827c] px-3 text-xs outline-none focus:border-[#7D2923]"
+          />
         </label>
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">

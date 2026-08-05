@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 
 import { resolveEvidenceUrl } from '@/services/student-milestones.api'
 import type { StudentMilestone, StudentMilestoneStatus } from '@/types/milestone'
+import { milestoneStatusColor } from '@/utils/milestone-status'
 
 defineOptions({ name: 'StudentMilestoneCard' })
 
@@ -15,6 +16,7 @@ const props = defineProps<{
   readonly?: boolean
   canUpload?: boolean
   uploadError?: string
+  referenceUrl?: string
 }>()
 
 const emit = defineEmits<{
@@ -29,10 +31,17 @@ const fileInput = ref<HTMLInputElement | null>(null)
 
 const statusStyles: Record<StudentMilestoneStatus, string> = {
   Approved: 'bg-[#49b866] text-white',
-  Completed: 'bg-[#58d184] text-white',
-  Missing: 'bg-[#ee3647] text-white',
+  Completed: 'bg-[#49b866] text-white',
+  Missing: 'bg-[#d90010] text-white',
   'In Progress': 'bg-[#ffbb2a] text-white',
 }
+const displayStatus = computed(() => {
+  if (props.milestone.status === 'Approved') return 'Completed'
+  if (props.milestone.status === 'Missing') return 'Late'
+  return props.milestone.status
+})
+const isAdvisorApproved = computed(() => props.milestone.status === 'Approved')
+const hasAdvisorComment = computed(() => Boolean(props.milestone.advisorComment?.trim()))
 
 const needsEvidence = computed(
   () =>
@@ -122,13 +131,7 @@ function handleFileChange(event: Event) {
     <div class="relative flex justify-center">
       <div
         class="relative z-10 flex size-6 items-center justify-center rounded-full text-xs font-semibold text-white shadow-sm"
-        :class="
-          isLocked
-            ? 'bg-slate-300 text-slate-600'
-            : milestone.status === 'Missing' || milestone.status === 'In Progress'
-              ? 'bg-[#ffbb2a]'
-              : 'bg-[#49b866]'
-        "
+        :class="milestoneStatusColor(milestone.status)"
       >
         {{ index }}
       </div>
@@ -148,32 +151,33 @@ function handleFileChange(event: Event) {
           </p>
         </div>
 
-        <span
-          class="rounded-lg px-3 py-1.5 text-xs font-semibold leading-tight"
-          :class="statusStyles[milestone.status]"
-        >
-          {{ milestone.status }}
-        </span>
+        <div class="flex items-center gap-2">
+          <span
+            v-if="isAdvisorApproved"
+            class="flex size-5 items-center justify-center rounded-full bg-[#49b866] text-white"
+            aria-label="Approved by advisor"
+          >
+            <svg
+              class="size-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              aria-hidden="true"
+            >
+              <path d="m5 12 4 4L19 6" />
+            </svg>
+          </span>
+          <span
+            class="min-w-20 rounded-lg px-3 py-1.5 text-center text-xs font-semibold leading-tight"
+            :class="statusStyles[milestone.status]"
+          >
+            {{ displayStatus }}
+          </span>
+        </div>
       </div>
 
       <div class="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-        <span class="flex items-center gap-1.5">
-          <svg
-            class="size-4 shrink-0 text-black"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.7"
-            aria-hidden="true"
-          >
-            <rect x="3" y="5" width="18" height="16" rx="2" />
-            <path d="M16 3v4M8 3v4M3 11h18" />
-          </svg>
-          <span :class="isLocked ? 'text-slate-500' : 'text-green-600'">
-            Start Date : {{ formatDate(milestone.openDate) }}
-          </span>
-        </span>
-
         <span
           class="flex items-center gap-1.5"
           :class="
@@ -202,25 +206,39 @@ function handleFileChange(event: Event) {
         {{ milestone.lockedReason }}
       </p>
 
-      <div v-if="milestone.evidenceUrl" class="mt-3 flex flex-wrap items-center gap-2">
+      <div
+        v-if="milestone.evidenceUrl || referenceUrl"
+        class="mt-3 flex flex-wrap items-center justify-between gap-x-5 gap-y-2"
+      >
+        <div v-if="milestone.evidenceUrl" class="flex flex-wrap items-center gap-2">
+          <a
+            class="break-all text-sm text-[#00a000] hover:underline"
+            :href="evidenceHref"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {{ evidenceName }}
+          </a>
+          <button
+            v-if="canRemoveEvidence"
+            type="button"
+            class="flex size-5 items-center justify-center rounded-full border border-slate-300 text-xs font-semibold leading-none text-slate-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label="Remove evidence"
+            :disabled="isUploading"
+            @click="emit('removeEvidence', milestone.milestoneId)"
+          >
+            ×
+          </button>
+        </div>
         <a
-          class="break-all text-sm text-[#00a000] hover:underline"
-          :href="evidenceHref"
+          v-if="referenceUrl"
+          class="ml-auto break-all text-xs text-[#5277ff] underline"
+          :href="referenceUrl"
           target="_blank"
           rel="noreferrer"
         >
-          {{ evidenceName }}
+          Reference : {{ referenceUrl }}
         </a>
-        <button
-          v-if="canRemoveEvidence"
-          type="button"
-          class="flex size-5 items-center justify-center rounded-full border border-slate-300 text-xs font-semibold leading-none text-slate-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
-          aria-label="Remove evidence"
-          :disabled="isUploading"
-          @click="emit('removeEvidence', milestone.milestoneId)"
-        >
-          ×
-        </button>
       </div>
 
       <div v-if="canReview" class="mt-3 flex justify-end gap-3">
@@ -285,11 +303,12 @@ function handleFileChange(event: Event) {
         {{ milestone.maxRejectedRevisionRounds }} rejected revision rounds.
       </p>
 
-      <div v-if="milestone.advisorComment !== null" class="mt-3 flex items-center gap-3">
-        <span class="text-xs font-semibold text-[#4a240f]">Comment :</span>
-        <p class="min-h-6 flex-1 rounded-lg bg-[#f5dfe0] px-3 py-1 text-xs text-[#4a240f]">
-          {{ milestone.advisorComment }}
-        </p>
+      <div
+        v-if="hasAdvisorComment"
+        class="mt-3 rounded bg-[#f5dfe0] px-3 py-1 text-xs text-[#4a240f]"
+      >
+        <span class="font-semibold">Comment :</span>
+        {{ milestone.advisorComment }}
       </div>
     </div>
   </article>

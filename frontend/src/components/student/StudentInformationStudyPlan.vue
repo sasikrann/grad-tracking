@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+import { formatAcademicYear, useLanguage } from '@/composables/useLanguage'
 import type { StudentProfile } from '@/services/student-profile.api'
 
 const props = defineProps<{
   profile: StudentProfile
 }>()
+useLanguage()
 
 const studentRows = computed(() => [
   { label: 'Full-Name', value: props.profile.fullName, icon: 'user' },
@@ -13,13 +15,13 @@ const studentRows = computed(() => [
   { label: 'Program', value: props.profile.program, icon: 'cap' },
   {
     label: 'Enrollment Academic Year',
-    value: String(props.profile.enrollmentAcademicYear),
+    value: formatAcademicYear(props.profile.enrollmentAcademicYear),
     icon: 'calendar',
   },
   { label: 'Semester', value: props.profile.semester, icon: 'calendar' },
   {
     label: 'Expected Graduation Year',
-    value: String(props.profile.expectedGraduationYear),
+    value: formatAcademicYear(props.profile.expectedGraduationYear),
     icon: 'calendar',
   },
 ])

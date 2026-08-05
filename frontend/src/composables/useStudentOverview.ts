@@ -33,36 +33,43 @@ export function useStudentOverview(
   const filteredStudents = computed(() => {
     const keyword = search.value.trim().toLowerCase()
 
-    return students.value.filter((student) => {
-      const matchesSearch =
-        !keyword ||
-        student.name.toLowerCase().includes(keyword) ||
-        student.studentId.toLowerCase().includes(keyword)
-      const matchesSemester =
-        filters.value.semester === 'all' || student.semester === Number(filters.value.semester)
-      const matchesYear = filters.value.year === 'all' || student.year === filters.value.year
-      const matchesDegree =
-        filters.value.degree === 'all' || student.degree === filters.value.degree
-      const matchesPlan =
-        filters.value.plan === 'all' || student.educationPlan === filters.value.plan
-      const matchesStatus =
-        filters.value.status === 'all' || student.status === filters.value.status
-      const matchesAdvisor = filters.value.advisor === 'all' || student.isAdvised
+    return students.value
+      .filter((student) => {
+        const matchesSearch =
+          !keyword ||
+          student.name.toLowerCase().includes(keyword) ||
+          student.studentId.toLowerCase().includes(keyword)
+        const matchesSemester =
+          filters.value.semester === 'all' || student.semester === Number(filters.value.semester)
+        const matchesYear = filters.value.year === 'all' || student.year === filters.value.year
+        const matchesDegree =
+          filters.value.degree === 'all' || student.degree === filters.value.degree
+        const matchesPlan =
+          filters.value.plan === 'all' || student.educationPlan === filters.value.plan
+        const matchesStatus =
+          filters.value.status === 'all' || student.status === filters.value.status
+        const matchesAdvisor = filters.value.advisor === 'all' || student.isAdvised
 
-      return (
-        matchesSearch &&
-        matchesSemester &&
-        matchesYear &&
-        matchesDegree &&
-        matchesPlan &&
-        matchesStatus &&
-        matchesAdvisor
+        return (
+          matchesSearch &&
+          matchesSemester &&
+          matchesYear &&
+          matchesDegree &&
+          matchesPlan &&
+          matchesStatus &&
+          matchesAdvisor
+        )
+      })
+      .sort(
+        (left, right) =>
+          Number(right.year) - Number(left.year) || left.studentId.localeCompare(right.studentId),
       )
-    })
   })
 
   const yearOptions = computed(() =>
-    Array.from(new Set(students.value.map((student) => student.year))).sort(),
+    Array.from(new Set(students.value.map((student) => student.year))).sort(
+      (left, right) => Number(right) - Number(left) || right.localeCompare(left),
+    ),
   )
 
   async function loadStudents() {
@@ -89,6 +96,7 @@ export function useStudentOverview(
     loadStudents,
     search,
     statistics,
+    students,
     yearOptions,
   }
 }

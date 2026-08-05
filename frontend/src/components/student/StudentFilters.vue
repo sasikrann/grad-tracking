@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { StudentFilterKey, StudentFiltersState } from '@/types/student'
+import type { StudentTableItem } from '@/types/student'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 interface FilterOption {
@@ -19,10 +20,13 @@ const props = withDefaults(
     modelValue: StudentFiltersState
     yearOptions?: string[]
     advisorMode?: 'default' | 'all-only'
+    buddhistYear?: boolean
+    availableStudents?: StudentTableItem[]
   }>(),
   {
     advisorMode: 'default',
     yearOptions: () => [],
+    availableStudents: () => [],
   },
 )
 
@@ -33,24 +37,26 @@ const emit = defineEmits<{
 
 const openFilter = ref<StudentFilterKey | null>(null)
 
+function yearLabel(year: string) {
+  if (!props.buddhistYear) return year
+  const numericYear = Number(year)
+  return Number.isFinite(numericYear) ? String(numericYear + 543) : year
+}
+
 const planOptions = computed<FilterOption[]>(() => {
   const allPlan = { label: 'All Plan', value: 'all' }
-  if (props.modelValue.degree === 'Master') {
-    return [allPlan, { label: 'A1', value: 'A1' }, { label: 'A2', value: 'A2' }, { label: 'B', value: 'B' }]
-  }
-  if (props.modelValue.degree === 'Ph. D.') {
-    return [allPlan, { label: '1.1', value: '1.1' }, { label: '2.1', value: '2.1' }, { label: '2.2', value: '2.2' }]
-  }
-  return [
-    allPlan,
-    { label: 'A1', value: 'A1' },
-    { label: 'A2', value: 'A2' },
-    { label: 'B', value: 'B' },
-    { label: '1.1', value: '1.1' },
-    { label: '2.1', value: '2.1' },
-    { label: '2.2', value: '2.2' },
-  ]
+  const plans = props.availableStudents
+    .filter(
+      (student) => props.modelValue.degree === 'all' || student.degree === props.modelValue.degree,
+    )
+    .map((student) => student.educationPlan)
+    .filter((plan) => plan && plan !== '-')
+  return [allPlan, ...Array.from(new Set(plans)).sort().map((plan) => ({ label: plan, value: plan }))]
 })
+
+function optionsFromValues(values: Array<string | number>) {
+  return Array.from(new Set(values.map(String))).sort().map((value) => ({ label: value, value }))
+}
 
 const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
   {
@@ -58,11 +64,15 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
     defaultLabel: 'All Program',
     options: [
       { label: 'All Program', value: 'all' },
-      { label: 'Master', value: 'Master' },
-      {
-        label: props.advisorMode === 'all-only' ? 'Doctoral' : 'Ph. D.',
-        value: 'Ph. D.',
-      },
+      ...optionsFromValues(props.availableStudents.map((student) => student.degree)).map(
+        (option) => ({
+          ...option,
+          label:
+            props.advisorMode === 'all-only' && option.value === 'Ph. D.'
+              ? 'Doctoral'
+              : option.label,
+        }),
+      ),
     ],
   },
   {
@@ -75,8 +85,7 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
     defaultLabel: 'All Semester',
     options: [
       { label: 'All Semester', value: 'all' },
-      { label: '1', value: '1' },
-      { label: '2', value: '2' },
+      ...optionsFromValues(props.availableStudents.map((student) => student.semester)),
     ],
   },
   {
@@ -84,7 +93,9 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
     defaultLabel: 'All Year',
     options: [
       { label: 'All Year', value: 'all' },
-      ...props.yearOptions.map((year) => ({ label: year, value: year })),
+      ...Array.from(new Set(props.availableStudents.map((student) => student.year)))
+        .sort((left, right) => Number(right) - Number(left) || right.localeCompare(left))
+        .map((year) => ({ label: yearLabel(year), value: year })),
     ],
   },
   {
@@ -92,8 +103,7 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
     defaultLabel: 'All Status',
     options: [
       { label: 'All Status', value: 'all' },
-      { label: 'On-track', value: 'On-track' },
-      { label: 'Overdue', value: 'Overdue' },
+      ...optionsFromValues(props.availableStudents.map((student) => student.status)),
     ],
   },
 ])
@@ -116,7 +126,7 @@ const filterDefinitions = computed<FilterDefinition[]>(() => {
 
 const filterGridClass = computed(() =>
   props.advisorMode === 'all-only'
-    ? 'sm:grid-cols-2 lg:col-span-7 lg:grid-cols-[1.2fr_0.8fr_1fr_1fr_1fr]'
+    ? 'sm:grid-cols-2 lg:col-span-7 lg:grid-cols-5'
     : 'sm:grid-cols-2 lg:col-span-7 lg:grid-cols-6',
 )
 
