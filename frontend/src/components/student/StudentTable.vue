@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import type { StudentTableItem } from '@/types/student'
 
-withDefaults(defineProps<{
-  students: StudentTableItem[]
-  isLoading: boolean
-  error: string
-  useDoctoralLabel?: boolean
-  buddhistYear?: boolean
-}>(), {
-  useDoctoralLabel: false,
-  buddhistYear: false,
-})
+withDefaults(
+  defineProps<{
+    students: StudentTableItem[]
+    isLoading: boolean
+    error: string
+    useDoctoralLabel?: boolean
+    buddhistYear?: boolean
+  }>(),
+  {
+    useDoctoralLabel: false,
+    buddhistYear: false,
+  },
+)
 
 defineEmits<{
   view: [studentId: string]
@@ -86,16 +89,12 @@ function displayYear(year: string) {
             </span>
           </td>
           <td>
-            <span
-              class="inline-flex min-w-12 justify-center px-3 py-0.5 text-xs leading-none"
-            >
+            <span class="inline-flex min-w-12 justify-center px-3 py-0.5 text-xs leading-none">
               {{ student.semester }}
             </span>
           </td>
           <td class="text-center">
-            <span
-              class="inline-flex min-w-14 justify-center px-3 py-0.5 text-xs leading-none"
-            >
+            <span class="inline-flex min-w-14 justify-center px-3 py-0.5 text-xs leading-none">
               {{ buddhistYear ? displayYear(student.year) : student.year }}
             </span>
           </td>
