@@ -62,6 +62,10 @@ export async function loginWithGoogle(request, response) {
  * Available only when explicitly enabled for local development.
  */
 export async function loginForDevelopment(request, response) {
+  // WARNING: Development login bypass must be disabled in production environments.
+  // This endpoint intentionally verifies that NODE_ENV !== 'production' and that
+  // ENABLE_DEV_LOGIN is explicitly set to 'true' before allowing local development
+  // login. Do not enable this in deployed production systems.
   const isEnabled =
     process.env.NODE_ENV !== 'production' && process.env.ENABLE_DEV_LOGIN === 'true'
   const remoteAddress = request.socket.remoteAddress ?? ''

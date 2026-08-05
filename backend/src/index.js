@@ -6,6 +6,6 @@ import { startMilestoneReminderScheduler } from './services/milestone-reminder-s
 const port = process.env.PORT || 3000
 
 app.listen(port, () => {
-  console.log(`Backend is running on http://localhost:${port}`)
+  console.info(`Backend is running on http://localhost:${port}`)
   startMilestoneReminderScheduler()
 })

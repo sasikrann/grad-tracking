@@ -8,9 +8,10 @@ async function runReminderCheck() {
   try {
     const notifications = await createDueMilestoneReminderNotifications()
     if (notifications.length) {
-      console.log(`Created ${notifications.length} milestone reminder notification(s).`)
+      console.info(`Created ${notifications.length} milestone reminder notification(s).`)
     }
   } catch (error) {
+    // Keep error logging to surface failures in scheduler
     console.error('Unable to create milestone reminder notifications:', error)
   }
 }

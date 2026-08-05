@@ -61,7 +61,7 @@ function displayYear(year: string) {
                 </svg>
               </div>
               <div class="leading-tight">
-                <p class="text-sm font-semibold">{{ student.name }}</p>
+                <p class="text-sm font-normal">{{ student.name }}</p>
                 <p class="mt-1 text-xs text-[#858585]">{{ student.studentId }}</p>
               </div>
             </div>

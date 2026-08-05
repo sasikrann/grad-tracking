@@ -171,10 +171,9 @@ try {
 
   await client.query('COMMIT')
 
-  console.log('Development users are ready:')
-  console.table(
-    Object.values(users).map(({ email, fullName, role }) => ({ role, fullName, email })),
-  )
+  console.info('Development users are ready:')
+  // Log a compact summary for local development. Avoid dumping large tables in production logs.
+  console.info(JSON.stringify(Object.values(users).map(({ email, fullName, role }) => ({ role, fullName, email }))))
 } catch (error) {
   await client.query('ROLLBACK')
   throw error
