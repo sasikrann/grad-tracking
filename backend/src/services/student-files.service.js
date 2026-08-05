@@ -364,17 +364,19 @@ export function parseStudentId(value) {
   const programCode = studentId.slice(3, 7)
   const semesterCode = studentId[7]
   const degreeLevel = studentDegreeCodes[degreeCode]
-  const program = studentProgramCodes[programCode]
-  const semester = studentSemesterCodes[semesterCode]
+  const program = studentProgramCodes[programCode] ?? null
+  let semester = studentSemesterCodes[semesterCode] ?? null
 
   if (!degreeLevel) {
-    throw new ApiError(400, `Student ID degree code must be 5 (Master) or 7 (Doctoral)`)
+    throw new ApiError(400, `Student ID degree code must be 5 (Master) or 7 (Doctoral)`) 
   }
-  if (!program) {
-    throw new ApiError(400, `Student ID program code ${programCode} is not supported`)
-  }
+
+  // Accept unknown program codes (we will keep parsed major code instead)
+  // Normalize semester: if code '0' means semester 1
   if (!semester) {
-    throw new ApiError(400, `Student ID semester code must be 0 (semester 1) or 5 (semester 2)`)
+    if (semesterCode === '0') semester = '1'
+    else if (semesterCode === '5') semester = '2'
+    else semester = null
   }
 
   return {
@@ -383,6 +385,7 @@ export function parseStudentId(value) {
     degreeLevel,
     program,
     semester,
+    parsedMajorCode: programCode,
   }
 }
 
@@ -440,6 +443,7 @@ export async function readStudentImportFile(file) {
   const records = []
   const validationErrors = []
   const missingFieldErrors = new Set()
+  const seenIds = new Set()
   const hasStudentStatusColumn = hasMappedHeader(headerMap, headerAliases.studentStatus)
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1 || !row.hasValues) return
@@ -448,6 +452,12 @@ export async function readStudentImportFile(file) {
       !isNormalStudentStatus(cellValue(row, headerMap, headerAliases.studentStatus))
     ) {
       return
+    }
+    // Skip duplicate student IDs within the same import file silently (keep first occurrence)
+    const candidateId = normalizeCellText(cellValue(row, headerMap, headerAliases.studentId))
+    if (candidateId) {
+      if (seenIds.has(candidateId)) return
+      seenIds.add(candidateId)
     }
     try {
       records.push(
@@ -493,10 +503,9 @@ export async function readStudentImportFile(file) {
   if (allValidationErrors.length) {
     throw new ApiError(400, allValidationErrors.join('; '))
   }
-  const duplicateIds = [...new Set(records.map((record) => record.studentId).filter((id, index, ids) => ids.indexOf(id) !== index))]
-  if (duplicateIds.length) {
-    throw new ApiError(400, `Duplicate Student ID in file: ${duplicateIds.join(', ')}. Please correct the registration file and import it again.`)
-  }
+  // Previously we errored on duplicate IDs in-file. Per new policy, duplicates in the file
+  // should be ignored (we kept the first occurrence). No error raised here.
+  // clear seenIds (function-scoped, will be garbage-collected)
   return records
 }
 

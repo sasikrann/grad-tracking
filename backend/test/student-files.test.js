@@ -79,6 +79,7 @@ test('derives student data from the 10-digit student ID convention', () => {
     degreeLevel: 'Master',
     program: 'DTT',
     semester: '1',
+    parsedMajorCode: '1303',
   })
 
   assert.deepEqual(parseStudentId('6771501501'), {
@@ -87,12 +88,17 @@ test('derives student data from the 10-digit student ID convention', () => {
     degreeLevel: 'Doctoral',
     program: 'CE',
     semester: '2',
+    parsedMajorCode: '1501',
   })
 })
 
-test('rejects unsupported codes in a student ID', () => {
-  assert.throws(() => parseStudentId('6559999001'), /program code 9999 is not supported/)
-  assert.throws(() => parseStudentId('6551303901'), /semester code must be 0/)
+test('handles unsupported program or semester codes gracefully', () => {
+  const parsedUnknownProgram = parseStudentId('6559999001')
+  assert.equal(parsedUnknownProgram.program, null)
+  assert.equal(parsedUnknownProgram.parsedMajorCode, '9999')
+
+  const parsedUnknownSemester = parseStudentId('6551303901')
+  assert.equal(parsedUnknownSemester.semester, null)
 })
 
 test('accepts flexible Thai student import headers', async () => {
