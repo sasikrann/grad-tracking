@@ -12,6 +12,7 @@ const props = defineProps<{
   defaultDegreeLevel: MilestoneProgram
   filterDegreeLevel: MilestoneProgram
   filterPlan: EducationPlan
+  defaultAcademicYear: number
   defaultOrder: number
 }>()
 
@@ -21,9 +22,10 @@ const emit = defineEmits<{
 }>()
 
 const form = reactive<MilestoneInput>({
+  academicYear: props.defaultAcademicYear,
   degreeLevel: props.defaultDegreeLevel,
   semester: 'all',
-  plans: ['All'],
+  plans: props.filterPlan === 'All' ? ['A1'] : [props.filterPlan],
   title: '',
   description: '',
   references: [''],
@@ -40,14 +42,12 @@ const isEditing = computed(() => Boolean(props.milestone))
 type FormDropdown = 'program' | 'plan'
 const openDropdown = ref<FormDropdown | null>(null)
 const programOptions: { label: string; value: MilestoneProgram }[] = [
-  { label: 'All Program', value: 'All' },
   { label: 'Master', value: 'Master' },
   { label: 'Ph.D', value: 'Doctoral' },
 ]
 const planOptions = computed<EducationPlan[]>(() => {
-  if (form.degreeLevel === 'Master') return ['All', 'A1', 'A2', 'B']
-  if (form.degreeLevel === 'Doctoral') return ['All', '1.1', '2.1', '2.2']
-  return ['All', 'A1', 'A2', 'B', '1.1', '2.1', '2.2']
+  if (form.degreeLevel === 'Master') return ['A1', 'A2', 'B']
+  return ['2.1', '2.2']
 })
 const prerequisiteOptions = computed(() =>
   props.milestones
@@ -74,7 +74,13 @@ const nextOrderForFormSelection = computed(() => {
     Math.max(
       0,
       ...props.milestones
-        .filter((milestone) => milestone.degreeLevel === form.degreeLevel)
+        .filter(
+          (milestone) =>
+            (milestone.degreeLevel === 'All' || milestone.degreeLevel === form.degreeLevel) &&
+            (form.plans.includes('All') ||
+              milestone.plans.includes('All') ||
+              milestone.plans.some((plan) => form.plans.includes(plan))),
+        )
         .map((milestone) => milestone.sequenceOrder),
     ) + 1
   )
@@ -110,9 +116,12 @@ watch(
   () => props.milestone,
   (milestone) => {
     openDropdown.value = null
+    form.academicYear = milestone?.academicYear ?? props.defaultAcademicYear
     form.degreeLevel = milestone?.degreeLevel ?? props.defaultDegreeLevel
     form.semester = 'all'
-    form.plans = milestone?.plans?.length ? [...milestone.plans] : ['All']
+    form.plans = milestone?.plans?.length
+      ? [...milestone.plans]
+      : [props.filterPlan === 'All' ? 'A1' : props.filterPlan]
     form.title = milestone?.title ?? ''
     form.description = milestone?.description ?? ''
     form.references = milestone?.references?.length ? [...milestone.references] : ['']
@@ -132,7 +141,7 @@ watch(
   () => {
     openDropdown.value = null
     const validPlans = form.plans.filter((plan) => planOptions.value.includes(plan))
-    form.plans = validPlans.length ? validPlans : ['All']
+    form.plans = validPlans.length ? validPlans : [planOptions.value[0] as EducationPlan]
   },
 )
 
@@ -147,7 +156,7 @@ watch(
 )
 
 watch(
-  () => [form.degreeLevel, props.milestones] as const,
+  () => [form.degreeLevel, [...form.plans], props.milestones] as const,
   () => {
     if (!isEditing.value) {
       form.sequenceOrder = nextOrderForFormSelection.value
@@ -222,13 +231,13 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
 
         <fieldset class="space-y-2">
           <div class="flex items-center justify-between gap-3">
-            <legend class="text-xs font-semibold">Reference Links (Optional)</legend>
+            <legend class="text-xs font-semibold">References (Optional)</legend>
             <button
               type="button"
               class="text-xs font-semibold text-[#7D2923] hover:underline"
               @click="addReference"
             >
-              + Add Link
+              + Add Reference
             </button>
           </div>
           <div
@@ -238,14 +247,14 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
           >
             <input
               v-model="form.references[index]"
-              type="url"
-              placeholder="https://example.com"
+              type="text"
+              placeholder="e.g., DGC24 – แบบยื่นผลการทดสอบความสามารถภาษาอังกฤษ หรือ https://postgrads.mfu.ac.th"
               class="h-10 min-w-0 flex-1 rounded-md border border-[#c9827c] px-3 text-xs outline-none focus:border-[#7D2923]"
             />
             <button
               type="button"
               class="rounded-md border border-red-100 px-3 py-2 text-xs text-red-600 hover:bg-red-50"
-              aria-label="Remove reference link"
+              aria-label="Remove reference"
               @click="removeReference(index)"
             >
               Remove
@@ -260,26 +269,44 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
           <DateInput v-model="form.secondReminderDate" label="Second Reminder" />
         </div>
 
-        <label class="block text-xs font-semibold">
-          Prerequisite Milestone (Optional)
-          <select
-            v-model="form.prerequisiteMilestoneIds"
-            multiple
-            class="mt-1 min-h-20 w-full rounded-md border border-[#c9827c] bg-white px-3 py-2 text-xs outline-none focus:border-[#7D2923]"
+        <fieldset class="text-xs">
+          <div class="flex items-center justify-between gap-3">
+            <legend class="font-semibold">Prerequisite Milestone (Optional)</legend>
+            <button
+              v-if="form.prerequisiteMilestoneIds.length"
+              type="button"
+              class="font-semibold text-[#7D2923] hover:underline"
+              @click="form.prerequisiteMilestoneIds = []"
+            >
+              Clear all
+            </button>
+          </div>
+          <div
+            v-if="prerequisiteOptions.length"
+            class="mt-1 max-h-40 space-y-1 overflow-y-auto rounded-md border border-[#c9827c] bg-white p-2"
           >
-            <option
+            <label
               v-for="option in prerequisiteOptions"
               :key="option.milestoneId"
-              :value="option.milestoneId"
+              class="flex cursor-pointer items-start gap-2 rounded-md px-2 py-2 font-normal hover:bg-[#f8eeee]"
             >
-              {{ option.sequenceOrder }}. {{ option.title }}
-            </option>
-          </select>
+              <input
+                v-model="form.prerequisiteMilestoneIds"
+                type="checkbox"
+                :value="option.milestoneId"
+                class="mt-0.5 shrink-0 accent-[#7D2923]"
+              />
+              <span>{{ option.sequenceOrder }}. {{ option.title }}</span>
+            </label>
+          </div>
+          <p v-else class="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-slate-500">
+            No earlier milestones are available.
+          </p>
           <span class="mt-1 block font-normal text-slate-500">
-            Select milestones that must be completed before this one. Leave empty if it can be
-            completed at any time.
+            Check milestones that must be completed first. Uncheck them or use Clear all to remove
+            the condition.
           </span>
-        </label>
+        </fieldset>
 
         <label class="flex items-center gap-2 text-xs font-semibold">
           <input v-model="form.isEnabled" type="checkbox" class="accent-[#7D2923]" />

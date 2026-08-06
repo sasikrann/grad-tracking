@@ -26,12 +26,17 @@ function formatDate(value: string | null) {
   }).format(new Date(value))
 }
 
+function isWebReference(value: string) {
+  return /^https?:\/\//i.test(value)
+}
+
 const tableRows = computed(() => {
   if (!props.groupBySemester) {
-    return props.milestones.map((milestone) => ({
+    return props.milestones.map((milestone, index) => ({
       type: 'milestone' as const,
       key: milestone.milestoneId,
       milestone,
+      displayOrder: index + 1,
     }))
   }
 
@@ -53,10 +58,11 @@ const tableRows = computed(() => {
       },
       ...[...milestones]
         .sort((first, second) => first.sequenceOrder - second.sequenceOrder)
-        .map((milestone) => ({
+        .map((milestone, index) => ({
           type: 'milestone' as const,
           key: milestone.milestoneId,
           milestone,
+          displayOrder: index + 1,
         })),
     ])
 })
@@ -106,7 +112,7 @@ const tableRows = computed(() => {
                 <div class="flex items-start gap-1">
                   <span class="cursor-grab text-slate-400" aria-hidden="true">::</span>
                   <span class="w-5 text-center font-semibold">{{
-                    row.milestone.sequenceOrder
+                    row.displayOrder
                   }}</span>
                   <div class="flex flex-col">
                     <button
@@ -147,17 +153,19 @@ const tableRows = computed(() => {
               </td>
               <td class="py-4 align-top leading-snug">
                 <div v-if="row.milestone.references.length" class="space-y-1">
-                  <a
+                  <component
                     v-for="(reference, index) in row.milestone.references"
                     :key="reference"
-                    :href="reference"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="block max-w-32 truncate text-[#7D2923] underline"
+                    :is="isWebReference(reference) ? 'a' : 'span'"
+                    :href="isWebReference(reference) ? reference : undefined"
+                    :target="isWebReference(reference) ? '_blank' : undefined"
+                    :rel="isWebReference(reference) ? 'noopener noreferrer' : undefined"
+                    class="block max-w-40 text-xs"
+                    :class="isWebReference(reference) ? 'truncate text-[#7D2923] underline' : 'leading-snug text-slate-600'"
                     :title="reference"
                   >
-                    Link {{ index + 1 }}
-                  </a>
+                    {{ isWebReference(reference) ? `Link ${index + 1}` : reference }}
+                  </component>
                 </div>
                 <span v-else class="text-slate-500">-</span>
               </td>

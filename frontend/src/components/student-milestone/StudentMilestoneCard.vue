@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { resolveEvidenceUrl } from '@/services/student-milestones.api'
+import MilestoneSelectDropdown from '@/components/milestone/form/MilestoneSelectDropdown.vue'
 import type { StudentMilestone, StudentMilestoneStatus } from '@/types/milestone'
+import type { Advisor } from '@/types/advisor'
 import { milestoneStatusColor } from '@/utils/milestone-status'
 
 defineOptions({ name: 'StudentMilestoneCard' })
@@ -16,7 +18,15 @@ const props = defineProps<{
   readonly?: boolean
   canUpload?: boolean
   uploadError?: string
-  referenceUrl?: string
+  advisors?: Advisor[]
+  currentAdvisorId?: string | null
+  currentCoAdvisorIds?: string[]
+  isSavingAppointment?: boolean
+  appointmentError?: string
+  currentGraduationSemester?: string | null
+  currentGraduationAcademicYear?: number | null
+  isSavingGraduation?: boolean
+  graduationError?: string
 }>()
 
 const emit = defineEmits<{
@@ -25,9 +35,26 @@ const emit = defineEmits<{
   removeEvidence: [milestoneId: string]
   approve: [milestone: StudentMilestone]
   reject: [milestone: StudentMilestone]
+  appointAdvisor: [input: { milestoneId: string; advisorId: string; coAdvisorIds: string[] }]
+  submitGraduation: [input: { milestoneId: string; semester: string; academicYear: number }]
 }>()
 
 const fileInput = ref<HTMLInputElement | null>(null)
+const selectedAdvisorId = ref(props.currentAdvisorId ?? '')
+const selectedCoAdvisorIds = ref([...(props.currentCoAdvisorIds ?? []), '', ''].slice(0, 2))
+const openAdvisorDropdown = ref<'advisor' | 'coAdvisor1' | 'coAdvisor2' | null>(null)
+const graduationSemester = ref(props.currentGraduationSemester ?? '')
+const graduationAcademicYear = ref(
+  props.currentGraduationAcademicYear ? String(props.currentGraduationAcademicYear) : '',
+)
+const graduationSemesterDropdownOpen = ref(false)
+watch(
+  () => [props.currentAdvisorId, ...(props.currentCoAdvisorIds ?? [])],
+  () => {
+    selectedAdvisorId.value = props.currentAdvisorId ?? ''
+    selectedCoAdvisorIds.value = [...(props.currentCoAdvisorIds ?? []), '', ''].slice(0, 2)
+  },
+)
 
 const statusStyles: Record<StudentMilestoneStatus, string> = {
   Approved: 'bg-[#49b866] text-white',
@@ -42,12 +69,100 @@ const displayStatus = computed(() => {
 })
 const isAdvisorApproved = computed(() => props.milestone.status === 'Approved')
 const hasAdvisorComment = computed(() => Boolean(props.milestone.advisorComment?.trim()))
+const referenceLinks = computed(() =>
+  (props.milestone.references ?? []).filter((reference) => /^https?:\/\//i.test(reference)),
+)
+const referenceLabels = computed(() =>
+  (props.milestone.references ?? []).filter((reference) => !/^https?:\/\//i.test(reference)),
+)
+const isAdvisorAppointment = computed(() =>
+  Boolean(props.milestone.templateKey?.endsWith('advisor-appointment')),
+)
+const isGraduationMilestone = computed(() =>
+  Boolean(props.milestone.templateKey?.endsWith('graduation')),
+)
+const showGraduationForm = computed(
+  () =>
+    isGraduationMilestone.value &&
+    !props.readonly &&
+    ['Missing', 'In Progress'].includes(props.milestone.status),
+)
+const graduationSemesterOptions = [
+  { value: '', label: 'Select semester' },
+  { value: '1', label: 'Semester 1' },
+  { value: '2', label: 'Semester 2' },
+]
+function selectGraduationSemester(value: string) {
+  graduationSemester.value = value
+  graduationSemesterDropdownOpen.value = false
+}
+function submitGraduation() {
+  const academicYear = Number(graduationAcademicYear.value)
+  if (!graduationSemester.value || !Number.isInteger(academicYear)) return
+  emit('submitGraduation', {
+    milestoneId: props.milestone.milestoneId,
+    semester: graduationSemester.value,
+    academicYear,
+  })
+}
+const showAdvisorAppointment = computed(
+  () =>
+    isAdvisorAppointment.value &&
+    !props.readonly &&
+    ['Missing', 'In Progress'].includes(props.milestone.status),
+)
+const advisorOptions = computed(() => props.advisors ?? [])
+const primaryAdvisorOptions = computed(() => [
+  { value: '', label: 'Select advisor' },
+  ...advisorOptions.value.map((advisor) => ({
+    value: advisor.advisorId,
+    label: `${advisor.fullName} - ${advisor.email}`,
+  })),
+])
+function coAdvisorOptions(slotIndex: number) {
+  const otherId = selectedCoAdvisorIds.value[slotIndex === 0 ? 1 : 0]
+  return advisorOptions.value.filter(
+    (advisor) => advisor.advisorId !== selectedAdvisorId.value && advisor.advisorId !== otherId,
+  )
+}
+function coAdvisorDropdownOptions(slotIndex: number) {
+  return [
+    { value: '', label: 'No co-advisor' },
+    ...coAdvisorOptions(slotIndex).map((advisor) => ({
+      value: advisor.advisorId,
+      label: `${advisor.fullName} - ${advisor.email}`,
+    })),
+  ]
+}
+function selectPrimaryAdvisor(value: string) {
+  selectedAdvisorId.value = value
+  selectedCoAdvisorIds.value = selectedCoAdvisorIds.value.map((id) => (id === value ? '' : id))
+  openAdvisorDropdown.value = null
+}
+function selectCoAdvisor(slotIndex: number, value: string) {
+  selectedCoAdvisorIds.value[slotIndex] = value
+  openAdvisorDropdown.value = null
+}
+function toggleAdvisorDropdown(dropdown: 'advisor' | 'coAdvisor1' | 'coAdvisor2') {
+  if (props.isSavingAppointment) return
+  openAdvisorDropdown.value = openAdvisorDropdown.value === dropdown ? null : dropdown
+}
+function submitAdvisorAppointment() {
+  if (!selectedAdvisorId.value || props.isSavingAppointment) return
+  emit('appointAdvisor', {
+    milestoneId: props.milestone.milestoneId,
+    advisorId: selectedAdvisorId.value,
+    coAdvisorIds: selectedCoAdvisorIds.value.filter(Boolean),
+  })
+}
 
 const needsEvidence = computed(
   () =>
     !props.readonly &&
     ['Missing', 'In Progress'].includes(props.milestone.status) &&
-    !props.milestone.evidenceUrl,
+    !props.milestone.evidenceUrl &&
+    !isAdvisorAppointment.value &&
+    !isGraduationMilestone.value,
 )
 const isLocked = computed(() => Boolean(props.milestone.isLocked))
 const hasReachedRevisionLimit = computed(
@@ -106,7 +221,7 @@ function openUploadPicker() {
     emit(
       'uploadBlocked',
       props.milestone.milestoneId,
-      'Please select an advisor in Student Information before uploading milestone evidence.',
+      'Please complete the Appoint an Advisor milestone before uploading this evidence.',
     )
     return
   }
@@ -141,7 +256,7 @@ function handleFileChange(event: Event) {
       class="rounded-lg border border-slate-200 bg-white px-4 pb-4 pt-3 shadow-sm sm:px-5 sm:pb-4 sm:pt-3"
       :class="{ 'border-slate-200 bg-slate-100 text-slate-400 shadow-none': isLocked }"
     >
-      <div class="flex flex-wrap items-start justify-between gap-3">
+      <div class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
         <div class="min-w-0">
           <h3 class="text-base font-semibold" :class="isLocked ? 'text-slate-500' : 'text-black'">
             {{ milestone.title }}
@@ -177,7 +292,7 @@ function handleFileChange(event: Event) {
         </div>
       </div>
 
-      <div class="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+      <div class="mt-2 space-y-1 text-sm">
         <span
           class="flex items-center gap-1.5"
           :class="
@@ -197,6 +312,28 @@ function handleFileChange(event: Event) {
           </svg>
           <span>Deadline : {{ formatDate(milestone.deadline) }}</span>
         </span>
+        <div
+          v-if="referenceLinks.length || referenceLabels.length"
+          class="mt-3 text-xs"
+        >
+          <p
+            v-for="reference in referenceLabels"
+            :key="reference"
+            class="text-slate-600"
+          >
+            {{ reference }}
+          </p>
+          <a
+            v-for="reference in referenceLinks"
+            :key="reference"
+            class="block break-all text-[#5277ff] underline"
+            :href="reference"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Reference : {{ reference }}
+          </a>
+        </div>
       </div>
 
       <p
@@ -206,8 +343,97 @@ function handleFileChange(event: Event) {
         {{ milestone.lockedReason }}
       </p>
 
+      <div v-if="showAdvisorAppointment" class="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <MilestoneSelectDropdown
+          label="Advisor *"
+          :model-value="selectedAdvisorId"
+          :options="primaryAdvisorOptions"
+          :open="openAdvisorDropdown === 'advisor'"
+          @toggle="toggleAdvisorDropdown('advisor')"
+          @select="selectPrimaryAdvisor"
+        />
+
+        <div class="mt-3 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+          <div v-for="slotIndex in 2" :key="slotIndex" class="min-w-0">
+            <MilestoneSelectDropdown
+              :label="`Co-advisor ${slotIndex} (Optional)`"
+              :model-value="selectedCoAdvisorIds[slotIndex - 1] ?? ''"
+              :options="coAdvisorDropdownOptions(slotIndex - 1)"
+              :open="openAdvisorDropdown === `coAdvisor${slotIndex}`"
+              @toggle="toggleAdvisorDropdown(slotIndex === 1 ? 'coAdvisor1' : 'coAdvisor2')"
+              @select="selectCoAdvisor(slotIndex - 1, $event)"
+            />
+          </div>
+        </div>
+
+        <div class="mt-4 flex justify-end">
+          <button
+            type="button"
+            class="h-9 rounded-lg bg-[#8b2a23] px-5 text-sm font-semibold text-white hover:bg-[#75201b] disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="!selectedAdvisorId || isSavingAppointment || isLocked"
+            @click="submitAdvisorAppointment"
+          >
+            {{ isSavingAppointment ? 'Saving...' : 'Submit' }}
+          </button>
+        </div>
+        <p v-if="appointmentError" class="mt-3 text-xs text-red-600" role="alert">
+          {{ appointmentError }}
+        </p>
+      </div>
+
+      <div v-if="showGraduationForm" class="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+          <MilestoneSelectDropdown
+            label="Graduation Semester *"
+            :model-value="graduationSemester"
+            :options="graduationSemesterOptions"
+            :open="graduationSemesterDropdownOpen"
+            @toggle="graduationSemesterDropdownOpen = !graduationSemesterDropdownOpen"
+            @select="selectGraduationSemester"
+          />
+          <label class="block min-w-0 text-xs font-semibold">
+            Graduation Academic Year *
+            <input
+              v-model="graduationAcademicYear"
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]{4}"
+              maxlength="4"
+              placeholder="e.g. 2569"
+              class="mt-1 h-10 w-full rounded-lg border border-[#c9827c] bg-white px-3 text-xs font-semibold shadow-[0_2px_4px_rgba(0,0,0,0.08)] outline-none focus:border-[#7D2923]"
+              :disabled="isSavingGraduation"
+              @input="graduationAcademicYear = graduationAcademicYear.replace(/\D/g, '').slice(0, 4)"
+            />
+          </label>
+        </div>
+        <p v-if="graduationSemester && graduationAcademicYear" class="mt-3 text-sm text-slate-600">
+          Graduation term: <span class="font-semibold">{{ graduationSemester }}/{{ graduationAcademicYear }}</span>
+        </p>
+        <div class="mt-4 flex justify-end">
+          <button
+            type="button"
+            class="h-9 rounded-lg bg-[#8b2a23] px-5 text-sm font-semibold text-white hover:bg-[#75201b] disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="!graduationSemester || graduationAcademicYear.length !== 4 || isSavingGraduation || isLocked"
+            @click="submitGraduation"
+          >
+            {{ isSavingGraduation ? 'Saving...' : 'Submit' }}
+          </button>
+        </div>
+        <p v-if="graduationError" class="mt-3 text-xs text-red-600" role="alert">
+          {{ graduationError }}
+        </p>
+      </div>
+
       <div
-        v-if="milestone.evidenceUrl || referenceUrl"
+        v-else-if="isGraduationMilestone && currentGraduationSemester && currentGraduationAcademicYear"
+        class="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-slate-700"
+      >
+        <span class="font-semibold text-slate-900">Graduation term:</span>
+        {{ currentGraduationSemester }}/{{ currentGraduationAcademicYear }}
+      </div>
+
+      <div
+        v-if="milestone.evidenceUrl"
         class="mt-3 flex flex-wrap items-center justify-between gap-x-5 gap-y-2"
       >
         <div v-if="milestone.evidenceUrl" class="flex flex-wrap items-center gap-2">
@@ -230,15 +456,6 @@ function handleFileChange(event: Event) {
             ×
           </button>
         </div>
-        <a
-          v-if="referenceUrl"
-          class="ml-auto break-all text-xs text-[#5277ff] underline"
-          :href="referenceUrl"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Reference : {{ referenceUrl }}
-        </a>
       </div>
 
       <div v-if="canReview" class="mt-3 flex justify-end gap-3">
@@ -289,7 +506,7 @@ function handleFileChange(event: Event) {
       </p>
 
       <p
-        v-if="!readonly && milestone.status === 'Missing'"
+        v-if="!readonly && milestone.status === 'Missing' && !isAdvisorAppointment && !isGraduationMilestone"
         class="mt-4 rounded-lg bg-[#fff7e8] px-3 py-2 text-xs text-[#3b2708]"
       >
         Please upload supporting evidence to complete this milestone.

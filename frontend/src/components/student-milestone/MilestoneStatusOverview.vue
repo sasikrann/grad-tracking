@@ -16,13 +16,13 @@ const orderedMilestones = computed(() =>
 <template>
   <nav class="flex flex-wrap justify-end gap-1.5" aria-label="Milestone status overview">
     <span
-      v-for="milestone in orderedMilestones"
+      v-for="(milestone, index) in orderedMilestones"
       :key="milestone.milestoneId"
       class="flex size-6 items-center justify-center rounded-full text-xs font-semibold"
       :class="milestoneStatusColor(milestone.status)"
-      :aria-label="`Milestone ${milestone.sequenceOrder}: ${milestone.status}`"
+      :aria-label="`Milestone ${index + 1}: ${milestone.status}`"
     >
-      {{ milestone.sequenceOrder }}
+      {{ index + 1 }}
     </span>
   </nav>
 </template>

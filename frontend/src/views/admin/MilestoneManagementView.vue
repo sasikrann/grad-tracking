@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
-import CopyMilestoneModal from '@/components/milestone/CopyMilestoneModal.vue'
 import MilestoneFormModal from '@/components/milestone/MilestoneFormModal.vue'
 import MilestoneTable from '@/components/milestone/MilestoneTable.vue'
+import { formatAcademicYear, useLanguage } from '@/composables/useLanguage'
 import {
-  copyMilestones,
   createMilestone,
   deleteMilestone,
   getMilestones,
@@ -15,16 +14,16 @@ import {
 } from '@/services/milestones.api'
 import type { EducationPlan, Milestone, MilestoneInput, MilestoneProgram } from '@/types/milestone'
 const milestones = ref<Milestone[]>([])
+const { language } = useLanguage()
 const isLoading = ref(false)
 const message = ref('')
 const errorMessage = ref('')
 const notificationType = ref<'success' | 'error'>('success')
 let notificationTimer: ReturnType<typeof setTimeout> | undefined
-const selectedDegreeLevel = ref<MilestoneProgram>('All')
-const selectedPlan = ref<EducationPlan>('All')
-const selectedYear = ref('all')
+const selectedDegreeLevel = ref<MilestoneProgram>('Master')
+const selectedPlan = ref<EducationPlan>('A1')
+const selectedYear = ref<number | null>(null)
 const isFormOpen = ref(false)
-const isCopyOpen = ref(false)
 const editingMilestone = ref<Milestone | null>(null)
 const deletingMilestone = ref<Milestone | null>(null)
 const isDeleteConfirmed = ref(false)
@@ -36,17 +35,11 @@ const filteredMilestones = computed(() =>
   milestones.value
     .filter((milestone) => {
       const matchesDegree =
-        selectedDegreeLevel.value === 'All' ||
-        milestone.degreeLevel === 'All' ||
         milestone.degreeLevel === selectedDegreeLevel.value
       const matchesPlan =
-        selectedPlan.value === 'All' ||
-        milestone.plans.includes('All') ||
         milestone.plans.includes(selectedPlan.value)
       const matchesYear =
-        selectedYear.value === 'all' ||
-        !milestone.deadline ||
-        new Date(milestone.deadline).getFullYear().toString() === selectedYear.value
+        selectedYear.value === null || milestone.academicYear === selectedYear.value
 
       return matchesDegree && matchesPlan && matchesYear
     })
@@ -56,46 +49,46 @@ const filteredMilestones = computed(() =>
 const yearOptions = computed(() => {
   const years = new Set(
     milestones.value
-      .filter((milestone) => Boolean(milestone.deadline))
-      .map((milestone) => new Date(milestone.deadline as string).getFullYear().toString()),
+      .flatMap((milestone) =>
+        milestone.academicYear === null ? [] : [milestone.academicYear],
+      ),
   )
-  return Array.from(years).sort()
+  return Array.from(years).sort((first, second) => second - first)
 })
 
 const filterDefinitions = computed(() => [
   {
     key: 'degreeLevel' as const,
     label:
-      selectedDegreeLevel.value === 'All'
-        ? 'All Program'
-        : selectedDegreeLevel.value === 'Doctoral'
+      selectedDegreeLevel.value === 'Doctoral'
           ? 'Ph.D'
           : selectedDegreeLevel.value,
     options: [
-      { label: 'All Program', value: 'All' },
       { label: 'Master', value: 'Master' },
       { label: 'Ph.D', value: 'Doctoral' },
     ],
   },
   {
     key: 'plan' as const,
-    label: selectedPlan.value === 'All' ? 'All Plan' : selectedPlan.value,
+    label: selectedPlan.value,
     options: [
-      { label: 'All Plan', value: 'All' },
       ...(selectedDegreeLevel.value === 'Master'
         ? ['A1', 'A2', 'B']
-        : selectedDegreeLevel.value === 'Doctoral'
-          ? ['1.1', '2.1', '2.2']
-          : ['A1', 'A2', 'B', '1.1', '2.1', '2.2']
+        : ['2.1', '2.2']
       ).map((plan) => ({ label: plan, value: plan })),
     ],
   },
   {
     key: 'year' as const,
-    label: selectedYear.value === 'all' ? 'All Year' : selectedYear.value,
+    label:
+      selectedYear.value === null
+        ? 'Academic Year'
+        : formatAcademicYear(selectedYear.value, language.value),
     options: [
-      { label: 'All Year', value: 'all' },
-      ...yearOptions.value.map((year) => ({ label: year, value: year })),
+      ...yearOptions.value.map((year) => ({
+        label: formatAcademicYear(year, language.value),
+        value: String(year),
+      })),
     ],
   },
 ])
@@ -105,7 +98,12 @@ const nextOrder = computed(() => {
     Math.max(
       0,
       ...milestones.value
-        .filter((milestone) => milestone.degreeLevel === selectedDegreeLevel.value)
+        .filter(
+          (milestone) =>
+            milestone.degreeLevel === selectedDegreeLevel.value &&
+            milestone.academicYear === selectedYear.value &&
+            milestone.plans.includes(selectedPlan.value),
+        )
         .map((milestone) => milestone.sequenceOrder),
     ) + 1
   )
@@ -141,6 +139,16 @@ async function loadMilestones() {
   errorMessage.value = ''
   try {
     milestones.value = await getMilestones()
+    const availableYears = [
+      ...new Set(
+        milestones.value.flatMap(({ academicYear }) =>
+          academicYear === null ? [] : [academicYear],
+        ),
+      ),
+    ]
+    if (selectedYear.value === null || !availableYears.includes(selectedYear.value)) {
+      selectedYear.value = availableYears.sort((first, second) => second - first)[0] ?? null
+    }
   } catch (error) {
     milestones.value = []
     showNotification(
@@ -185,6 +193,7 @@ async function saveMilestone(input: MilestoneInput) {
       : [...input.plans]
     const normalizedInput: MilestoneInput = {
       ...input,
+      academicYear: selectedYear.value ?? input.academicYear,
       semester: 'all',
       plans: normalizedPlans,
       description: input.description.trim(),
@@ -201,8 +210,10 @@ async function saveMilestone(input: MilestoneInput) {
     }
     await loadMilestones()
     selectedDegreeLevel.value = input.degreeLevel
-    selectedPlan.value = 'All'
-    selectedYear.value = input.deadline ? new Date(input.deadline).getFullYear().toString() : 'all'
+    selectedPlan.value = normalizedPlans.includes(selectedPlan.value)
+      ? selectedPlan.value
+      : normalizedPlans[0] ?? 'A1'
+    selectedYear.value = normalizedInput.academicYear
     isFormOpen.value = false
   } catch (error) {
     showNotification(formatMilestoneError(error, 'Unable to save milestone'), 'error')
@@ -250,44 +261,18 @@ async function moveMilestoneOrder(milestoneId: string, direction: 'up' | 'down')
   }
 }
 
-async function copyMilestoneTemplates(
-  fromDegreeLevel: Exclude<MilestoneProgram, 'All'>,
-  toDegreeLevel: Exclude<MilestoneProgram, 'All'>,
-  toYear: string,
-  milestoneIds: string[],
-) {
-  errorMessage.value = ''
-  try {
-    const result = await copyMilestones(
-      fromDegreeLevel,
-      toDegreeLevel,
-      'all',
-      'all',
-      toYear,
-      milestoneIds,
-    )
-    await loadMilestones()
-    showNotification(`Copied ${result.copiedRecords} milestones successfully`)
-    selectedDegreeLevel.value = toDegreeLevel
-    selectedYear.value = toYear
-    isCopyOpen.value = false
-  } catch (error) {
-    showNotification(formatMilestoneError(error, 'Unable to copy milestones'), 'error')
-  }
-}
-
 function selectedFilterValue(key: MilestoneFilterKey) {
-  if (key === 'year') return selectedYear.value
+  if (key === 'year') return selectedYear.value === null ? '' : String(selectedYear.value)
   if (key === 'plan') return selectedPlan.value
   return selectedDegreeLevel.value
 }
 
 function selectFilter(key: MilestoneFilterKey, value: string) {
-  if (key === 'year') selectedYear.value = value
+  if (key === 'year') selectedYear.value = Number(value)
   if (key === 'plan') selectedPlan.value = value as EducationPlan
   if (key === 'degreeLevel') {
     selectedDegreeLevel.value = value as MilestoneProgram
-    selectedPlan.value = 'All'
+    selectedPlan.value = value === 'Doctoral' ? '2.1' : 'A1'
   }
   openFilter.value = null
 }
@@ -310,9 +295,9 @@ onBeforeUnmount(() => {
   <div class="min-h-screen bg-[#f7f7f7] px-8 py-6 font-sans text-slate-900">
     <header class="flex items-start justify-between gap-4">
       <div>
-        <h1 class="text-3xl font-bold tracking-tight">Default Milestone Templates</h1>
+        <h1 class="text-3xl font-bold tracking-tight">Milestone Management</h1>
         <p class="mt-1 text-sm text-slate-500">
-          Create and manage reusable milestone templates by program and plan
+          Create, Edit and manage milestone
         </p>
       </div>
 
@@ -323,13 +308,6 @@ onBeforeUnmount(() => {
           @click="openAddModal"
         >
           + Add Milestone
-        </button>
-        <button
-          type="button"
-          class="rounded-lg bg-[#8b2a23] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#7a211c]"
-          @click="isCopyOpen = true"
-        >
-          ⧉ Copy Milestone
         </button>
       </div>
     </header>
@@ -416,17 +394,10 @@ onBeforeUnmount(() => {
       :default-degree-level="selectedDegreeLevel"
       :filter-degree-level="selectedDegreeLevel"
       :filter-plan="selectedPlan"
+      :default-academic-year="selectedYear ?? new Date().getFullYear()"
       :default-order="nextOrder"
       @close="isFormOpen = false"
       @save="saveMilestone"
-    />
-
-    <CopyMilestoneModal
-      v-if="isCopyOpen"
-      :milestones="milestones"
-      :year-options="yearOptions"
-      @close="isCopyOpen = false"
-      @copy="copyMilestoneTemplates"
     />
 
     <div

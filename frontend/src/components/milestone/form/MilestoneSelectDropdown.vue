@@ -44,17 +44,17 @@ const emit = defineEmits<{
 
     <div
       v-if="open"
-      class="absolute left-0 top-[calc(100%+8px)] z-30 min-w-full overflow-hidden rounded-lg border border-[#eeeeee] bg-white p-1.5 shadow-[0_5px_12px_rgba(0,0,0,0.12)]"
+      class="absolute left-0 top-[calc(100%+8px)] z-30 w-full overflow-hidden rounded-lg border border-[#eeeeee] bg-white p-1.5 shadow-[0_5px_12px_rgba(0,0,0,0.12)]"
     >
       <button
         v-for="option in options"
         :key="option.value"
         type="button"
-        class="flex w-full items-center justify-between gap-3 whitespace-nowrap rounded-md px-2.5 py-2 text-left text-xs font-semibold hover:bg-[#f8eeee]"
+        class="flex w-full min-w-0 items-center justify-between gap-3 rounded-md px-2.5 py-2 text-left text-xs font-semibold hover:bg-[#f8eeee]"
         :class="{ 'bg-[#f8eeee]': modelValue === option.value }"
         @click="emit('select', option.value)"
       >
-        {{ option.label }}
+        <span class="min-w-0 truncate" :title="option.label">{{ option.label }}</span>
         <svg
           v-if="modelValue === option.value"
           class="size-4 text-[#777]"

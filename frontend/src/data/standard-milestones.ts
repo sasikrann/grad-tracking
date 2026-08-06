@@ -6,6 +6,7 @@ import type {
 } from '@/types/milestone'
 
 const commonFields = {
+  academicYear: null,
   semester: 'all',
   openDate: null,
   deadline: null,
