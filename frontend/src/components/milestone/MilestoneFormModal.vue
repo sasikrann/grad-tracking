@@ -165,8 +165,17 @@ watch(
   { immediate: true },
 )
 
-onMounted(() => document.addEventListener('click', closeDropdown))
-onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
+let previousBodyOverflow = ''
+
+onMounted(() => {
+  previousBodyOverflow = document.body.style.overflow
+  document.body.style.overflow = 'hidden'
+  document.addEventListener('click', closeDropdown)
+})
+onBeforeUnmount(() => {
+  document.body.style.overflow = previousBodyOverflow
+  document.removeEventListener('click', closeDropdown)
+})
 </script>
 
 <template>
@@ -248,7 +257,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
             <input
               v-model="form.references[index]"
               type="text"
-              placeholder="e.g., DGC24 – แบบยื่นผลการทดสอบความสามารถภาษาอังกฤษ หรือ https://postgrads.mfu.ac.th"
+              placeholder="e.g., DGC24 – แบบยื่นผลการทดสอบภาษาอังกฤษ หรือ https://postgrads.mfu.ac.th"
               class="h-10 min-w-0 flex-1 rounded-md border border-[#c9827c] px-3 text-xs outline-none focus:border-[#7D2923]"
             />
             <button

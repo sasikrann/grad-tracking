@@ -406,6 +406,7 @@ export function parseStudentId(value) {
     else semester = null;
   }
 
+  // ปีการศึกษาที่เข้าศึกษา = 2500 + entryYear - 543 
   return {
     studentId,
     enrollmentAcademicYear: 2500 + entryYear - 543,

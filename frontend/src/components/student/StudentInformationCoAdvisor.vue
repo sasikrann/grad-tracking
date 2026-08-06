@@ -30,6 +30,11 @@ defineProps<{
         <p class="mt-1 text-xs text-slate-500">{{ coAdvisor.email }}</p>
       </div>
     </div>
-    <p v-else class="mt-4 text-sm text-slate-500">No co-advisor selected.</p>
+    <div v-else class="mt-4 rounded-lg border border-slate-200 bg-[#faf7f7] p-4">
+      <p class="text-xs text-slate-500">Current Co-advisor</p>
+      <p class="mt-1 text-sm text-slate-500">
+        Select a co-advisor from the Appoint an Advisor milestone.
+      </p>
+    </div>
   </section>
 </template>

@@ -74,12 +74,12 @@ const tableRows = computed(() => {
       <thead>
         <tr class="border-b border-slate-200 text-xs">
           <th class="w-[10%] py-3 font-semibold">Order</th>
-          <th class="w-[20%] py-3 font-semibold">Title</th>
+          <th class="w-[22%] py-3 font-semibold">Title</th>
           <th class="w-[16%] py-3 font-semibold">Description</th>
-          <th class="w-[13%] py-3 font-semibold">Reference</th>
+          <th class="w-[13%] py-3 pl-4 font-semibold">Reference</th>
           <th class="w-[10%] py-3 text-center font-semibold">Program</th>
           <th class="w-[11%] py-3 text-center font-semibold">Plan</th>
-          <th class="w-[12%] py-3 pl-4 font-semibold">Deadline</th>
+          <th class="w-[10%] py-3 pl-4 font-semibold">Deadline</th>
           <th class="w-[10%] py-3 text-right font-semibold">Actions</th>
         </tr>
       </thead>
@@ -151,7 +151,7 @@ const tableRows = computed(() => {
               <td class="py-4 align-top leading-snug text-slate-500">
                 {{ row.milestone.description || '-' }}
               </td>
-              <td class="py-4 align-top leading-snug">
+              <td class="py-4 pl-4 align-top leading-snug">
                 <div v-if="row.milestone.references.length" class="space-y-1">
                   <component
                     v-for="(reference, index) in row.milestone.references"

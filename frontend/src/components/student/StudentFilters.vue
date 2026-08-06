@@ -45,13 +45,24 @@ function yearLabel(year: string) {
 
 const planOptions = computed<FilterOption[]>(() => {
   const allPlan = { label: 'All Plan', value: 'all' }
+  const planOrder = ['A1', 'A2', 'B', '2.1', '2.2']
   const plans = props.availableStudents
     .filter(
       (student) => props.modelValue.degree === 'all' || student.degree === props.modelValue.degree,
     )
     .map((student) => student.educationPlan)
     .filter((plan) => plan && plan !== '-')
-  return [allPlan, ...Array.from(new Set(plans)).sort().map((plan) => ({ label: plan, value: plan }))]
+  return [
+    allPlan,
+    ...Array.from(new Set(plans))
+      .sort((left, right) => {
+        const leftIndex = planOrder.indexOf(left)
+        const rightIndex = planOrder.indexOf(right)
+        if (leftIndex === -1 || rightIndex === -1) return left.localeCompare(right)
+        return leftIndex - rightIndex
+      })
+      .map((plan) => ({ label: plan, value: plan })),
+  ]
 })
 
 function optionsFromValues(values: Array<string | number>) {
