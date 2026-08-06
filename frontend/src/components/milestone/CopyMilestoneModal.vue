@@ -16,19 +16,15 @@ const emit = defineEmits<{
   copy: [
     fromDegreeLevel: DegreeLevel,
     toDegreeLevel: DegreeLevel,
-    fromSemester: string,
-    toSemester: string,
     toYear: string,
     milestoneIds: string[],
   ]
 }>()
 
 // เก็บค่าที่ user เลือกฝั่งต้นทาง
-const fromSemester = ref('1')
 const fromYear = ref('all')
 const fromDegreeLevel = ref<DegreeLevel>('Master')
 // เก็บค่าที่ user เลือกฝั่งปลายทาง
-const toSemester = ref('1')
 const toYear = ref('all')
 const toDegreeLevel = ref<DegreeLevel>('Doctoral')
 const selectedMilestoneIds = ref<string[]>([])
@@ -42,12 +38,10 @@ const sourceMilestones = computed(() =>
       fromYear.value === 'all' ||
       !milestone.deadline ||
       new Date(milestone.deadline).getFullYear().toString() === fromYear.value
-    const matchesSemester =
-      milestone.semester === 'all' || milestone.semester === fromSemester.value
     const matchesProgram =
       milestone.degreeLevel === 'All' || milestone.degreeLevel === fromDegreeLevel.value
 
-    return matchesProgram && matchesYear && matchesSemester
+    return matchesProgram && matchesYear
   }),
 )
 
@@ -69,9 +63,7 @@ const destinationMilestones = computed(() =>
       toYear.value === 'all' ||
       !milestone.deadline ||
       new Date(milestone.deadline).getFullYear().toString() === toYear.value
-    const matchesSemester = milestone.semester === toSemester.value
-
-    return matchesProgram && matchesYear && matchesSemester
+    return matchesProgram && matchesYear
   }),
 )
 
@@ -120,8 +112,6 @@ function confirmCopy() {
     'copy',
     fromDegreeLevel.value,
     toDegreeLevel.value,
-    fromSemester.value,
-    toSemester.value,
     toYear.value,
     selectedMilestoneIds.value,
   )
@@ -137,25 +127,14 @@ function confirmCopy() {
     >
       <h2 class="text-lg font-semibold">Copy Milestone</h2>
       <p class="mt-1 text-xs text-slate-500">
-        Copy milestone from one semester/program to another.
+        Copy milestone templates from one program or year to another.
       </p>
 
       <!-- From (Source) -->
       <div class="mt-7 grid grid-cols-1 items-end gap-5 lg:grid-cols-[1fr_auto_1fr] lg:gap-8">
         <section>
           <h3 class="text-xs font-semibold text-[#8b0000]">1. From (Source)</h3>
-          <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <label class="text-xs font-semibold">
-              Semester
-              <select
-                v-model="fromSemester"
-                class="mt-1 h-10 w-full rounded-md border border-slate-200 px-3 text-xs shadow-sm"
-              >
-                <option value="1">1</option>
-                <option value="2">2</option>
-              </select>
-            </label>
-
+          <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label class="text-xs font-semibold">
               Year
               <select
@@ -195,18 +174,7 @@ function confirmCopy() {
         <!-- To (Destination) -->
         <section>
           <h3 class="text-xs font-semibold text-[#8b0000]">2. To (Destination)</h3>
-          <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <label class="text-xs font-semibold">
-              Semester
-              <select
-                v-model="toSemester"
-                class="mt-1 h-10 w-full rounded-md border border-slate-200 px-3 text-xs shadow-sm"
-              >
-                <option value="1">1</option>
-                <option value="2">2</option>
-              </select>
-            </label>
-
+          <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label class="text-xs font-semibold">
               Year
               <select

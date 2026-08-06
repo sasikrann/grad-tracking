@@ -4,9 +4,11 @@ import path from 'node:path'
 import multer from 'multer'
 
 import {
+  appointMyAdvisors,
   getMyStudentProfile,
   getMyStudentMilestones,
   removeMyMilestoneEvidence,
+  submitMyGraduation,
   updateMyAdvisor,
   uploadMyMilestoneEvidence,
 } from '../controllers/student-profile.controller.js'
@@ -50,6 +52,8 @@ function uploadMilestoneEvidence(request, response, next) {
 router.get('/me', getMyStudentProfile)
 router.get('/me/milestones', getMyStudentMilestones)
 router.put('/me/advisor', updateMyAdvisor)
+router.put('/me/milestones/:milestoneId/advisors', appointMyAdvisors)
+router.put('/me/milestones/:milestoneId/graduation', submitMyGraduation)
 router.put('/me/milestones/:milestoneId/evidence', uploadMilestoneEvidence, uploadMyMilestoneEvidence)
 router.delete('/me/milestones/:milestoneId/evidence', removeMyMilestoneEvidence)
 

@@ -578,6 +578,7 @@ export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, semes
         FROM students s
         JOIN milestone_templates mt
           ON (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
+          AND mt.academic_year = s.enrollment_academic_year
          AND (mt.plans @> ARRAY['All']::VARCHAR[] OR s.education_plan IS NULL OR s.education_plan = ANY(mt.plans))
          AND mt.is_enabled = TRUE
         LEFT JOIN student_milestones sm

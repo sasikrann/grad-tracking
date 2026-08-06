@@ -4,13 +4,17 @@ import { unlink } from 'node:fs/promises'
 
 import { ApiError } from '../errors/api-error.js'
 import {
+  areStudentMilestonePrerequisitesComplete,
   clearStudentMilestoneEvidence,
   findStudentMilestonesByUserId,
   hasReachedRejectedRevisionLimit,
+  studentMilestoneRequiresAdvisor,
   submitStudentMilestoneEvidence,
 } from '../services/milestones.service.js'
 import {
+  appointStudentAdvisorsByUserId,
   findStudentByUserId,
+  submitStudentGraduationByUserId,
   updateStudentAdvisorByUserId,
 } from '../services/students.service.js'
 
@@ -72,6 +76,38 @@ export async function updateMyAdvisor(request, response) {
   response.json({ data: student })
 }
 
+export async function appointMyAdvisors(request, response) {
+  if (!(await areStudentMilestonePrerequisitesComplete(request.user.userId, request.params.milestoneId))) {
+    throw new ApiError(409, 'Please complete all prerequisite milestones first')
+  }
+  const coAdvisorIds = request.body.coAdvisorIds ?? []
+  if (!Array.isArray(coAdvisorIds)) {
+    throw new ApiError(400, 'coAdvisorIds must be an array')
+  }
+  const student = await appointStudentAdvisorsByUserId(
+    request.user.userId,
+    request.params.milestoneId,
+    requiredText(request.body.advisorId, 'advisorId'),
+    coAdvisorIds,
+  )
+  if (!student) throw new ApiError(404, 'Student profile not found')
+  response.json({ data: student })
+}
+
+export async function submitMyGraduation(request, response) {
+  if (!(await areStudentMilestonePrerequisitesComplete(request.user.userId, request.params.milestoneId))) {
+    throw new ApiError(409, 'Please complete all prerequisite milestones first')
+  }
+  const student = await submitStudentGraduationByUserId(
+    request.user.userId,
+    request.params.milestoneId,
+    request.body.semester,
+    request.body.academicYear,
+  )
+  if (!student) throw new ApiError(404, 'Student profile not found')
+  response.json({ data: student })
+}
+
 export async function getMyStudentMilestones(request, response) {
   response.json({ data: await findStudentMilestonesByUserId(request.user.userId) })
 }
@@ -82,7 +118,15 @@ export async function uploadMyMilestoneEvidence(request, response) {
     : requiredText(request.body.evidenceUrl, 'evidenceUrl')
   const student = await findStudentByUserId(request.user.userId)
 
-  if (!student?.advisorId) {
+  if (!(await areStudentMilestonePrerequisitesComplete(request.user.userId, request.params.milestoneId))) {
+    await removeUploadedFile(request.file)
+    throw new ApiError(409, 'Please complete all prerequisite milestones first')
+  }
+
+  if (
+    !student?.advisorId &&
+    (await studentMilestoneRequiresAdvisor(request.user.userId, request.params.milestoneId))
+  ) {
     await removeUploadedFile(request.file)
     throw new ApiError(409, 'Please select an advisor before uploading milestone evidence')
   }

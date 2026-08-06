@@ -40,6 +40,14 @@ function optionalYear(value) {
   return year
 }
 
+function requiredAcademicYear(value) {
+  const year = Number(value)
+  if (!Number.isInteger(year) || year < 2000 || year > 2200) {
+    throw new ApiError(400, 'academicYear must be between 2000 and 2200')
+  }
+  return year
+}
+
 function stringArray(value, field, allowedValues = null) {
   if (!Array.isArray(value)) return []
   const result = [...new Set(value.map((item) => String(item).trim()).filter(Boolean))]
@@ -47,6 +55,10 @@ function stringArray(value, field, allowedValues = null) {
     throw new ApiError(400, `${field} contains an invalid value`)
   }
   return result
+}
+
+function referenceItems(value) {
+  return stringArray(value, 'references')
 }
 
 function requiredSemester(value) {
@@ -68,6 +80,7 @@ function normalizeMilestone(body) {
   const plans = stringArray(body.plans, 'plans', educationPlans)
 
   return {
+    academicYear: requiredAcademicYear(body.academicYear),
     degreeLevel,
     semester: requiredSemester(body.semester ?? '1'),
     plans: plans.length ? plans : ['All'],
@@ -77,9 +90,9 @@ function normalizeMilestone(body) {
     ),
     title: requiredText(body.title, 'title'),
     description: optionalText(body.description),
-    referenceUrl: optionalText(body.referenceUrl),
+    references: referenceItems(body.references),
     sequenceOrder: body.sequenceOrder ? Number(body.sequenceOrder) : null,
-    openDate: optionalDate(body.openDate, 'openDate'),
+    openDate: null,
     deadline: optionalDate(body.deadline, 'deadline'),
     firstReminderDate: optionalDate(body.firstReminderDate, 'firstReminderDate'),
     secondReminderDate: optionalDate(body.secondReminderDate, 'secondReminderDate'),
@@ -90,7 +103,12 @@ function normalizeMilestone(body) {
 export async function getMilestones(request, response) {
   const degreeLevel = String(request.query.degreeLevel ?? '').trim()
   const semester = optionalSemester(request.query.semester)
-  response.json({ data: await findMilestones({ degreeLevel: degreeLevel || null, semester }) })
+  const academicYear = request.query.academicYear
+    ? requiredAcademicYear(request.query.academicYear)
+    : null
+  response.json({
+    data: await findMilestones({ degreeLevel: degreeLevel || null, semester, academicYear }),
+  })
 }
 
 export async function getMilestone(request, response) {

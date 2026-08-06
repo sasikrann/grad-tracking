@@ -131,8 +131,22 @@ test('exports advisor name without advisor email and includes milestone status',
       enrollmentAcademicYear: 2022,
       semester: '1',
       expectedGraduationYear: 2025,
+      graduationSemester: '2',
+      graduationAcademicYear: 2569,
       advisorName: 'Dr. Advisor',
       advisorEmail: 'advisor@lamduan.mfu.ac.th',
+      milestoneReport: [],
+    },
+    {
+      studentId: '6551303010',
+      email: 'student2@lamduan.mfu.ac.th',
+      fullName: 'Student Without Graduation Term',
+      educationPlan: 'A1',
+      program: 'DTT',
+      degreeLevel: 'Master',
+      enrollmentAcademicYear: 2022,
+      expectedGraduationYear: 2025,
+      advisorName: '',
       milestoneReport: [],
     },
   ])
@@ -143,4 +157,9 @@ test('exports advisor name without advisor email and includes milestone status',
   assert.equal(headers.includes('Advisor Email'), false)
   assert.equal(headers.filter((header) => header === 'Advisor Name').length, 1)
   assert.equal(headers.includes('Milestone Status'), true)
+  assert.equal(headers.includes('Semester'), false)
+  assert.equal(headers.includes('Graduation Semester/Academic Year'), false)
+  const graduationColumn = headers.indexOf('Year') + 1
+  assert.equal(workbook.worksheets[0].getRow(2).getCell(graduationColumn).value, '2/2026')
+  assert.equal(workbook.worksheets[0].getRow(3).getCell(graduationColumn).value, '')
 })

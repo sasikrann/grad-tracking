@@ -26,12 +26,17 @@ function formatDate(value: string | null) {
   }).format(new Date(value))
 }
 
+function isWebReference(value: string) {
+  return /^https?:\/\//i.test(value)
+}
+
 const tableRows = computed(() => {
   if (!props.groupBySemester) {
-    return props.milestones.map((milestone) => ({
+    return props.milestones.map((milestone, index) => ({
       type: 'milestone' as const,
       key: milestone.milestoneId,
       milestone,
+      displayOrder: index + 1,
     }))
   }
 
@@ -53,10 +58,11 @@ const tableRows = computed(() => {
       },
       ...[...milestones]
         .sort((first, second) => first.sequenceOrder - second.sequenceOrder)
-        .map((milestone) => ({
+        .map((milestone, index) => ({
           type: 'milestone' as const,
           key: milestone.milestoneId,
           milestone,
+          displayOrder: index + 1,
         })),
     ])
 })
@@ -69,10 +75,10 @@ const tableRows = computed(() => {
         <tr class="border-b border-slate-200 text-xs">
           <th class="w-[10%] py-3 font-semibold">Order</th>
           <th class="w-[20%] py-3 font-semibold">Title</th>
-          <th class="w-[19%] py-3 font-semibold">Description</th>
+          <th class="w-[16%] py-3 font-semibold">Description</th>
+          <th class="w-[13%] py-3 font-semibold">Reference</th>
           <th class="w-[10%] py-3 text-center font-semibold">Program</th>
           <th class="w-[11%] py-3 text-center font-semibold">Plan</th>
-          <th class="w-[9%] py-3 text-center font-semibold">Semester</th>
           <th class="w-[12%] py-3 pl-4 font-semibold">Deadline</th>
           <th class="w-[10%] py-3 text-right font-semibold">Actions</th>
         </tr>
@@ -106,7 +112,7 @@ const tableRows = computed(() => {
                 <div class="flex items-start gap-1">
                   <span class="cursor-grab text-slate-400" aria-hidden="true">::</span>
                   <span class="w-5 text-center font-semibold">{{
-                    row.milestone.sequenceOrder
+                    row.displayOrder
                   }}</span>
                   <div class="flex flex-col">
                     <button
@@ -145,6 +151,24 @@ const tableRows = computed(() => {
               <td class="py-4 align-top leading-snug text-slate-500">
                 {{ row.milestone.description || '-' }}
               </td>
+              <td class="py-4 align-top leading-snug">
+                <div v-if="row.milestone.references.length" class="space-y-1">
+                  <component
+                    v-for="(reference, index) in row.milestone.references"
+                    :key="reference"
+                    :is="isWebReference(reference) ? 'a' : 'span'"
+                    :href="isWebReference(reference) ? reference : undefined"
+                    :target="isWebReference(reference) ? '_blank' : undefined"
+                    :rel="isWebReference(reference) ? 'noopener noreferrer' : undefined"
+                    class="block max-w-40 text-xs"
+                    :class="isWebReference(reference) ? 'truncate text-[#7D2923] underline' : 'leading-snug text-slate-600'"
+                    :title="reference"
+                  >
+                    {{ isWebReference(reference) ? `Link ${index + 1}` : reference }}
+                  </component>
+                </div>
+                <span v-else class="text-slate-500">-</span>
+              </td>
 
               <td class="py-4 text-center align-middle">
                 <span
@@ -169,14 +193,6 @@ const tableRows = computed(() => {
                       ? 'All Plan'
                       : row.milestone.plans.join(', ')
                   }}
-                </span>
-              </td>
-
-              <td class="py-4 text-center align-middle">
-                <span
-                  class="inline-flex min-w-14 items-center justify-center rounded-md border border-slate-200 px-3 py-1 leading-none"
-                >
-                  {{ row.milestone.semester === 'all' ? 'All' : row.milestone.semester }}
                 </span>
               </td>
 

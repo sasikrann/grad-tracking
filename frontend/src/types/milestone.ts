@@ -4,12 +4,13 @@ export type EducationPlan = 'All' | 'A1' | 'A2' | 'B' | '1.1' | '2.1' | '2.2'
 
 export interface Milestone {
   milestoneId: string
+  academicYear: number | null
   degreeLevel: MilestoneProgram
   semester: string
   plans: EducationPlan[]
   title: string
   description: string | null
-  referenceUrl?: string | null
+  references: string[]
   sequenceOrder: number
   openDate: string | null
   deadline: string | null
@@ -21,12 +22,13 @@ export interface Milestone {
 }
 
 export interface MilestoneInput {
+  academicYear: number
   degreeLevel: MilestoneProgram
   semester: string
   plans: EducationPlan[]
   title: string
   description: string
-  referenceUrl: string
+  references: string[]
   sequenceOrder: number | null
   openDate: string
   deadline: string
@@ -40,12 +42,13 @@ export type StudentMilestoneStatus = 'In Progress' | 'Completed' | 'Approved' | 
 
 export interface StudentMilestone {
   milestoneId: string
+  templateKey?: string | null
   degreeLevel: MilestoneProgram
   semester: string
   plans: EducationPlan[]
   title: string
   description: string | null
-  referenceUrl?: string | null
+  references: string[]
   sequenceOrder: number
   openDate: string | null
   deadline: string | null
