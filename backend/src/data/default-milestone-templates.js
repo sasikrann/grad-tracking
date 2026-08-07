@@ -11,7 +11,7 @@ function createPlanTemplates(prefix, degreeLevel, plans, definitions) {
     degreeLevel,
     plans,
     sequenceOrder: index + 1,
-    prerequisites: (definition.prerequisites ?? []).map((key) => `${prefix}-${key}`),
+    prerequisites: [],
   }))
 }
 
@@ -19,7 +19,7 @@ const ethics = {
   key: 'ethics-training',
   title: 'Attend Ethics Training (เข้ารับการอบรมจริยธรรม)',
   description:
-    'นักศึกษาที่เข้าร่วมกิจกรรมปฐมนิเทศถือว่าผ่าน Milestone นี้แล้ว หากยังไม่ผ่าน สามารถเข้ารับการอบรมเพิ่มเติมได้',
+    'นักศึกษาที่เข้าร่วมกิจกรรมปฐมนิเทศแล้ว ไม่จำเป็นต้องเข้ารับการอบรมจริยธรรมเพิ่มเติม ส่วนนักศึกษาที่ยังไม่ได้เข้าร่วมกิจกรรมปฐมนิเทศ ต้องเข้ารับการอบรมจริยธรรม',
   references: [ethicsUrl],
 }
 
@@ -57,13 +57,13 @@ const publicationGrant = {
   ),
 }
 
-function graduation(prerequisites, completedSteps) {
+function graduation(_prerequisites, completedSteps) {
   return {
     key: 'graduation',
     title: 'Graduate (ยื่นขอสำเร็จการศึกษา)',
     description: `เมื่อดำเนินการครบถ้วนตามขั้นตอนข้อ 1–${completedSteps} แล้ว สามารถยื่นขอสำเร็จการศึกษาผ่านระบบบริการการศึกษา`,
     references: [registrationUrl],
-    prerequisites,
+    prerequisites: [],
   }
 }
 
@@ -199,7 +199,7 @@ const doctoralDefinitions = [
     key: 'english-proficiency',
     title:
       'Submit English Proficiency Test Result (ส่งผลการทดสอบความสามารถทางภาษาอังกฤษ)',
-    description: 'ยื่นแบบฟอร์ม DGC24 หรือลงเรียนรายวิชา AE1–AE2',
+    description: 'นักศึกษาที่เรียนผ่านรายวิชา AE1–AE2 แล้ว ไม่จำเป็นต้องยื่นแบบฟอร์ม DGC24',
     references: form('DGC24', 'แบบยื่นผลการทดสอบความสามารถภาษาอังกฤษ'),
   },
   {

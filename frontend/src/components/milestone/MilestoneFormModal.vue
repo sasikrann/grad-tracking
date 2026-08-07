@@ -43,10 +43,10 @@ const form = reactive<MilestoneInput>({
 const isEditing = computed(() => Boolean(props.milestone))
 type FormDropdown = 'program' | 'plan'
 const openDropdown = ref<FormDropdown | null>(null)
-const programOptions: { label: string; value: MilestoneProgram }[] = [
-  { label: 'Master', value: 'Master' },
-  { label: 'Ph.D', value: 'Doctoral' },
-]
+const programOptions = computed<{ label: string; value: MilestoneProgram }[]>(() => [
+  { label: t('common.master'), value: 'Master' },
+  { label: t('common.doctoral'), value: 'Doctoral' },
+])
 const planOptions = computed<EducationPlan[]>(() => {
   if (form.degreeLevel === 'Master') return ['A1', 'A2', 'B']
   return ['2.1', '2.2']
@@ -122,8 +122,10 @@ watch(
     form.academicYear = milestone?.academicYear ?? props.defaultAcademicYear
     form.degreeLevel = milestone?.degreeLevel ?? props.defaultDegreeLevel
     form.semester = 'all'
-    form.plans = milestone?.plans?.length
-      ? [...milestone.plans]
+    form.plans = milestone?.plans?.includes(props.filterPlan)
+      ? [props.filterPlan]
+      : milestone?.plans?.length
+        ? [...milestone.plans]
       : [props.filterPlan === 'All' ? 'A1' : props.filterPlan]
     form.title = milestone?.title ?? ''
     form.description = milestone?.description ?? ''

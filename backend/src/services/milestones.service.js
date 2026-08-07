@@ -27,7 +27,7 @@ const milestoneColumns = `
 `
 
 const maxRejectedRevisionRounds = 3
-const defaultMilestoneTemplateVersion = 4
+const defaultMilestoneTemplateVersion = 8
 
 async function seedDefaultMilestoneTemplates() {
   const client = await pool.connect()
@@ -149,6 +149,7 @@ async function seedDefaultMilestoneTemplates() {
             updated_at = NOW()
         WHERE default_template_version > 0
           AND default_template_version < $1
+          AND academic_year IS NULL
       `,
       [defaultMilestoneTemplateVersion],
     )
@@ -294,6 +295,23 @@ export async function ensureMilestoneSchema() {
       if (!['42710', '42P07'].includes(error.code)) throw error
     }))
     .then(() => seedDefaultMilestoneTemplates())
+    .then(() => pool.query(`
+      UPDATE milestone_templates
+      SET prerequisite_milestone_ids = ARRAY[]::VARCHAR[],
+          updated_at = NOW()
+      WHERE academic_year IS NOT NULL
+        AND default_template_key LIKE 'academic-%'
+        AND default_template_version < ${defaultMilestoneTemplateVersion}
+    `))
+    .then(() => pool.query(`
+      UPDATE milestone_templates
+      SET is_enabled = TRUE,
+          default_template_version = ${defaultMilestoneTemplateVersion},
+          updated_at = NOW()
+      WHERE academic_year IS NOT NULL
+        AND default_template_key LIKE 'academic-%'
+        AND default_template_version < ${defaultMilestoneTemplateVersion}
+    `))
   await schemaReady
 }
 
@@ -320,8 +338,6 @@ export async function findMilestones({ degreeLevel, semester, academicYear } = {
 
   conditions.push('default_template_key IS NOT NULL')
   conditions.push('academic_year IS NOT NULL')
-  values.push(defaultMilestoneTemplateVersion)
-  conditions.push(`default_template_version IN (0, $${values.length})`)
   const filter = `WHERE ${conditions.join(' AND ')}`
 
   const result = await pool.query(
@@ -349,6 +365,13 @@ export async function findStudentMilestonesByUserId(userId) {
         mt.semester,
         mt.plans,
         mt.prerequisite_milestone_ids AS "prerequisiteMilestoneIds",
+        ARRAY(
+          SELECT prerequisite_template.title
+          FROM unnest(mt.prerequisite_milestone_ids) WITH ORDINALITY AS prerequisite(milestone_id, position)
+          JOIN milestone_templates prerequisite_template
+            ON prerequisite_template.milestone_id::text = prerequisite.milestone_id
+          ORDER BY prerequisite.position
+        ) AS "prerequisiteTitles",
         mt.title,
         mt.description,
         mt.reference_urls AS references,
@@ -360,6 +383,15 @@ export async function findStudentMilestonesByUserId(userId) {
         (
           (mt.semester <> 'all' AND mt.semester::int > s.semester::int)
           OR mt.open_date > CURRENT_DATE
+          OR EXISTS (
+            SELECT 1
+            FROM unnest(mt.prerequisite_milestone_ids) AS prerequisite(milestone_id)
+            LEFT JOIN student_milestones prerequisite_status
+              ON prerequisite_status.student_id = s.student_id
+              AND prerequisite_status.milestone_id::text = prerequisite.milestone_id
+              AND prerequisite_status.status IN ('Completed', 'Approved')
+            WHERE prerequisite_status.student_milestone_id IS NULL
+          )
         ) AS "isLocked",
         COALESCE(
           sm.status,
@@ -901,6 +933,148 @@ export async function updateMilestone(milestoneId, input) {
 
   if (!result.rowCount) return null
   return findMilestoneById(milestoneId)
+}
+
+export async function updateMilestoneForPlan(milestoneId, scopePlan, input) {
+  await ensureMilestoneSchema()
+  const client = await pool.connect()
+
+  try {
+    await client.query('BEGIN')
+    const currentResult = await client.query(
+      'SELECT * FROM milestone_templates WHERE milestone_id = $1 FOR UPDATE',
+      [milestoneId],
+    )
+    const current = currentResult.rows[0]
+    if (!current) {
+      await client.query('ROLLBACK')
+      return null
+    }
+
+    let targetMilestoneId = milestoneId
+    let targetPrerequisiteIds = input.prerequisiteMilestoneIds
+    if (current.plans.includes(scopePlan) && current.plans.length > 1) {
+      const sharedTemplates = await client.query(
+        `
+          SELECT *
+          FROM milestone_templates
+          WHERE academic_year IS NOT DISTINCT FROM $1
+            AND degree_level = $2
+            AND $3 = ANY(plans)
+            AND cardinality(plans) > 1
+          ORDER BY sequence_order, created_at
+          FOR UPDATE
+        `,
+        [current.academic_year, current.degree_level, scopePlan],
+      )
+      const clonedIdByOriginalId = new Map(
+        sharedTemplates.rows.map((template) => [template.milestone_id, randomUUID()]),
+      )
+
+      for (const template of sharedTemplates.rows) {
+        const cloneId = clonedIdByOriginalId.get(template.milestone_id)
+        const clonedPrerequisites = template.prerequisite_milestone_ids.map(
+          (id) => clonedIdByOriginalId.get(id) ?? id,
+        )
+        await client.query(
+          `
+            INSERT INTO milestone_templates (
+              milestone_id, default_template_key, default_template_version, academic_year,
+              degree_level, semester, plans, prerequisite_milestone_ids, title, description,
+              reference_urls, sequence_order, open_date, deadline, first_reminder_date,
+              second_reminder_date, is_enabled, created_at, updated_at
+            ) VALUES (
+              $1, $2, $3, $4, $5, $6, ARRAY[$7]::VARCHAR[], $8, $9, $10,
+              $11, $12, $13, $14, $15, $16, $17, NOW(), NOW()
+            )
+          `,
+          [
+            cloneId,
+            `admin-${cloneId}`,
+            template.default_template_version,
+            template.academic_year,
+            template.degree_level,
+            template.semester,
+            scopePlan,
+            clonedPrerequisites,
+            template.title,
+            template.description,
+            template.reference_urls,
+            template.sequence_order,
+            template.open_date,
+            template.deadline,
+            template.first_reminder_date,
+            template.second_reminder_date,
+            template.is_enabled,
+          ],
+        )
+        await client.query(
+          'UPDATE milestone_templates SET plans = array_remove(plans, $2), updated_at = NOW() WHERE milestone_id = $1',
+          [template.milestone_id, scopePlan],
+        )
+        await client.query(
+          `
+            UPDATE student_milestones sm
+            SET milestone_id = $2, updated_at = NOW()
+            FROM students s
+            WHERE sm.student_id = s.student_id
+              AND sm.milestone_id = $1
+              AND s.education_plan = $3
+          `,
+          [template.milestone_id, cloneId, scopePlan],
+        )
+      }
+      for (const [originalId, cloneId] of clonedIdByOriginalId) {
+        await client.query(
+          `
+            UPDATE milestone_templates
+            SET prerequisite_milestone_ids = array_replace(
+                  prerequisite_milestone_ids, $1::VARCHAR, $2::VARCHAR
+                ),
+                updated_at = NOW()
+            WHERE academic_year IS NOT DISTINCT FROM $3
+              AND degree_level = $4
+              AND $5 = ANY(plans)
+          `,
+          [originalId, cloneId, current.academic_year, current.degree_level, scopePlan],
+        )
+      }
+      targetMilestoneId = clonedIdByOriginalId.get(milestoneId)
+      targetPrerequisiteIds = input.prerequisiteMilestoneIds.map(
+        (id) => clonedIdByOriginalId.get(id) ?? id,
+      )
+    }
+
+    const updated = await client.query(
+      `
+        UPDATE milestone_templates
+        SET academic_year = $2, degree_level = $3, semester = $4,
+            plans = ARRAY[$5]::VARCHAR[], prerequisite_milestone_ids = $6,
+            title = $7, description = $8, reference_urls = $9,
+            sequence_order = $10, open_date = $11, deadline = $12,
+            first_reminder_date = $13, second_reminder_date = $14,
+            is_enabled = $15, updated_at = NOW()
+        WHERE milestone_id = $1
+      `,
+      [
+        targetMilestoneId, input.academicYear, input.degreeLevel, input.semester, scopePlan,
+        targetPrerequisiteIds, input.title, input.description, input.references,
+        input.sequenceOrder, input.openDate, input.deadline, input.firstReminderDate,
+        input.secondReminderDate, input.isEnabled,
+      ],
+    )
+    if (!updated.rowCount) {
+      await client.query('ROLLBACK')
+      return null
+    }
+    await client.query('COMMIT')
+    return findMilestoneById(targetMilestoneId)
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
 }
 
 export async function removeMilestone(milestoneId) {

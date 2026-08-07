@@ -61,6 +61,12 @@ test('stores form names and university links as separate references', () => {
   }
 })
 
+test('leaves all prerequisite rules for administrators to configure', () => {
+  for (const template of defaultMilestoneTemplates) {
+    assert.deepEqual(template.prerequisites, [])
+  }
+})
+
 test('references valid prerequisite templates that occur earlier', () => {
   const templateByKey = new Map(
     defaultMilestoneTemplates.map((template) => [template.key, template]),

@@ -17,8 +17,21 @@ const emit = defineEmits<{
 }>()
 
 const selectedLabel = computed(() =>
-  props.modelValue.includes('All') ? 'All Plan' : props.modelValue.join(', '),
+  props.modelValue.includes('All')
+    ? t('common.allPlan')
+    : props.modelValue.map(planLabel).join(', '),
 )
+
+function planLabel(plan: EducationPlan) {
+  const keys = {
+    A1: 'common.planA1',
+    A2: 'common.planA2',
+    B: 'common.planB',
+    '2.1': 'common.plan21',
+    '2.2': 'common.plan22',
+  } as const
+  return plan === 'All' || plan === '1.1' ? (plan === 'All' ? t('common.allPlan') : plan) : t(keys[plan])
+}
 
 function togglePlan(plan: EducationPlan) {
   if (plan === 'All') {
@@ -74,7 +87,7 @@ function togglePlan(plan: EducationPlan) {
           :checked="modelValue.includes(plan)"
           @change="togglePlan(plan)"
         />
-        {{ plan === 'All' ? 'All Plan' : plan }}
+        {{ planLabel(plan) }}
       </label>
     </div>
   </div>
