@@ -32,6 +32,8 @@ test('copies the latest academic-year templates with blank dates', async () => {
 
   assert.equal(await ensureAcademicYearMilestoneTemplates(client, 2026), true)
 
+  assert.match(calls[1].sql, /academic_year < \$1/)
+  assert.deepEqual(calls[1].values, [2026])
   const insert = calls.find(({ sql }) => sql.includes('INSERT INTO milestone_templates'))
   assert.ok(insert)
   assert.equal(insert.values[1], 'academic-2026-master-thesis-ethics-training')

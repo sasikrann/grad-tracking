@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "dev:users": "node src/scripts/create-dev-users.js",
+    "db:audit": "node src/scripts/audit-database.js",
     "start": "node src/index.js",
     "test": "node --test"
   },

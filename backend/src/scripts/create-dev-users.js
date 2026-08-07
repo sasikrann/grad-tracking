@@ -1,4 +1,8 @@
 import pool from "../config/database.js";
+import {
+  ensureAcademicYearMilestoneTemplates,
+  ensureMilestoneSchema,
+} from "../services/milestones.service.js";
 
 if (process.env.NODE_ENV === "production") {
   throw new Error("Development users cannot be created in production");
@@ -24,6 +28,8 @@ const users = {
     role: "student",
   },
 };
+
+await ensureMilestoneSchema();
 
 const client = await pool.connect();
 
@@ -141,18 +147,23 @@ try {
         student_id,
         user_id,
         full_name,
+        school_name,
         program,
+        education_plan,
         degree_level,
         enrollment_academic_year,
         semester,
         expected_graduation_year,
         advisor_id
       )
-      VALUES ($1, $2, $3, 'CE', 'Doctoral', 2023, '1', 2030, $4)
+      VALUES ($1, $2, $3, 'School of Information Technology', 'CE', '2.1',
+        'Doctoral', 2023, '1', 2030, $4)
       ON CONFLICT (student_id) DO UPDATE SET
         user_id = EXCLUDED.user_id,
         full_name = EXCLUDED.full_name,
+        school_name = EXCLUDED.school_name,
         program = EXCLUDED.program,
+        education_plan = EXCLUDED.education_plan,
         degree_level = EXCLUDED.degree_level,
         enrollment_academic_year = EXCLUDED.enrollment_academic_year,
         semester = EXCLUDED.semester,
@@ -162,6 +173,8 @@ try {
     `,
     [studentId, users.student.userId, users.student.fullName, advisorId],
   );
+
+  await ensureAcademicYearMilestoneTemplates(client, 2023);
 
   if (legacyStudentId && legacyStudentId !== studentId) {
     await client.query("UPDATE student_milestones SET student_id = $1 WHERE student_id = $2", [

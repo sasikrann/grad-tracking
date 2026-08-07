@@ -23,3 +23,9 @@ export function startMilestoneReminderScheduler() {
   reminderScheduler = setInterval(runReminderCheck, reminderCheckIntervalMs);
   return reminderScheduler;
 }
+
+export function stopMilestoneReminderScheduler() {
+  if (!reminderScheduler) return;
+  clearInterval(reminderScheduler);
+  reminderScheduler = undefined;
+}

@@ -175,7 +175,10 @@ export async function ensureAcademicYearMilestoneTemplates(client, academicYear)
   if (existing.rowCount) return false
 
   const latestYearResult = await client.query(
-    'SELECT MAX(academic_year) AS academic_year FROM milestone_templates WHERE academic_year IS NOT NULL',
+    `SELECT MAX(academic_year) AS academic_year
+     FROM milestone_templates
+     WHERE academic_year < $1`,
+    [year],
   )
   const sourceYear = latestYearResult.rows[0].academic_year
   const source = await client.query(

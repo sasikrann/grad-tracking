@@ -7,6 +7,7 @@
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "npm --prefix backend run dev",
     "dev:users": "npm --prefix backend run dev:users",
+    "db:audit": "npm --prefix backend run db:audit",
     "build": "npm --prefix frontend run build",
     "test": "npm --prefix backend test && npm --prefix frontend run test:unit"
   }
