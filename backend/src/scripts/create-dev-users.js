@@ -148,7 +148,7 @@ try {
         expected_graduation_year,
         advisor_id
       )
-      VALUES ($1, $2, $3, 'CE', 'Doctoral', 2026, '1', 2030, $4)
+      VALUES ($1, $2, $3, 'CE', 'Doctoral', 2023, '1', 2030, $4)
       ON CONFLICT (student_id) DO UPDATE SET
         user_id = EXCLUDED.user_id,
         full_name = EXCLUDED.full_name,

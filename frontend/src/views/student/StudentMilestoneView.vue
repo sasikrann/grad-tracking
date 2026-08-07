@@ -4,21 +4,33 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import MilestoneStatusOverview from '@/components/student-milestone/MilestoneStatusOverview.vue'
 import StudentMilestoneCard from '@/components/student-milestone/StudentMilestoneCard.vue'
 import StudentMilestoneProgress from '@/components/student-milestone/StudentMilestoneProgress.vue'
-import { getMyStudentProfile, type StudentProfile } from '@/services/student-profile.api'
+import { getAdvisors } from '@/services/advisors.api'
+import {
+  appointMyStudentAdvisors,
+  getMyStudentProfile,
+  type StudentProfile,
+  submitMyGraduation,
+} from '@/services/student-profile.api'
 import {
   getMyStudentMilestones,
   removeMyMilestoneEvidence,
   uploadMyMilestoneEvidence,
 } from '@/services/student-milestones.api'
 import type { StudentMilestone } from '@/types/milestone'
+import type { Advisor } from '@/types/advisor'
 
 const milestones = ref<StudentMilestone[]>([])
 const profile = ref<StudentProfile | null>(null)
+const advisors = ref<Advisor[]>([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 const uploadingMilestoneId = ref<string | null>(null)
 const uploadErrorMilestoneId = ref<string | null>(null)
 const uploadErrorMessage = ref('')
+const savingAppointmentMilestoneId = ref<string | null>(null)
+const appointmentError = ref('')
+const savingGraduationMilestoneId = ref<string | null>(null)
+const graduationError = ref('')
 const maxMilestoneEvidenceFileSize = 2 * 1024 * 1024
 const notificationMessage = ref('')
 let refreshTimer: ReturnType<typeof window.setInterval> | undefined
@@ -35,6 +47,16 @@ const progressPercentage = computed(() => {
   return Math.round((completedCount.value / milestones.value.length) * 100)
 })
 const hasAdvisor = computed(() => Boolean(profile.value?.advisorId))
+const advisorAppointmentIndex = computed(() =>
+  milestones.value.findIndex((milestone) => milestone.templateKey?.endsWith('advisor-appointment')),
+)
+function canUploadMilestone(milestoneId: string) {
+  if (hasAdvisor.value) return true
+  const milestoneIndex = milestones.value.findIndex(
+    (milestone) => milestone.milestoneId === milestoneId,
+  )
+  return advisorAppointmentIndex.value < 0 || milestoneIndex < advisorAppointmentIndex.value
+}
 const completedMilestoneIds = computed(
   () =>
     new Set(
@@ -49,7 +71,14 @@ function normalizeTitle(title: string) {
 }
 
 function prerequisiteIdsFor(milestone: StudentMilestone) {
-  if (milestone.prerequisiteMilestoneIds?.length) return milestone.prerequisiteMilestoneIds
+  if (milestone.prerequisiteMilestoneIds?.length) {
+    const assignedMilestoneIds = new Set(
+      milestones.value.map((assignedMilestone) => assignedMilestone.milestoneId),
+    )
+    return milestone.prerequisiteMilestoneIds.filter((milestoneId) =>
+      assignedMilestoneIds.has(milestoneId),
+    )
+  }
 
   const template = milestones.value.find(
     (candidate) => normalizeTitle(candidate.title) === normalizeTitle(milestone.title),
@@ -96,13 +125,52 @@ async function loadMilestones({ silent = false } = {}) {
   }
   errorMessage.value = ''
   try {
-    const studentProfile = await getMyStudentProfile()
+    const [studentProfile, advisorList] = await Promise.all([getMyStudentProfile(), getAdvisors()])
     profile.value = studentProfile
+    advisors.value = advisorList
     milestones.value = await getMyStudentMilestones()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Unable to load milestones'
   } finally {
     isLoading.value = false
+  }
+}
+
+async function appointAdvisor(input: {
+  milestoneId: string
+  advisorId: string
+  coAdvisorIds: string[]
+}) {
+  savingAppointmentMilestoneId.value = input.milestoneId
+  appointmentError.value = ''
+  try {
+    profile.value = await appointMyStudentAdvisors(input)
+    milestones.value = await getMyStudentMilestones()
+    showNotification('Advisor appointment saved successfully.')
+  } catch (error) {
+    appointmentError.value =
+      error instanceof Error ? error.message : 'Unable to save advisor appointment'
+  } finally {
+    savingAppointmentMilestoneId.value = null
+  }
+}
+
+async function submitGraduation(input: {
+  milestoneId: string
+  semester: string
+  academicYear: number
+}) {
+  savingGraduationMilestoneId.value = input.milestoneId
+  graduationError.value = ''
+  try {
+    profile.value = await submitMyGraduation(input)
+    milestones.value = await getMyStudentMilestones()
+    showNotification('Graduation information saved successfully.')
+  } catch (error) {
+    graduationError.value =
+      error instanceof Error ? error.message : 'Unable to save graduation information'
+  } finally {
+    savingGraduationMilestoneId.value = null
   }
 }
 
@@ -127,7 +195,7 @@ function showUploadBlockedMessage(milestoneId: string, message: string) {
 }
 
 const advisorRequiredMessage =
-  'Please select an advisor in Student Information before uploading milestone evidence.'
+  'Please complete the Appoint an Advisor milestone before uploading this evidence.'
 
 function showNotification(message: string) {
   notificationMessage.value = message
@@ -142,7 +210,7 @@ async function uploadEvidence(milestoneId: string, file: File) {
   uploadErrorMilestoneId.value = milestoneId
   uploadErrorMessage.value = ''
 
-  if (!hasAdvisor.value) {
+  if (!canUploadMilestone(milestoneId)) {
     uploadErrorMilestoneId.value = null
     uploadErrorMessage.value = ''
     showNotification(advisorRequiredMessage)
@@ -234,14 +302,24 @@ onBeforeUnmount(() => {
         ></div>
 
         <StudentMilestoneCard
-          v-for="milestone in visibleMilestones"
+          v-for="(milestone, index) in visibleMilestones"
           :key="milestone.milestoneId"
           :milestone="milestone"
-          :index="milestone.sequenceOrder"
-          :reference-url="milestone.referenceUrl ?? undefined"
+          :index="index + 1"
           :is-uploading="uploadingMilestoneId === milestone.milestoneId"
-          :can-upload="hasAdvisor"
+          :can-upload="canUploadMilestone(milestone.milestoneId)"
           :upload-error="uploadErrorMilestoneId === milestone.milestoneId ? uploadErrorMessage : ''"
+          :advisors="advisors"
+          :current-advisor-id="profile?.advisorId"
+          :current-co-advisor-ids="profile?.coAdvisors.map((advisor) => advisor.advisorId) ?? []"
+          :is-saving-appointment="savingAppointmentMilestoneId === milestone.milestoneId"
+          :appointment-error="appointmentError"
+          :current-graduation-semester="profile?.graduationSemester"
+          :current-graduation-academic-year="profile?.graduationAcademicYear"
+          :is-saving-graduation="savingGraduationMilestoneId === milestone.milestoneId"
+          :graduation-error="graduationError"
+          @appoint-advisor="appointAdvisor"
+          @submit-graduation="submitGraduation"
           @upload-blocked="showUploadBlockedMessage"
           @upload="uploadEvidence"
           @remove-evidence="removeEvidence"

@@ -152,11 +152,10 @@ onMounted(loadMilestones)
           ></div>
 
           <StudentMilestoneCard
-            v-for="milestone in milestones"
+            v-for="(milestone, index) in milestones"
             :key="milestone.milestoneId"
             :milestone="milestone"
-            :index="milestone.sequenceOrder"
-            :reference-url="milestone.referenceUrl ?? undefined"
+            :index="index + 1"
             readonly
             :can-review="canReview(milestone)"
             :is-reviewing="reviewingMilestoneId === milestone.milestoneId"

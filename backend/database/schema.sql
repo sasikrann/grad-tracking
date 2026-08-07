@@ -59,6 +59,8 @@ CREATE TABLE students (
   expected_graduation_year INT NOT NULL CHECK (
     expected_graduation_year BETWEEN enrollment_academic_year AND 2200
   ),
+  graduation_semester VARCHAR CHECK (graduation_semester IN ('1', '2')),
+  graduation_academic_year INT CHECK (graduation_academic_year BETWEEN 1900 AND 3000),
   advisor_id VARCHAR REFERENCES advisors(advisor_id) ON DELETE SET NULL,
   advisor_evidence_url TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
@@ -70,15 +72,26 @@ CREATE TABLE students (
   )
 );
 
+CREATE TABLE student_co_advisors (
+  student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
+  advisor_id VARCHAR NOT NULL REFERENCES advisors(advisor_id) ON DELETE CASCADE,
+  position SMALLINT NOT NULL CHECK (position BETWEEN 1 AND 2),
+  PRIMARY KEY (student_id, position),
+  UNIQUE (student_id, advisor_id)
+);
+
 CREATE TABLE milestone_templates (
   milestone_id UUID PRIMARY KEY,
+  default_template_key VARCHAR UNIQUE,
+  default_template_version INT NOT NULL DEFAULT 0,
+  academic_year INT CHECK (academic_year BETWEEN 2000 AND 2200),
   degree_level VARCHAR NOT NULL CHECK (degree_level IN ('All', 'Master', 'Doctoral')),
   semester VARCHAR NOT NULL DEFAULT '1' CHECK (semester IN ('all', '1', '2')),
   plans VARCHAR[] NOT NULL DEFAULT ARRAY['All']::VARCHAR[],
   prerequisite_milestone_ids VARCHAR[] NOT NULL DEFAULT ARRAY[]::VARCHAR[],
   title VARCHAR NOT NULL,
   description TEXT,
-  reference_url TEXT,
+  reference_urls TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   sequence_order INT NOT NULL CHECK (sequence_order > 0),
   open_date DATE,
   deadline DATE,
@@ -146,6 +159,7 @@ CREATE TABLE import_logs (
 -- PostgreSQL does not create indexes for foreign-key columns automatically.
 CREATE INDEX students_advisor_id_idx ON students(advisor_id);
 CREATE INDEX student_milestones_milestone_id_idx ON student_milestones(milestone_id);
+CREATE INDEX milestone_templates_academic_year_idx ON milestone_templates(academic_year);
 CREATE INDEX student_milestones_reviewed_by_idx ON student_milestones(reviewed_by);
 CREATE INDEX notifications_created_by_idx ON notifications(created_by);
 CREATE INDEX import_logs_imported_by_idx ON import_logs(imported_by);

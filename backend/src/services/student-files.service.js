@@ -129,8 +129,7 @@ const studentTemplateColumns = [
   { header: "Program", key: "program", width: 18 },
   { header: "Degree Level", key: "degreeLevel", width: 16 },
   { header: "Enrollment Academic Year", key: "enrollmentAcademicYear", width: 25 },
-  { header: "Semester", key: "semester", width: 12 },
-  { header: "Year", key: "expectedGraduationYear", width: 12 },
+  { header: "Year", key: "graduationTerm", width: 16 },
 ];
 
 const studentImportColumns = [
@@ -407,6 +406,7 @@ export function parseStudentId(value) {
     else semester = null;
   }
 
+  // ปีการศึกษาที่เข้าศึกษา = 2500 + entryYear - 543 
   return {
     studentId,
     enrollmentAcademicYear: 2500 + entryYear - 543,
@@ -547,6 +547,7 @@ export async function createStudentExportBuffer(students, { language = "en" } = 
   worksheet.addRows(
     students.map((student) => ({
       ...student,
+      graduationTerm: formatGraduationTerm(student, language),
       milestoneStatus: formatMilestoneReport(student.milestoneReport),
     })),
   );
@@ -561,6 +562,15 @@ export async function createStudentExportBuffer(students, { language = "en" } = 
   });
 
   return Buffer.from(await workbook.xlsx.writeBuffer());
+}
+
+function formatGraduationTerm(student, language) {
+  if (!student.graduationSemester || !student.graduationAcademicYear) return "";
+  const storedYear = Number(student.graduationAcademicYear);
+  const displayYear = language === "th"
+    ? storedYear < 2400 ? storedYear + 543 : storedYear
+    : storedYear >= 2400 ? storedYear - 543 : storedYear;
+  return `${student.graduationSemester}/${displayYear}`;
 }
 
 export async function createStudentTemplateBuffer() {

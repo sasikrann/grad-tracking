@@ -12,7 +12,7 @@ import { exportStudents, getStudents, importStudents } from '@/services/students
 import type { StudentImportResult } from '@/services/students.api'
 
 const router = useRouter()
-const { isThai } = useLanguage()
+const { isThai, t } = useLanguage()
 
 const {
   filteredStudents,
@@ -213,9 +213,9 @@ onBeforeUnmount(() => {
   <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 class="text-3xl font-bold tracking-tight">Student Management</h1>
+        <h1 class="text-3xl font-bold tracking-tight">{{ t('student.pageTitle') }}</h1>
         <p class="mt-1 text-sm text-slate-500">
-          Manage student data, track progress, and monitor thesis status
+          {{ t('student.pageDescription') }}
         </p>
       </div>
 
@@ -224,19 +224,19 @@ onBeforeUnmount(() => {
     <section class="mt-4" aria-label="Import">
       <DashboardActionCard
         class="w-full"
-        title="Import Excel"
-        description="Upload student records from CSV or Excel."
+        :title="t('dashboard.importExcel')"
+        :description="t('dashboard.uploadStudents')"
         tone="red"
         :busy="isImporting"
-        busy-label="Importing..."
+        :busy-label="t('dashboard.importing')"
         @click="openImportModal"
       />
     </section>
 
     <section class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-3">
-      <SummaryCard title="Total Students" :value="statistics.total" icon="students" />
-      <SummaryCard title="On-track" :value="statistics.onTrack" icon="on-track" />
-      <SummaryCard title="Overdue" :value="statistics.overdue" icon="overdue" />
+      <SummaryCard :title="t('dashboard.totalStudents')" :value="statistics.total" icon="students" />
+      <SummaryCard :title="t('dashboard.onTrack')" :value="statistics.onTrack" icon="on-track" />
+      <SummaryCard :title="t('dashboard.overdue')" :value="statistics.overdue" icon="overdue" />
     </section>
 
     <StudentOverview
@@ -254,11 +254,11 @@ onBeforeUnmount(() => {
         <DashboardActionCard
           class="-mt-2"
           compact
-          title="Export Excel"
-          description="Download the students currently shown in the table."
+          :title="t('dashboard.exportExcel')"
+          :description="t('dashboard.downloadStudents')"
           tone="green"
           :busy="isExporting"
-          busy-label="Exporting..."
+          :busy-label="t('dashboard.exporting')"
           @click="handleExport"
         />
       </template>
@@ -266,11 +266,11 @@ onBeforeUnmount(() => {
 
     <ImportFileModal
       v-if="isImportModalOpen"
-      title="Import Student"
-      description="Upload an Excel or CSV file to import students in bulk"
+      :title="t('dashboard.importStudent')"
+      :description="t('dashboard.bulkStudents')"
       :selected-file="selectedImportFile"
       :is-importing="isImporting"
-      action-label="Import Student"
+      :action-label="t('dashboard.importStudent')"
       @select-file="handleImportFileSelect"
       @close="closeImportModal"
       @import="handleImport"

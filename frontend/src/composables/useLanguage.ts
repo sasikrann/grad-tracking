@@ -1,8 +1,6 @@
 import { computed, ref } from 'vue'
+import { translate, type AppLanguage, type TranslationKey } from '@/lang'
 
-export type AppLanguage = 'en' | 'th'
-
-// Keep language handling internal until the localized UI is ready to expose a selector.
 const language = ref<AppLanguage>('en')
 document.documentElement.lang = language.value
 
@@ -20,5 +18,9 @@ export function useLanguage() {
     document.documentElement.lang = value
   }
 
-  return { language, isThai, setLanguage }
+  function t(key: TranslationKey, params?: Record<string, string | number>) {
+    return translate(language.value, key, params)
+  }
+
+  return { language, isThai, setLanguage, t }
 }

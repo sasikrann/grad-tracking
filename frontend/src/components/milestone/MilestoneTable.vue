@@ -3,6 +3,8 @@
 import { computed } from 'vue'
 
 import type { Milestone } from '@/types/milestone'
+import { useLanguage } from '@/composables/useLanguage'
+const { t } = useLanguage()
 
 const props = defineProps<{
   milestones: Milestone[]
@@ -26,12 +28,17 @@ function formatDate(value: string | null) {
   }).format(new Date(value))
 }
 
+function isWebReference(value: string) {
+  return /^https?:\/\//i.test(value)
+}
+
 const tableRows = computed(() => {
   if (!props.groupBySemester) {
-    return props.milestones.map((milestone) => ({
+    return props.milestones.map((milestone, index) => ({
       type: 'milestone' as const,
       key: milestone.milestoneId,
       milestone,
+      displayOrder: index + 1,
     }))
   }
 
@@ -53,10 +60,11 @@ const tableRows = computed(() => {
       },
       ...[...milestones]
         .sort((first, second) => first.sequenceOrder - second.sequenceOrder)
-        .map((milestone) => ({
+        .map((milestone, index) => ({
           type: 'milestone' as const,
           key: milestone.milestoneId,
           milestone,
+          displayOrder: index + 1,
         })),
     ])
 })
@@ -64,30 +72,30 @@ const tableRows = computed(() => {
 
 <template>
   <div class="mt-5 overflow-x-auto">
-    <table class="w-full min-w-[920px] border-collapse text-left">
+    <table class="w-full min-w-[920px] table-fixed border-collapse text-left">
       <thead>
-        <tr class="border-b border-slate-200 text-xs">
-          <th class="w-[10%] py-3 font-semibold">Order</th>
-          <th class="w-[20%] py-3 font-semibold">Title</th>
-          <th class="w-[19%] py-3 font-semibold">Description</th>
-          <th class="w-[10%] py-3 text-center font-semibold">Program</th>
-          <th class="w-[11%] py-3 text-center font-semibold">Plan</th>
-          <th class="w-[9%] py-3 text-center font-semibold">Semester</th>
-          <th class="w-[12%] py-3 pl-4 font-semibold">Deadline</th>
-          <th class="w-[10%] py-3 text-right font-semibold">Actions</th>
+        <tr class="border-b border-slate-200 text-xs whitespace-nowrap">
+          <th class="w-[10%] py-3 font-semibold">{{ t('common.order') }}</th>
+          <th class="w-[22.5%] py-3 font-semibold">{{ t('common.title') }}</th>
+          <th class="w-[16%] py-3 font-semibold">{{ t('common.description') }}</th>
+          <th class="w-[13%] py-3 pl-4 font-semibold">{{ t('common.reference') }}</th>
+          <th class="w-[10%] py-3 text-center font-semibold">{{ t('common.program') }}</th>
+          <th class="w-[11%] py-3 text-center font-semibold">{{ t('common.plan') }}</th>
+          <th class="w-[9.5%] py-3 pl-4 font-semibold">{{ t('common.deadline') }}</th>
+          <th class="w-[10%] py-3 text-right font-semibold">{{ t('common.actions') }}</th>
         </tr>
       </thead>
 
       <tbody>
         <tr v-if="isLoading">
           <td colspan="8" class="py-12 text-center text-sm text-slate-500">
-            Loading milestones...
+            {{ t('milestone.loading') }}
           </td>
         </tr>
 
         <tr v-else-if="milestones.length === 0">
           <td colspan="8" class="py-12 text-center text-sm text-slate-500">
-            No milestones configured.
+            {{ t('milestone.noConfigured') }}
           </td>
         </tr>
 
@@ -106,7 +114,7 @@ const tableRows = computed(() => {
                 <div class="flex items-start gap-1">
                   <span class="cursor-grab text-slate-400" aria-hidden="true">::</span>
                   <span class="w-5 text-center font-semibold">{{
-                    row.milestone.sequenceOrder
+                    row.displayOrder
                   }}</span>
                   <div class="flex flex-col">
                     <button
@@ -141,9 +149,31 @@ const tableRows = computed(() => {
                 </div>
               </td>
 
-              <td class="py-4 align-top font-semibold leading-snug">{{ row.milestone.title }}</td>
+              <td class="py-4 align-top font-semibold leading-snug">
+                <div class="w-60 max-w-full break-words">
+                  {{ row.milestone.title }}
+                </div>
+              </td>
               <td class="py-4 align-top leading-snug text-slate-500">
                 {{ row.milestone.description || '-' }}
+              </td>
+              <td class="py-4 pl-4 align-top leading-snug">
+                <div v-if="row.milestone.references.length" class="space-y-1">
+                  <component
+                    v-for="reference in row.milestone.references"
+                    :key="reference"
+                    :is="isWebReference(reference) ? 'a' : 'span'"
+                    :href="isWebReference(reference) ? reference : undefined"
+                    :target="isWebReference(reference) ? '_blank' : undefined"
+                    :rel="isWebReference(reference) ? 'noopener noreferrer' : undefined"
+                    class="block max-w-40 text-xs"
+                    :class="isWebReference(reference) ? 'truncate text-[#7D2923] underline' : 'leading-snug text-slate-600'"
+                    :title="reference"
+                  >
+                    {{ reference }}
+                  </component>
+                </div>
+                <span v-else class="text-slate-500">-</span>
               </td>
 
               <td class="py-4 text-center align-middle">
@@ -172,14 +202,6 @@ const tableRows = computed(() => {
                 </span>
               </td>
 
-              <td class="py-4 text-center align-middle">
-                <span
-                  class="inline-flex min-w-14 items-center justify-center rounded-md border border-slate-200 px-3 py-1 leading-none"
-                >
-                  {{ row.milestone.semester === 'all' ? 'All' : row.milestone.semester }}
-                </span>
-              </td>
-
               <td class="py-4 pl-4 align-middle text-slate-500">
                 {{ formatDate(row.milestone.deadline) }}
               </td>
@@ -196,7 +218,7 @@ const tableRows = computed(() => {
                     "
                     @click="$emit('setEnabled', row.milestone, true)"
                   >
-                    Enable
+                    {{ t('common.enable') }}
                   </button>
 
                   <button
@@ -209,7 +231,7 @@ const tableRows = computed(() => {
                     "
                     @click="$emit('setEnabled', row.milestone, false)"
                   >
-                    Disable
+                    {{ t('common.disable') }}
                   </button>
 
                   <button

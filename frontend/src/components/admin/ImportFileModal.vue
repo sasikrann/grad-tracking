@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useLanguage } from '@/composables/useLanguage'
+
+const { t } = useLanguage()
 
 defineProps<{
   title: string
@@ -50,12 +53,12 @@ function handleFileDrop(event: DragEvent) {
           <path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" />
         </svg>
         <span class="mt-3 text-xs text-slate-500">
-          {{ selectedFile ? selectedFile.name : 'Drag and drop your file here, or click to browse' }}
+          {{ selectedFile ? selectedFile.name : t('file.drop') }}
         </span>
         <span class="mt-2 rounded bg-[#8b2a23] px-3 py-1.5 text-xs font-medium text-white">
-          Browse File
+          {{ t('file.browse') }}
         </span>
-        <span class="mt-2 text-[10px] text-slate-400">Supported formats: .xlsx, .csv</span>
+        <span class="mt-2 text-[10px] text-slate-400">{{ t('file.supported') }}</span>
       </button>
 
       <input ref="fileInput" class="hidden" type="file" accept=".csv,.xlsx" @change="handleFileSelect" />
@@ -66,7 +69,7 @@ function handleFileDrop(event: DragEvent) {
           class="rounded border border-slate-200 px-3 py-2 text-xs font-medium hover:bg-slate-50"
           @click="$emit('close')"
         >
-          Cancel
+          {{ t('common.cancel') }}
         </button>
         <button
           type="button"
@@ -74,7 +77,7 @@ function handleFileDrop(event: DragEvent) {
           class="rounded bg-[#8b2a23] px-3 py-2 text-xs font-medium text-white hover:bg-[#7a211c] disabled:cursor-not-allowed disabled:opacity-60"
           @click="$emit('import')"
         >
-          {{ isImporting ? 'Importing...' : (actionLabel ?? 'Import Advisor') }}
+          {{ isImporting ? t('dashboard.importing') : (actionLabel ?? t('dashboard.importAdvisor')) }}
         </button>
       </div>
     </section>

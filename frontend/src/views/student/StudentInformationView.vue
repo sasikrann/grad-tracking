@@ -4,15 +4,12 @@ import { onMounted, ref } from 'vue'
 import StudentInformationAdvisor from '@/components/student/StudentInformationAdvisor.vue'
 import StudentInformationCoAdvisor from '@/components/student/StudentInformationCoAdvisor.vue'
 import StudentInformationStudyPlan from '@/components/student/StudentInformationStudyPlan.vue'
-import { getAdvisors } from '@/services/advisors.api'
 import {
   getMyStudentProfile,
   type StudentProfile,
 } from '@/services/student-profile.api'
-import type { Advisor } from '@/types/advisor'
 
 const profile = ref<StudentProfile | null>(null)
-const advisors = ref<Advisor[]>([])
 const isLoading = ref(true)
 const loadError = ref('')
 
@@ -21,12 +18,7 @@ async function loadPage() {
   loadError.value = ''
 
   try {
-    const [studentProfile, advisorList] = await Promise.all([
-      getMyStudentProfile(),
-      getAdvisors(),
-    ])
-    profile.value = studentProfile
-    advisors.value = advisorList
+    profile.value = await getMyStudentProfile()
   } catch (error) {
     loadError.value = error instanceof Error ? error.message : 'Unable to load student information'
   } finally {
@@ -56,12 +48,9 @@ onMounted(loadPage)
       <StudentInformationStudyPlan :profile="profile" />
       <StudentInformationAdvisor
         :profile="profile"
-        :advisors="advisors"
-        @updated="profile = $event"
       />
       <StudentInformationCoAdvisor
-        :advisors="advisors"
-        :primary-advisor-id="profile.advisorId"
+        :co-advisors="profile.coAdvisors"
       />
     </template>
   </div>

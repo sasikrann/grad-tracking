@@ -8,6 +8,8 @@ import {
   uploadNotificationAttachment,
 } from '@/services/notifications.api'
 import type { Notification, NotificationInput, NotificationTargetAudience } from '@/types/notification'
+import { useLanguage } from '@/composables/useLanguage'
+const { t } = useLanguage()
 
 type AudienceFilter = NotificationTargetAudience | 'all'
 
@@ -31,20 +33,20 @@ const attachmentInput = useTemplateRef<HTMLInputElement>('attachmentInput')
 const messageEditor = useTemplateRef<HTMLDivElement>('messageEditor')
 let toastTimer: ReturnType<typeof window.setTimeout> | undefined
 
-const audienceOptions: { label: string; value: NotificationTargetAudience }[] = [
-  { label: 'All Students', value: 'All Students' },
-  { label: 'Ph.D.', value: 'Doctoral Students' },
-  { label: 'Master', value: 'Master Students' },
-]
+const audienceOptions = computed<{ label: string; value: NotificationTargetAudience }[]>(() => [
+  { label: t('notification.allStudents'), value: 'All Students' },
+  { label: t('common.doctoral'), value: 'Doctoral Students' },
+  { label: t('common.master'), value: 'Master Students' },
+])
 
-const filterOptions: { label: string; value: AudienceFilter }[] = [
-  { label: 'All Program', value: 'all' },
-  { label: 'Ph.D.', value: 'Doctoral Students' },
-  { label: 'Master', value: 'Master Students' },
-]
+const filterOptions = computed<{ label: string; value: AudienceFilter }[]>(() => [
+  { label: t('notification.allProgram'), value: 'all' },
+  { label: t('common.doctoral'), value: 'Doctoral Students' },
+  { label: t('common.master'), value: 'Master Students' },
+])
 
 const selectedFilterLabel = computed(
-  () => filterOptions.find((option) => option.value === selectedFilter.value)?.label ?? 'All Program',
+  () => filterOptions.value.find((option) => option.value === selectedFilter.value)?.label ?? t('notification.allProgram'),
 )
 
 const messageLength = computed(() => plainNotificationMessage(message.value).length)
@@ -388,7 +390,7 @@ onBeforeUnmount(() => {
   <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
     <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
-        <h1 class="text-3xl font-bold tracking-tight text-black">Notification Management</h1>
+        <h1 class="text-3xl font-bold tracking-tight text-black">{{ t('notification.pageTitle') }}</h1>
         <p class="mt-1 text-sm text-slate-500">
           View and manage all notifications sent to students
         </p>
@@ -418,7 +420,7 @@ onBeforeUnmount(() => {
     >
       <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 class="text-base font-semibold text-slate-950">Notification History</h2>
+          <h2 class="text-base font-semibold text-slate-950">{{ t('notification.history') }}</h2>
           <p class="mt-2 text-xs text-slate-500">
             {{ notifications.length }} Notification History
           </p>
@@ -479,10 +481,10 @@ onBeforeUnmount(() => {
         <table class="w-full min-w-[700px] text-left text-sm">
           <thead>
             <tr class="border-b border-slate-100 text-xs text-slate-950">
-              <th class="px-1 py-3 font-semibold">Title</th>
-              <th class="px-1 py-3 text-center font-semibold">Program</th>
-              <th class="px-1 py-3 text-center font-semibold">Scheduled Date</th>
-              <th class="px-1 py-3 text-center font-semibold">Actions</th>
+              <th class="px-1 py-3 font-semibold">{{ t('common.title') }}</th>
+              <th class="px-1 py-3 text-center font-semibold">{{ t('common.program') }}</th>
+              <th class="px-1 py-3 text-center font-semibold">{{ t('common.scheduledDate') }}</th>
+              <th class="px-1 py-3 text-center font-semibold">{{ t('common.actions') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -560,26 +562,26 @@ onBeforeUnmount(() => {
         <h2 id="send-notification-title" class="text-lg font-semibold text-slate-950">
           Send Notification
         </h2>
-        <p class="mt-2 text-sm text-slate-500">Create a new notification to send to students</p>
+        <p class="mt-2 text-sm text-slate-500">{{ t('notification.createDescription') }}</p>
 
         <form class="mt-5" @submit.prevent="submitNotification">
           <fieldset :disabled="isSubmitting" class="space-y-5">
             <section>
-              <h3 class="text-lg font-semibold text-slate-950">Basic Information</h3>
+              <h3 class="text-lg font-semibold text-slate-950">{{ t('notification.basicInformation') }}</h3>
 
               <label class="mt-2 block text-sm font-medium text-slate-900" for="notification-title">
-                Title <span class="text-[#8b2a23]">*</span>
+                {{ t('common.title') }} <span class="text-[#8b2a23]">*</span>
               </label>
               <input
                 id="notification-title"
                 v-model="title"
                 type="text"
                 class="mt-1 h-10 w-full rounded-md border border-slate-200 px-4 text-sm outline-none focus:border-[#8a2b25]"
-                placeholder="Enter Notification title"
+                :placeholder="t('notification.enterTitle')"
               />
 
               <label class="mt-4 block text-sm font-medium text-slate-900" for="notification-message">
-                Description <span class="text-[#8b2a23]">*</span>
+                {{ t('common.description') }} <span class="text-[#8b2a23]">*</span>
               </label>
               <div class="mt-1 overflow-hidden rounded-md border border-slate-200">
                 <div class="flex h-8 items-center gap-1.5 border-b border-slate-100 px-3 text-xs font-semibold text-slate-600">
@@ -665,7 +667,8 @@ onBeforeUnmount(() => {
                 <div
                   id="notification-message"
                   ref="messageEditor"
-                  class="h-32 w-full overflow-y-auto px-4 py-3 text-sm outline-none empty:before:text-slate-400 empty:before:content-['Type_your_description_here...']"
+                  class="h-32 w-full overflow-y-auto px-4 py-3 text-sm outline-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)]"
+                  :data-placeholder="t('notification.enterDescription')"
                   contenteditable="true"
                   role="textbox"
                   aria-multiline="true"
@@ -677,7 +680,7 @@ onBeforeUnmount(() => {
             </section>
 
             <section class="border-t border-slate-200 pt-5">
-              <h3 class="text-lg font-semibold text-slate-950">Target Audience</h3>
+              <h3 class="text-lg font-semibold text-slate-950">{{ t('notification.targetAudience') }}</h3>
               <div class="mt-3 space-y-2">
                 <label
                   v-for="option in audienceOptions"
@@ -696,7 +699,7 @@ onBeforeUnmount(() => {
             </section>
 
             <section class="border-t border-slate-200 pt-5">
-              <h3 class="text-lg font-semibold text-slate-950">Attachment (Optional)</h3>
+              <h3 class="text-lg font-semibold text-slate-950">{{ t('notification.attachmentOptional') }}</h3>
               <input
                 ref="attachmentInput"
                 type="file"
@@ -708,16 +711,16 @@ onBeforeUnmount(() => {
                 class="mt-3 rounded-md bg-[#F4EAEA] px-4 py-2 text-sm font-semibold text-[#8b2a23]"
                 @click="chooseAttachment"
               >
-                Upload File
+                {{ t('notification.uploadFile') }}
               </button>
-              <p class="mt-3 text-xs text-slate-500">Max file size 10 MB</p>
+              <p class="mt-3 text-xs text-slate-500">{{ t('notification.maxFileSize') }}</p>
               <p v-if="attachmentFile" class="mt-2 break-words text-xs text-slate-700">
                 {{ attachmentFile.name }}
               </p>
 
               <label class="mt-4 flex w-fit items-center gap-3 text-sm text-slate-900">
                 <input v-model="sendEmail" type="checkbox" class="size-4 accent-[#8b2a23]" />
-                Send via email
+                {{ t('notification.sendEmail') }}
               </label>
             </section>
           </fieldset>
@@ -754,7 +757,7 @@ onBeforeUnmount(() => {
             <path d="m22 2-7 20-4-9-9-4 20-7Z" />
             <path d="M22 2 11 13" />
           </svg>
-          {{ isSubmitting ? 'Sending...' : 'Send' }}
+          {{ isSubmitting ? t('notification.sending') : t('notification.send') }}
         </button>
       </div>
     </aside>
@@ -825,7 +828,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="px-6 pb-6 pt-0">
-          <p class="text-xs font-semibold text-black">Description</p>
+          <p class="text-xs font-semibold text-black">{{ t('common.description') }}</p>
           <div
             class="mt-2 break-words text-xs leading-5 text-slate-900 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
             v-html="formattedNotificationMessage(notificationDescription(selectedNotification.message))"
@@ -841,7 +844,7 @@ onBeforeUnmount(() => {
           </div>
 
           <div v-if="selectedNotification.attachmentUrl" class="mt-5">
-            <p class="text-xs font-semibold text-black">Attachment</p>
+            <p class="text-xs font-semibold text-black">{{ t('notification.attachment') }}</p>
               <div
                 v-if="canOpenAttachment(selectedNotification.attachmentUrl)"
                 class="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 transition-colors hover:border-[#dfcccc] hover:bg-[#fff8f8]"

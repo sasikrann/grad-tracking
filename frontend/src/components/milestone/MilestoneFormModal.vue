@@ -5,12 +5,16 @@ import DateInput from './form/DateInput.vue'
 import MilestonePlanDropdown from './form/MilestonePlanDropdown.vue'
 import MilestoneSelectDropdown from './form/MilestoneSelectDropdown.vue'
 import type { EducationPlan, Milestone, MilestoneInput, MilestoneProgram } from '@/types/milestone'
+import { useLanguage } from '@/composables/useLanguage'
+const { t } = useLanguage()
 
 const props = defineProps<{
   milestone: Milestone | null
   milestones: Milestone[]
   defaultDegreeLevel: MilestoneProgram
-  defaultSemester: string
+  filterDegreeLevel: MilestoneProgram
+  filterPlan: EducationPlan
+  defaultAcademicYear: number
   defaultOrder: number
 }>()
 
@@ -20,12 +24,13 @@ const emit = defineEmits<{
 }>()
 
 const form = reactive<MilestoneInput>({
+  academicYear: props.defaultAcademicYear,
   degreeLevel: props.defaultDegreeLevel,
-  semester: props.defaultSemester === 'all' ? '1' : props.defaultSemester,
-  plans: ['All'],
+  semester: 'all',
+  plans: props.filterPlan === 'All' ? ['A1'] : [props.filterPlan],
   title: '',
   description: '',
-  referenceUrl: '',
+  references: [''],
   sequenceOrder: props.defaultOrder,
   openDate: '',
   deadline: '',
@@ -36,21 +41,34 @@ const form = reactive<MilestoneInput>({
 })
 
 const isEditing = computed(() => Boolean(props.milestone))
-type FormDropdown = 'program' | 'semester' | 'plan'
+type FormDropdown = 'program' | 'plan'
 const openDropdown = ref<FormDropdown | null>(null)
 const programOptions: { label: string; value: MilestoneProgram }[] = [
-  { label: 'All Program', value: 'All' },
   { label: 'Master', value: 'Master' },
   { label: 'Ph.D', value: 'Doctoral' },
 ]
-const semesterOptions = [
-  { label: 'All Semester', value: 'all' },
-  { label: '1', value: '1' },
-  { label: '2', value: '2' },
-]
-const planOptions: EducationPlan[] = ['All', 'A1', 'A2', 'B', '1.1', '2.1', '2.2']
+const planOptions = computed<EducationPlan[]>(() => {
+  if (form.degreeLevel === 'Master') return ['A1', 'A2', 'B']
+  return ['2.1', '2.2']
+})
 const prerequisiteOptions = computed(() =>
-  props.milestones.filter((milestone) => milestone.milestoneId !== props.milestone?.milestoneId),
+  props.milestones
+    .filter((milestone) => {
+      if (milestone.milestoneId === props.milestone?.milestoneId) return false
+      const effectiveDegreeLevel =
+        props.filterDegreeLevel === 'All' ? form.degreeLevel : props.filterDegreeLevel
+      const effectivePlans = props.filterPlan === 'All' ? form.plans : [props.filterPlan]
+      const matchesProgram =
+        effectiveDegreeLevel === 'All' ||
+        milestone.degreeLevel === 'All' ||
+        milestone.degreeLevel === effectiveDegreeLevel
+      const matchesPlan =
+        effectivePlans.includes('All') ||
+        milestone.plans.includes('All') ||
+        milestone.plans.some((plan) => effectivePlans.includes(plan))
+      return matchesProgram && matchesPlan
+    })
+    .sort((first, second) => first.sequenceOrder - second.sequenceOrder),
 )
 
 const nextOrderForFormSelection = computed(() => {
@@ -58,8 +76,13 @@ const nextOrderForFormSelection = computed(() => {
     Math.max(
       0,
       ...props.milestones
-        .filter((milestone) => milestone.degreeLevel === form.degreeLevel)
-        .filter((milestone) => milestone.semester === form.semester)
+        .filter(
+          (milestone) =>
+            (milestone.degreeLevel === 'All' || milestone.degreeLevel === form.degreeLevel) &&
+            (form.plans.includes('All') ||
+              milestone.plans.includes('All') ||
+              milestone.plans.some((plan) => form.plans.includes(plan))),
+        )
         .map((milestone) => milestone.sequenceOrder),
     ) + 1
   )
@@ -73,10 +96,18 @@ function toggleDropdown(dropdown: FormDropdown) {
   openDropdown.value = openDropdown.value === dropdown ? null : dropdown
 }
 
-function selectDropdown(dropdown: Exclude<FormDropdown, 'plan'>, value: string) {
+function selectDropdown(dropdown: 'program', value: string) {
   if (dropdown === 'program') form.degreeLevel = value as MilestoneProgram
-  if (dropdown === 'semester') form.semester = value
   openDropdown.value = null
+}
+
+function addReference() {
+  form.references.push('')
+}
+
+function removeReference(index: number) {
+  form.references.splice(index, 1)
+  if (!form.references.length) form.references.push('')
 }
 
 function closeDropdown() {
@@ -87,13 +118,15 @@ watch(
   () => props.milestone,
   (milestone) => {
     openDropdown.value = null
+    form.academicYear = milestone?.academicYear ?? props.defaultAcademicYear
     form.degreeLevel = milestone?.degreeLevel ?? props.defaultDegreeLevel
-    form.semester =
-      milestone?.semester ?? (props.defaultSemester === 'all' ? '1' : props.defaultSemester)
-    form.plans = milestone?.plans?.length ? [...milestone.plans] : ['All']
+    form.semester = 'all'
+    form.plans = milestone?.plans?.length
+      ? [...milestone.plans]
+      : [props.filterPlan === 'All' ? 'A1' : props.filterPlan]
     form.title = milestone?.title ?? ''
     form.description = milestone?.description ?? ''
-    form.referenceUrl = milestone?.referenceUrl ?? ''
+    form.references = milestone?.references?.length ? [...milestone.references] : ['']
     form.sequenceOrder = milestone?.sequenceOrder ?? props.defaultOrder
     form.openDate = milestone?.openDate?.slice(0, 10) ?? ''
     form.deadline = milestone?.deadline?.slice(0, 10) ?? ''
@@ -109,13 +142,23 @@ watch(
   () => form.degreeLevel,
   () => {
     openDropdown.value = null
-    const validPlans = form.plans.filter((plan) => planOptions.includes(plan))
-    form.plans = validPlans.length ? validPlans : ['All']
+    const validPlans = form.plans.filter((plan) => planOptions.value.includes(plan))
+    form.plans = validPlans.length ? validPlans : [planOptions.value[0] as EducationPlan]
   },
 )
 
 watch(
-  () => [form.degreeLevel, form.semester, props.milestones] as const,
+  prerequisiteOptions,
+  (options) => {
+    const validIds = new Set(options.map((option) => option.milestoneId))
+    form.prerequisiteMilestoneIds = form.prerequisiteMilestoneIds.filter((id) =>
+      validIds.has(id),
+    )
+  },
+)
+
+watch(
+  () => [form.degreeLevel, [...form.plans], props.milestones] as const,
   () => {
     if (!isEditing.value) {
       form.sequenceOrder = nextOrderForFormSelection.value
@@ -124,8 +167,17 @@ watch(
   { immediate: true },
 )
 
-onMounted(() => document.addEventListener('click', closeDropdown))
-onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
+let previousBodyOverflow = ''
+
+onMounted(() => {
+  previousBodyOverflow = document.body.style.overflow
+  document.body.style.overflow = 'hidden'
+  document.addEventListener('click', closeDropdown)
+})
+onBeforeUnmount(() => {
+  document.body.style.overflow = previousBodyOverflow
+  document.removeEventListener('click', closeDropdown)
+})
 </script>
 
 <template>
@@ -135,8 +187,8 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
     <section
       class="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:max-h-[calc(100vh-3rem)] sm:p-6"
     >
-      <h2 class="text-xl font-semibold">{{ isEditing ? 'Edit Milestone' : 'Add Milestone' }}</h2>
-      <p class="mt-1 text-xs text-slate-500">Fill in detail for the new milestone.</p>
+      <h2 class="text-xl font-semibold">{{ isEditing ? t('milestone.edit') : t('milestone.add') }}</h2>
+      <p class="mt-1 text-xs text-slate-500">{{ t('milestone.fillDetails') }}</p>
 
       <form class="mt-5 space-y-3" novalidate @submit.prevent="saveForm">
         <label class="block text-xs font-semibold">
@@ -158,17 +210,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
           ></textarea>
         </label>
 
-        <label class="block text-xs font-semibold">
-          Reference
-          <input
-            v-model="form.referenceUrl"
-            type="url"
-            placeholder="https://example.com/"
-            class="mt-1 h-10 w-full rounded-md border border-[#c9827c] px-3 text-xs outline-none focus:border-[#7D2923]"
-          />
-        </label>
-
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
           <MilestoneSelectDropdown
             label="Program"
             :model-value="form.degreeLevel"
@@ -176,15 +218,6 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
             :open="openDropdown === 'program'"
             @toggle="toggleDropdown('program')"
             @select="selectDropdown('program', $event)"
-          />
-
-          <MilestoneSelectDropdown
-            label="Semester"
-            :model-value="form.semester"
-            :options="semesterOptions"
-            :open="openDropdown === 'semester'"
-            @toggle="toggleDropdown('semester')"
-            @select="selectDropdown('semester', $event)"
           />
         </div>
 
@@ -207,7 +240,39 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
           />
         </div>
 
-        <DateInput v-model="form.openDate" label="Date" />
+        <fieldset class="space-y-2">
+          <div class="flex items-center justify-between gap-3">
+            <legend class="text-xs font-semibold">{{ t('milestone.referencesOptional') }}</legend>
+            <button
+              type="button"
+              class="text-xs font-semibold text-[#7D2923] hover:underline"
+              @click="addReference"
+            >
+              {{ t('milestone.addReference') }}
+            </button>
+          </div>
+          <div
+            v-for="(_reference, index) in form.references"
+            :key="index"
+            class="flex items-center gap-2"
+          >
+            <input
+              v-model="form.references[index]"
+              type="text"
+              placeholder="e.g., DGC24 – แบบยื่นผลการทดสอบภาษาอังกฤษ หรือ https://postgrads.mfu.ac.th"
+              class="h-10 min-w-0 flex-1 rounded-md border border-[#c9827c] px-3 text-xs outline-none focus:border-[#7D2923]"
+            />
+            <button
+              type="button"
+              class="rounded-md border border-red-100 px-3 py-2 text-xs text-red-600 hover:bg-red-50"
+              aria-label="Remove reference"
+              @click="removeReference(index)"
+            >
+              {{ t('common.remove') }}
+            </button>
+          </div>
+        </fieldset>
+
         <DateInput v-model="form.deadline" label="Deadline" />
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -215,30 +280,48 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
           <DateInput v-model="form.secondReminderDate" label="Second Reminder" />
         </div>
 
-        <label class="block text-xs font-semibold">
-          Prerequisite Milestone (Optional)
-          <select
-            v-model="form.prerequisiteMilestoneIds"
-            multiple
-            class="mt-1 min-h-20 w-full rounded-md border border-[#c9827c] bg-white px-3 py-2 text-xs outline-none focus:border-[#7D2923]"
+        <fieldset class="text-xs">
+          <div class="flex items-center justify-between gap-3">
+            <legend class="font-semibold">{{ t('milestone.prerequisiteOptional') }}</legend>
+            <button
+              v-if="form.prerequisiteMilestoneIds.length"
+              type="button"
+              class="font-semibold text-[#7D2923] hover:underline"
+              @click="form.prerequisiteMilestoneIds = []"
+            >
+              {{ t('milestone.clearAll') }}
+            </button>
+          </div>
+          <div
+            v-if="prerequisiteOptions.length"
+            class="mt-1 max-h-40 space-y-1 overflow-y-auto rounded-md border border-[#c9827c] bg-white p-2"
           >
-            <option
+            <label
               v-for="option in prerequisiteOptions"
               :key="option.milestoneId"
-              :value="option.milestoneId"
+              class="flex cursor-pointer items-start gap-2 rounded-md px-2 py-2 font-normal hover:bg-[#f8eeee]"
             >
-              {{ option.sequenceOrder }}. {{ option.title }}
-            </option>
-          </select>
+              <input
+                v-model="form.prerequisiteMilestoneIds"
+                type="checkbox"
+                :value="option.milestoneId"
+                class="mt-0.5 shrink-0 accent-[#7D2923]"
+              />
+              <span>{{ option.sequenceOrder }}. {{ option.title }}</span>
+            </label>
+          </div>
+          <p v-else class="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-slate-500">
+            {{ t('milestone.noPrerequisites') }}
+          </p>
           <span class="mt-1 block font-normal text-slate-500">
-            Select milestones that must be completed before this one. Leave empty if it can be
-            completed at any time.
+            Check milestones that must be completed first. Uncheck them or use Clear all to remove
+            the condition.
           </span>
-        </label>
+        </fieldset>
 
         <label class="flex items-center gap-2 text-xs font-semibold">
           <input v-model="form.isEnabled" type="checkbox" class="accent-[#7D2923]" />
-          Enable this milestone for students
+          {{ t('milestone.enableForStudents') }}
         </label>
 
         <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
@@ -247,13 +330,13 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
             class="rounded-md border border-slate-200 px-4 py-2 text-xs font-semibold"
             @click="emit('close')"
           >
-            Cancel
+            {{ t('common.cancel') }}
           </button>
           <button
             type="submit"
             class="rounded-md bg-[#7D2923] px-4 py-2 text-xs font-semibold text-white"
           >
-            {{ isEditing ? 'Save Changes' : 'Add Milestone' }}
+            {{ isEditing ? t('milestone.saveChanges') : t('milestone.add') }}
           </button>
         </div>
       </form>

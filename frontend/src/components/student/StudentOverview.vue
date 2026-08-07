@@ -2,6 +2,9 @@
 import StudentFilters from './StudentFilters.vue'
 import StudentTable from './StudentTable.vue'
 import type { StudentFiltersState, StudentTableItem } from '@/types/student'
+import { useLanguage } from '@/composables/useLanguage'
+
+const { t } = useLanguage()
 
 withDefaults(
   defineProps<{
@@ -34,9 +37,9 @@ const filters = defineModel<StudentFiltersState>('filters', { required: true })
   >
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h2 class="text-lg font-semibold">Student Overview</h2>
+        <h2 class="text-lg font-semibold">{{ t('student.overview') }}</h2>
         <p class="mt-1 text-sm font-medium text-[#7d7d7d]">
-          Filter and view student progress details
+          {{ t('student.overviewDescription') }}
         </p>
       </div>
       <slot name="action" />

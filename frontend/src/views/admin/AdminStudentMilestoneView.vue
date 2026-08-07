@@ -7,6 +7,8 @@ import StudentMilestoneCard from '@/components/student-milestone/StudentMileston
 import StudentMilestoneProgress from '@/components/student-milestone/StudentMilestoneProgress.vue'
 import { getStudentMilestones } from '@/services/students.api'
 import type { StudentMilestone } from '@/types/milestone'
+import { useLanguage } from '@/composables/useLanguage'
+const { t } = useLanguage()
 
 const route = useRoute()
 
@@ -47,7 +49,7 @@ onMounted(loadMilestones)
   <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 class="text-3xl font-bold tracking-tight text-black">Milestone</h1>
+        <h1 class="text-3xl font-bold tracking-tight text-black">{{ t('milestone.milestones') }}</h1>
         <p class="mt-1 text-sm text-slate-500">
           You have permission to view students' milestones only.
         </p>
@@ -72,7 +74,7 @@ onMounted(loadMilestones)
     </p>
 
     <div v-if="isLoading" class="mt-5 rounded-lg bg-white px-5 py-4 text-sm text-slate-500">
-      Loading milestones...
+      {{ t('milestone.loading') }}
     </div>
 
     <template v-else>
@@ -94,11 +96,10 @@ onMounted(loadMilestones)
         ></div>
 
         <StudentMilestoneCard
-          v-for="milestone in milestones"
+          v-for="(milestone, index) in milestones"
           :key="milestone.milestoneId"
           :milestone="milestone"
-          :index="milestone.sequenceOrder"
-          :reference-url="milestone.referenceUrl ?? undefined"
+          :index="index + 1"
           readonly
         />
       </div>

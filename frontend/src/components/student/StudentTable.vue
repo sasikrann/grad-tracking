@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import type { StudentTableItem } from '@/types/student'
+import { useLanguage } from '@/composables/useLanguage'
+
+const { t } = useLanguage()
 
 withDefaults(
   defineProps<{
@@ -30,14 +33,14 @@ function displayYear(year: string) {
     <table class="w-full min-w-225 table-fixed border-collapse text-left">
       <thead>
         <tr class="border-b border-[#dddddd] text-xs">
-          <th class="w-[25%] pb-3 font-semibold">Student</th>
-          <th class="w-[13%] pb-3 text-center font-semibold">Program</th>
-          <th class="w-[10%] -translate-x-2 pb-3 text-center font-semibold">Plan</th>
-          <th class="w-[10%] pb-3 font-semibold">Semester</th>
-          <th class="w-[10%] pb-3 text-center font-semibold">Year</th>
-          <th class="w-[22%] pb-3 text-center font-semibold">Progress</th>
-          <th class="w-[14%] pb-3 text-center font-semibold">Status</th>
-          <th class="w-[8%] pb-3 text-center font-semibold">Actions</th>
+          <th class="w-[25%] pb-3 font-semibold">{{ t('student.student') }}</th>
+          <th class="w-[13%] pb-3 text-center font-semibold">{{ t('common.program') }}</th>
+          <th class="w-[10%] -translate-x-2 pb-3 text-center font-semibold">{{ t('common.plan') }}</th>
+          <th class="w-[10%] pb-3 font-semibold">{{ t('common.semester') }}</th>
+          <th class="w-[10%] pb-3 text-center font-semibold">{{ t('common.year') }}</th>
+          <th class="w-[22%] pb-3 text-center font-semibold">{{ t('student.progress') }}</th>
+          <th class="w-[14%] pb-3 text-center font-semibold">{{ t('common.status') }}</th>
+          <th class="w-[8%] pb-3 text-center font-semibold">{{ t('common.actions') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -135,12 +138,12 @@ function displayYear(year: string) {
                 <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
                 <circle cx="12" cy="12" r="2.5" />
               </svg>
-              View
+              {{ t('common.view') }}
             </button>
           </td>
         </tr>
         <tr v-if="isLoading">
-          <td colspan="8" class="py-14 text-center text-[#777]">Loading students...</td>
+          <td colspan="8" class="py-14 text-center text-[#777]">{{ t('common.loading') }}</td>
         </tr>
         <tr v-else-if="error">
           <td colspan="8" class="py-14 text-center text-[#b42318]">

@@ -2,13 +2,28 @@ import { randomUUID } from 'node:crypto'
 
 import pool from '../config/database.js'
 import { resolveAdvisorReference } from './advisors.service.js'
-import { ensureMilestoneSchema } from './milestones.service.js'
+import {
+  ensureAcademicYearMilestoneTemplates,
+  ensureMilestoneSchema,
+} from './milestones.service.js'
 
 let studentSchemaReady
 async function ensureStudentSchema() {
   studentSchemaReady ??= pool.query(`
     ALTER TABLE students ADD COLUMN IF NOT EXISTS education_plan VARCHAR;
     ALTER TABLE students ADD COLUMN IF NOT EXISTS school_name VARCHAR;
+    ALTER TABLE students ADD COLUMN IF NOT EXISTS graduation_semester VARCHAR;
+    ALTER TABLE students ADD COLUMN IF NOT EXISTS graduation_academic_year INT;
+    ALTER TABLE students DROP CONSTRAINT IF EXISTS students_graduation_semester_check;
+    ALTER TABLE students ADD CONSTRAINT students_graduation_semester_check
+      CHECK (graduation_semester IN ('1', '2'));
+    CREATE TABLE IF NOT EXISTS student_co_advisors (
+      student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
+      advisor_id VARCHAR NOT NULL REFERENCES advisors(advisor_id) ON DELETE CASCADE,
+      position SMALLINT NOT NULL CHECK (position BETWEEN 1 AND 2),
+      PRIMARY KEY (student_id, position),
+      UNIQUE (student_id, advisor_id)
+    );
   `)
   await studentSchemaReady
 }
@@ -25,9 +40,21 @@ const studentDetailColumns = `
   s.enrollment_academic_year AS "enrollmentAcademicYear",
   s.semester,
   s.expected_graduation_year AS "expectedGraduationYear",
+  s.graduation_semester AS "graduationSemester",
+  s.graduation_academic_year AS "graduationAcademicYear",
   s.advisor_id AS "advisorId",
   a.full_name AS "advisorName",
   a.email AS "advisorEmail",
+  COALESCE((
+    SELECT json_agg(json_build_object(
+      'advisorId', ca.advisor_id,
+      'fullName', ca.full_name,
+      'email', ca.email
+    ) ORDER BY sca.position)
+    FROM student_co_advisors sca
+    JOIN advisors ca ON ca.advisor_id = sca.advisor_id
+    WHERE sca.student_id = s.student_id
+  ), '[]'::json) AS "coAdvisors",
   s.advisor_evidence_url AS "advisorEvidenceUrl",
   s.created_at AS "createdAt",
   s.updated_at AS "updatedAt"
@@ -93,6 +120,7 @@ async function findStudents({ advisorId } = {}) {
       LEFT JOIN advisors a ON a.advisor_id = s.advisor_id
       LEFT JOIN milestone_templates mt
         ON (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
+        AND mt.academic_year = s.enrollment_academic_year
         AND (mt.plans @> ARRAY['All']::VARCHAR[] OR (s.education_plan IS NOT NULL AND s.education_plan = ANY(mt.plans)))
         AND mt.is_enabled = TRUE
       LEFT JOIN student_milestones sm
@@ -314,6 +342,183 @@ export async function updateStudentAdvisorByUserId(
   }
 }
 
+export async function appointStudentAdvisorsByUserId(userId, milestoneId, advisorId, coAdvisorIds = []) {
+  await ensureStudentSchema()
+  await ensureMilestoneSchema()
+
+  const normalizedCoAdvisorIds = coAdvisorIds.map((value) => String(value).trim()).filter(Boolean)
+  if (!advisorId) {
+    const error = new Error('Please select an advisor')
+    error.statusCode = 400
+    throw error
+  }
+  if (normalizedCoAdvisorIds.length > 2) {
+    const error = new Error('You can select up to 2 co-advisors')
+    error.statusCode = 400
+    throw error
+  }
+  const selectedIds = [String(advisorId).trim(), ...normalizedCoAdvisorIds]
+  if (new Set(selectedIds).size !== selectedIds.length) {
+    const error = new Error('Advisor and co-advisors must be different')
+    error.statusCode = 400
+    throw error
+  }
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const advisors = await client.query(
+      'SELECT advisor_id FROM advisors WHERE advisor_id = ANY($1::varchar[])',
+      [selectedIds],
+    )
+    if (advisors.rowCount !== selectedIds.length) {
+      const error = new Error('One or more selected advisors were not found')
+      error.statusCode = 400
+      throw error
+    }
+
+    const student = await client.query(
+      `SELECT student_id FROM students WHERE user_id = $1 FOR UPDATE`,
+      [userId],
+    )
+    if (!student.rowCount) {
+      await client.query('ROLLBACK')
+      return null
+    }
+
+    const eligibleMilestone = await client.query(
+      `
+        SELECT mt.milestone_id
+        FROM students s
+        JOIN milestone_templates mt
+          ON mt.milestone_id = $2
+          AND mt.academic_year = s.enrollment_academic_year
+          AND mt.degree_level = s.degree_level::text
+          AND s.education_plan = ANY(mt.plans)
+          AND mt.is_enabled = TRUE
+          AND mt.default_template_key LIKE '%advisor-appointment'
+        WHERE s.user_id = $1
+      `,
+      [userId, milestoneId],
+    )
+    if (!eligibleMilestone.rowCount) {
+      const error = new Error('Advisor appointment milestone not found')
+      error.statusCode = 404
+      throw error
+    }
+
+    const studentId = student.rows[0].student_id
+    await client.query(
+      'UPDATE students SET advisor_id = $2, advisor_evidence_url = NULL, updated_at = NOW() WHERE student_id = $1',
+      [studentId, selectedIds[0]],
+    )
+    await client.query('DELETE FROM student_co_advisors WHERE student_id = $1', [studentId])
+    for (const [index, coAdvisorId] of normalizedCoAdvisorIds.entries()) {
+      await client.query(
+        'INSERT INTO student_co_advisors (student_id, advisor_id, position) VALUES ($1, $2, $3)',
+        [studentId, coAdvisorId, index + 1],
+      )
+    }
+    await client.query(
+      `
+        INSERT INTO student_milestones (
+          student_milestone_id, student_id, milestone_id, status, submitted_at, updated_at
+        ) VALUES ($1, $2, $3, 'Completed', NOW(), NOW())
+        ON CONFLICT (student_id, milestone_id) DO UPDATE SET
+          status = 'Completed'::milestone_status,
+          evidence_url = NULL,
+          advisor_comment = NULL,
+          submitted_at = NOW(),
+          reviewed_at = NULL,
+          reviewed_by = NULL,
+          updated_at = NOW()
+      `,
+      [randomUUID(), studentId, milestoneId],
+    )
+    await client.query('COMMIT')
+    return findStudentByUserId(userId)
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
+export async function submitStudentGraduationByUserId(userId, milestoneId, semester, academicYear) {
+  await ensureStudentSchema()
+  await ensureMilestoneSchema()
+  const normalizedSemester = String(semester ?? '').trim()
+  const normalizedYear = Number(academicYear)
+  if (!['1', '2'].includes(normalizedSemester)) {
+    const error = new Error('Semester must be 1 or 2')
+    error.statusCode = 400
+    throw error
+  }
+  if (!Number.isInteger(normalizedYear) || normalizedYear < 1900 || normalizedYear > 3000) {
+    const error = new Error('Please enter a valid 4-digit academic year')
+    error.statusCode = 400
+    throw error
+  }
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const result = await client.query(
+      `
+        SELECT s.student_id
+        FROM students s
+        JOIN milestone_templates mt
+          ON mt.milestone_id = $2
+          AND mt.academic_year = s.enrollment_academic_year
+          AND mt.degree_level = s.degree_level::text
+          AND s.education_plan = ANY(mt.plans)
+          AND mt.is_enabled = TRUE
+          AND mt.default_template_key LIKE '%graduation'
+        WHERE s.user_id = $1
+        FOR UPDATE OF s
+      `,
+      [userId, milestoneId],
+    )
+    if (!result.rowCount) {
+      const error = new Error('Graduation milestone not found')
+      error.statusCode = 404
+      throw error
+    }
+
+    const studentId = result.rows[0].student_id
+    await client.query(
+      `UPDATE students
+       SET graduation_semester = $2, graduation_academic_year = $3, updated_at = NOW()
+       WHERE student_id = $1`,
+      [studentId, normalizedSemester, normalizedYear],
+    )
+    await client.query(
+      `
+        INSERT INTO student_milestones (
+          student_milestone_id, student_id, milestone_id, status, submitted_at, updated_at
+        ) VALUES ($1, $2, $3, 'Completed', NOW(), NOW())
+        ON CONFLICT (student_id, milestone_id) DO UPDATE SET
+          status = 'Completed'::milestone_status,
+          evidence_url = NULL,
+          advisor_comment = NULL,
+          submitted_at = NOW(),
+          reviewed_at = NULL,
+          reviewed_by = NULL,
+          updated_at = NOW()
+      `,
+      [randomUUID(), studentId, milestoneId],
+    )
+    await client.query('COMMIT')
+    return findStudentByUserId(userId)
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
 export async function insertStudent(input) {
   const client = await pool.connect()
   try {
@@ -415,6 +620,7 @@ export async function findStudentsForExport({ studentIds } = {}) {
             ON sm.student_id = s.student_id
             AND sm.milestone_id = mt.milestone_id
           WHERE (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
+            AND mt.academic_year = s.enrollment_academic_year
             AND (mt.plans @> ARRAY['All']::VARCHAR[] OR (s.education_plan IS NOT NULL AND s.education_plan = ANY(mt.plans)))
             AND mt.is_enabled = TRUE
         ),
@@ -431,12 +637,14 @@ export async function findStudentsForExport({ studentIds } = {}) {
 
 export async function importStudents(records, { fileName, importedBy } = {}) {
   await ensureStudentSchema()
+  await ensureMilestoneSchema()
   const client = await pool.connect()
   const importId = randomUUID()
   let successRecords = 0
   let updatedRecords = 0
   let unchangedRecords = 0
   const errors = []
+  const importedAcademicYears = new Set()
 
   try {
     await client.query('BEGIN')
@@ -472,7 +680,10 @@ export async function importStudents(records, { fileName, importedBy } = {}) {
     })
 
     if (!recordsToImport.length) {
-      await client.query('ROLLBACK')
+      for (const academicYear of new Set(records.map(({ enrollmentAcademicYear }) => enrollmentAcademicYear))) {
+        await ensureAcademicYearMilestoneTemplates(client, academicYear)
+      }
+      await client.query('COMMIT')
       return {
         importId: null,
         totalRecords: 0,
@@ -500,6 +711,7 @@ export async function importStudents(records, { fileName, importedBy } = {}) {
           throw new Error('fullName is required')
         }
         await upsertStudentWithClient(client, record)
+        importedAcademicYears.add(record.enrollmentAcademicYear)
         successRecords += 1
         if (existingById.has(record.studentId)) updatedRecords += 1
         await client.query(`RELEASE SAVEPOINT ${savepoint}`)
@@ -507,6 +719,10 @@ export async function importStudents(records, { fileName, importedBy } = {}) {
         await client.query(`ROLLBACK TO SAVEPOINT ${savepoint}`)
         errors.push(`Row ${index + 2}: ${error.message}`)
       }
+    }
+
+    for (const academicYear of importedAcademicYears) {
+      await ensureAcademicYearMilestoneTemplates(client, academicYear)
     }
 
     await client.query(
