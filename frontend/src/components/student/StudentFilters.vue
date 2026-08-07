@@ -2,6 +2,7 @@
 import type { StudentFilterKey, StudentFiltersState } from '@/types/student'
 import type { StudentTableItem } from '@/types/student'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useLanguage } from '@/composables/useLanguage'
 
 interface FilterOption {
   label: string
@@ -36,6 +37,7 @@ const emit = defineEmits<{
 }>()
 
 const openFilter = ref<StudentFilterKey | null>(null)
+const { isThai, t } = useLanguage()
 
 function yearLabel(year: string) {
   if (!props.buddhistYear) return year
@@ -44,7 +46,7 @@ function yearLabel(year: string) {
 }
 
 const planOptions = computed<FilterOption[]>(() => {
-  const allPlan = { label: 'All Plan', value: 'all' }
+  const allPlan = { label: t('student.allPlan'), value: 'all' }
   const planOrder = ['A1', 'A2', 'B', '2.1', '2.2']
   const plans = props.availableStudents
     .filter(
@@ -74,12 +76,17 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
     key: 'degree',
     defaultLabel: 'All Program',
     options: [
-      { label: 'All Program', value: 'all' },
+      { label: t('student.allProgram'), value: 'all' },
       ...optionsFromValues(props.availableStudents.map((student) => student.degree)).map(
         (option) => ({
           ...option,
-          label:
-            props.advisorMode === 'all-only' && option.value === 'Ph. D.'
+          label: isThai.value
+            ? option.value === 'Master'
+              ? t('common.master')
+              : ['Doctoral', 'Ph. D.'].includes(option.value)
+                ? t('common.doctoral')
+                : option.label
+            : props.advisorMode === 'all-only' && option.value === 'Ph. D.'
               ? 'Doctoral'
               : option.label,
         }),
@@ -95,7 +102,7 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
     key: 'semester',
     defaultLabel: 'All Semester',
     options: [
-      { label: 'All Semester', value: 'all' },
+      { label: t('student.allSemester'), value: 'all' },
       ...optionsFromValues(props.availableStudents.map((student) => student.semester)),
     ],
   },
@@ -103,7 +110,7 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
     key: 'year',
     defaultLabel: 'All Year',
     options: [
-      { label: 'All Year', value: 'all' },
+      { label: t('student.allYear'), value: 'all' },
       ...Array.from(new Set(props.availableStudents.map((student) => student.year)))
         .sort((left, right) => Number(right) - Number(left) || right.localeCompare(left))
         .map((year) => ({ label: yearLabel(year), value: year })),
@@ -113,7 +120,7 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
     key: 'status',
     defaultLabel: 'All Status',
     options: [
-      { label: 'All Status', value: 'all' },
+      { label: t('student.allStatus'), value: 'all' },
       ...optionsFromValues(props.availableStudents.map((student) => student.status)),
     ],
   },
@@ -128,8 +135,8 @@ const filterDefinitions = computed<FilterDefinition[]>(() => {
       key: 'advisor',
       defaultLabel: 'Advisor (Default)',
       options: [
-        { label: 'Advisor (Default)', value: 'default' },
-        { label: 'All View', value: 'all' },
+        { label: t('student.advisorDefault'), value: 'default' },
+        { label: t('student.allView'), value: 'all' },
       ],
     },
   ]
@@ -172,7 +179,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
 <template>
   <div class="mt-4 grid grid-cols-1 gap-2 lg:grid-cols-12">
     <label class="relative lg:col-span-5">
-      <span class="sr-only">Search by name or ID</span>
+      <span class="sr-only">{{ t('student.searchPlaceholder') }}</span>
       <svg
         class="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#cfcfcf]"
         viewBox="0 0 24 24"
@@ -187,7 +194,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
       <input
         :value="search"
         type="search"
-        placeholder="Search by name or ID..."
+        :placeholder="t('student.searchPlaceholder')"
         class="h-8 w-full rounded-lg border border-[#eeeeee] bg-white pl-10 pr-4 text-xs font-medium text-[#333] shadow-[0_2px_4px_rgba(0,0,0,0.08)] outline-none placeholder:text-[#888] focus:border-[#8a2b25]"
         @input="updateSearch"
       />

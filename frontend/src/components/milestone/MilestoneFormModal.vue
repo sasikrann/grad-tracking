@@ -5,6 +5,8 @@ import DateInput from './form/DateInput.vue'
 import MilestonePlanDropdown from './form/MilestonePlanDropdown.vue'
 import MilestoneSelectDropdown from './form/MilestoneSelectDropdown.vue'
 import type { EducationPlan, Milestone, MilestoneInput, MilestoneProgram } from '@/types/milestone'
+import { useLanguage } from '@/composables/useLanguage'
+const { t } = useLanguage()
 
 const props = defineProps<{
   milestone: Milestone | null
@@ -185,8 +187,8 @@ onBeforeUnmount(() => {
     <section
       class="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:max-h-[calc(100vh-3rem)] sm:p-6"
     >
-      <h2 class="text-xl font-semibold">{{ isEditing ? 'Edit Milestone' : 'Add Milestone' }}</h2>
-      <p class="mt-1 text-xs text-slate-500">Fill in detail for the new milestone.</p>
+      <h2 class="text-xl font-semibold">{{ isEditing ? t('milestone.edit') : t('milestone.add') }}</h2>
+      <p class="mt-1 text-xs text-slate-500">{{ t('milestone.fillDetails') }}</p>
 
       <form class="mt-5 space-y-3" novalidate @submit.prevent="saveForm">
         <label class="block text-xs font-semibold">
@@ -240,13 +242,13 @@ onBeforeUnmount(() => {
 
         <fieldset class="space-y-2">
           <div class="flex items-center justify-between gap-3">
-            <legend class="text-xs font-semibold">References (Optional)</legend>
+            <legend class="text-xs font-semibold">{{ t('milestone.referencesOptional') }}</legend>
             <button
               type="button"
               class="text-xs font-semibold text-[#7D2923] hover:underline"
               @click="addReference"
             >
-              + Add Reference
+              {{ t('milestone.addReference') }}
             </button>
           </div>
           <div
@@ -266,7 +268,7 @@ onBeforeUnmount(() => {
               aria-label="Remove reference"
               @click="removeReference(index)"
             >
-              Remove
+              {{ t('common.remove') }}
             </button>
           </div>
         </fieldset>
@@ -280,14 +282,14 @@ onBeforeUnmount(() => {
 
         <fieldset class="text-xs">
           <div class="flex items-center justify-between gap-3">
-            <legend class="font-semibold">Prerequisite Milestone (Optional)</legend>
+            <legend class="font-semibold">{{ t('milestone.prerequisiteOptional') }}</legend>
             <button
               v-if="form.prerequisiteMilestoneIds.length"
               type="button"
               class="font-semibold text-[#7D2923] hover:underline"
               @click="form.prerequisiteMilestoneIds = []"
             >
-              Clear all
+              {{ t('milestone.clearAll') }}
             </button>
           </div>
           <div
@@ -309,7 +311,7 @@ onBeforeUnmount(() => {
             </label>
           </div>
           <p v-else class="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-slate-500">
-            No earlier milestones are available.
+            {{ t('milestone.noPrerequisites') }}
           </p>
           <span class="mt-1 block font-normal text-slate-500">
             Check milestones that must be completed first. Uncheck them or use Clear all to remove
@@ -319,7 +321,7 @@ onBeforeUnmount(() => {
 
         <label class="flex items-center gap-2 text-xs font-semibold">
           <input v-model="form.isEnabled" type="checkbox" class="accent-[#7D2923]" />
-          Enable this milestone for students
+          {{ t('milestone.enableForStudents') }}
         </label>
 
         <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
@@ -328,13 +330,13 @@ onBeforeUnmount(() => {
             class="rounded-md border border-slate-200 px-4 py-2 text-xs font-semibold"
             @click="emit('close')"
           >
-            Cancel
+            {{ t('common.cancel') }}
           </button>
           <button
             type="submit"
             class="rounded-md bg-[#7D2923] px-4 py-2 text-xs font-semibold text-white"
           >
-            {{ isEditing ? 'Save Changes' : 'Add Milestone' }}
+            {{ isEditing ? t('milestone.saveChanges') : t('milestone.add') }}
           </button>
         </div>
       </form>

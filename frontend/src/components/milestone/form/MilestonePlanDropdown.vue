@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useLanguage } from '@/composables/useLanguage'
+const { t } = useLanguage()
 import { computed } from 'vue'
 
 import type { EducationPlan } from '@/types/milestone'
@@ -35,7 +37,7 @@ function togglePlan(plan: EducationPlan) {
 
 <template>
   <div class="relative block text-xs font-semibold" @click.stop>
-    <span>Plan</span>
+    <span>{{ t('common.plan') }}</span>
     <button
       type="button"
       class="mt-1 flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-[#c9827c] bg-white px-3 text-left text-xs font-semibold shadow-[0_2px_4px_rgba(0,0,0,0.08)] outline-none hover:border-[#dfcccc] focus:border-[#7D2923]"

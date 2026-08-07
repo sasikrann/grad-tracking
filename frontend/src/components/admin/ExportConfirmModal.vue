@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useLanguage } from '@/composables/useLanguage'
+const { t } = useLanguage()
 defineProps<{
   title: string
   description: string
@@ -29,7 +31,7 @@ defineEmits<{
           <path d="M16 3v4M8 3v4M4 11h16" />
         </svg>
         <p class="mt-2 text-xs font-semibold">{{ countLabel }}</p>
-        <p class="text-[10px] text-slate-500">Ready for export</p>
+        <p class="text-[10px] text-slate-500">{{ t('file.ready') }}</p>
       </div>
 
       <div class="mt-4 flex justify-end gap-2">
@@ -38,7 +40,7 @@ defineEmits<{
           class="rounded border border-slate-200 px-3 py-2 text-xs font-medium hover:bg-slate-50"
           @click="$emit('close')"
         >
-          Cancel
+          {{ t('common.cancel') }}
         </button>
         <button
           type="button"
@@ -46,7 +48,7 @@ defineEmits<{
           class="rounded bg-[#8b2a23] px-3 py-2 text-xs font-medium text-white hover:bg-[#7a211c] disabled:cursor-wait disabled:opacity-60"
           @click="$emit('export')"
         >
-          {{ isExporting ? 'Exporting...' : 'Export' }}
+          {{ isExporting ? t('dashboard.exporting') : t('dashboard.exportExcel') }}
         </button>
       </div>
     </section>

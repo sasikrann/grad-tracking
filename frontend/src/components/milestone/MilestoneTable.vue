@@ -3,6 +3,8 @@
 import { computed } from 'vue'
 
 import type { Milestone } from '@/types/milestone'
+import { useLanguage } from '@/composables/useLanguage'
+const { t } = useLanguage()
 
 const props = defineProps<{
   milestones: Milestone[]
@@ -70,30 +72,30 @@ const tableRows = computed(() => {
 
 <template>
   <div class="mt-5 overflow-x-auto">
-    <table class="w-full min-w-[920px] border-collapse text-left">
+    <table class="w-full min-w-[920px] table-fixed border-collapse text-left">
       <thead>
-        <tr class="border-b border-slate-200 text-xs">
-          <th class="w-[10%] py-3 font-semibold">Order</th>
-          <th class="w-[22%] py-3 font-semibold">Title</th>
-          <th class="w-[16%] py-3 font-semibold">Description</th>
-          <th class="w-[13%] py-3 pl-4 font-semibold">Reference</th>
-          <th class="w-[10%] py-3 text-center font-semibold">Program</th>
-          <th class="w-[11%] py-3 text-center font-semibold">Plan</th>
-          <th class="w-[10%] py-3 pl-4 font-semibold">Deadline</th>
-          <th class="w-[10%] py-3 text-right font-semibold">Actions</th>
+        <tr class="border-b border-slate-200 text-xs whitespace-nowrap">
+          <th class="w-[10%] py-3 font-semibold">{{ t('common.order') }}</th>
+          <th class="w-[22.5%] py-3 font-semibold">{{ t('common.title') }}</th>
+          <th class="w-[16%] py-3 font-semibold">{{ t('common.description') }}</th>
+          <th class="w-[13%] py-3 pl-4 font-semibold">{{ t('common.reference') }}</th>
+          <th class="w-[10%] py-3 text-center font-semibold">{{ t('common.program') }}</th>
+          <th class="w-[11%] py-3 text-center font-semibold">{{ t('common.plan') }}</th>
+          <th class="w-[9.5%] py-3 pl-4 font-semibold">{{ t('common.deadline') }}</th>
+          <th class="w-[10%] py-3 text-right font-semibold">{{ t('common.actions') }}</th>
         </tr>
       </thead>
 
       <tbody>
         <tr v-if="isLoading">
           <td colspan="8" class="py-12 text-center text-sm text-slate-500">
-            Loading milestones...
+            {{ t('milestone.loading') }}
           </td>
         </tr>
 
         <tr v-else-if="milestones.length === 0">
           <td colspan="8" class="py-12 text-center text-sm text-slate-500">
-            No milestones configured.
+            {{ t('milestone.noConfigured') }}
           </td>
         </tr>
 
@@ -147,14 +149,18 @@ const tableRows = computed(() => {
                 </div>
               </td>
 
-              <td class="py-4 align-top font-semibold leading-snug">{{ row.milestone.title }}</td>
+              <td class="py-4 align-top font-semibold leading-snug">
+                <div class="w-60 max-w-full break-words">
+                  {{ row.milestone.title }}
+                </div>
+              </td>
               <td class="py-4 align-top leading-snug text-slate-500">
                 {{ row.milestone.description || '-' }}
               </td>
               <td class="py-4 pl-4 align-top leading-snug">
                 <div v-if="row.milestone.references.length" class="space-y-1">
                   <component
-                    v-for="(reference, index) in row.milestone.references"
+                    v-for="reference in row.milestone.references"
                     :key="reference"
                     :is="isWebReference(reference) ? 'a' : 'span'"
                     :href="isWebReference(reference) ? reference : undefined"
@@ -164,7 +170,7 @@ const tableRows = computed(() => {
                     :class="isWebReference(reference) ? 'truncate text-[#7D2923] underline' : 'leading-snug text-slate-600'"
                     :title="reference"
                   >
-                    {{ isWebReference(reference) ? `Link ${index + 1}` : reference }}
+                    {{ reference }}
                   </component>
                 </div>
                 <span v-else class="text-slate-500">-</span>
@@ -212,7 +218,7 @@ const tableRows = computed(() => {
                     "
                     @click="$emit('setEnabled', row.milestone, true)"
                   >
-                    Enable
+                    {{ t('common.enable') }}
                   </button>
 
                   <button
@@ -225,7 +231,7 @@ const tableRows = computed(() => {
                     "
                     @click="$emit('setEnabled', row.milestone, false)"
                   >
-                    Disable
+                    {{ t('common.disable') }}
                   </button>
 
                   <button

@@ -14,7 +14,7 @@ import {
 } from '@/services/milestones.api'
 import type { EducationPlan, Milestone, MilestoneInput, MilestoneProgram } from '@/types/milestone'
 const milestones = ref<Milestone[]>([])
-const { language } = useLanguage()
+const { language, t } = useLanguage()
 const isLoading = ref(false)
 const message = ref('')
 const errorMessage = ref('')
@@ -295,19 +295,19 @@ onBeforeUnmount(() => {
   <div class="min-h-screen bg-[#f7f7f7] px-8 py-6 font-sans text-slate-900">
     <header class="flex items-start justify-between gap-4">
       <div>
-        <h1 class="text-3xl font-bold tracking-tight">Milestone Management</h1>
+        <h1 class="text-3xl font-bold tracking-tight">{{ t('milestone.pageTitle') }}</h1>
         <p class="mt-1 text-sm text-slate-500">
-          Create, Edit and manage milestone
+          {{ t('milestone.pageDescription') }}
         </p>
       </div>
 
       <div class="flex gap-3">
         <button
           type="button"
-          class="rounded-lg bg-[#8b2a23] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#7a211c]"
+          class="w-36 rounded-lg bg-[#8b2a23] px-4 py-2 text-sm font-medium whitespace-nowrap text-white shadow-sm hover:bg-[#7a211c]"
           @click="openAddModal"
         >
-          + Add Milestone
+          + {{ t('milestone.add') }}
         </button>
       </div>
     </header>
@@ -317,17 +317,17 @@ onBeforeUnmount(() => {
     >
       <div class="flex items-start justify-between gap-4">
         <div>
-          <h2 class="text-lg font-semibold">Milestones</h2>
+          <h2 class="text-lg font-semibold">{{ t('milestone.milestones') }}</h2>
           <p class="mt-2 text-xs text-slate-500">
-            {{ filteredMilestones.length }} milestones configured
+            {{ t('milestone.configured', { count: filteredMilestones.length }) }}
           </p>
         </div>
 
         <div class="flex gap-3">
-          <div v-for="filter in filterDefinitions" :key="filter.key" class="relative" @click.stop>
+          <div v-for="filter in filterDefinitions" :key="filter.key" class="relative w-36" @click.stop>
             <button
               type="button"
-              class="flex h-9 min-w-32 items-center justify-between gap-3 rounded-lg border border-slate-100 bg-white px-4 text-left text-xs shadow-sm outline-none hover:border-[#dfcccc] focus:border-[#8a2b25]"
+              class="flex h-9 w-full items-center justify-between gap-3 rounded-lg border border-slate-100 bg-white px-4 text-left text-xs whitespace-nowrap shadow-sm outline-none hover:border-[#dfcccc] focus:border-[#8a2b25]"
               :class="{ 'border-[#8a2b25]': openFilter === filter.key }"
               :aria-expanded="openFilter === filter.key"
               @click="openFilter = openFilter === filter.key ? null : filter.key"
@@ -409,7 +409,7 @@ onBeforeUnmount(() => {
     >
       <section class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
         <h2 id="delete-milestone-title" class="text-xl font-semibold text-slate-900">
-          Delete Milestone
+          {{ t('milestone.deleteTitle') }}
         </h2>
         <p class="mt-2 text-sm text-slate-600">
           Do you want to delete milestone
@@ -423,7 +423,7 @@ onBeforeUnmount(() => {
             class="size-4 rounded-full accent-[#7D2923]"
             :disabled="isDeleting"
           />
-          <span>Yes, I want to delete this milestone.</span>
+          <span>{{ t('milestone.deleteAgreement') }}</span>
         </label>
 
         <div class="mt-6 flex justify-end gap-3">
@@ -433,7 +433,7 @@ onBeforeUnmount(() => {
             :disabled="isDeleting"
             @click="closeDeleteModal()"
           >
-            Cancel
+            {{ t('common.cancel') }}
           </button>
           <button
             type="button"
@@ -441,7 +441,7 @@ onBeforeUnmount(() => {
             :disabled="!isDeleteConfirmed || isDeleting"
             @click="removeMilestone"
           >
-            {{ isDeleting ? 'Deleting...' : 'Delete' }}
+            {{ isDeleting ? t('common.loading') : t('common.delete') }}
           </button>
         </div>
       </section>

@@ -3,6 +3,8 @@
 import { computed, ref, watch } from 'vue'
 
 import type { DegreeLevel, Milestone } from '@/types/milestone'
+import { useLanguage } from '@/composables/useLanguage'
+const { t } = useLanguage()
 
 // รับข้อมูลจากหน้าหลักเข้ามาใช้ใน component นี้
 const props = defineProps<{
@@ -125,7 +127,7 @@ function confirmCopy() {
     <section
       class="max-h-[calc(100vh-2rem)] w-full max-w-4xl overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:max-h-[calc(100vh-3rem)] sm:p-6"
     >
-      <h2 class="text-lg font-semibold">Copy Milestone</h2>
+      <h2 class="text-lg font-semibold">{{ t('milestone.copy') }}</h2>
       <p class="mt-1 text-xs text-slate-500">
         Copy milestone templates from one program or year to another.
       </p>
@@ -141,7 +143,7 @@ function confirmCopy() {
                 v-model="fromYear"
                 class="mt-1 h-10 w-full rounded-md border border-slate-200 px-3 text-xs shadow-sm"
               >
-                <option value="all">All Year</option>
+                <option value="all">{{ t('milestone.allYear') }}</option>
                 <option v-for="year in yearOptions" :key="year" :value="year">{{ year }}</option>
               </select>
             </label>
@@ -152,8 +154,8 @@ function confirmCopy() {
                 v-model="fromDegreeLevel"
                 class="mt-1 h-10 w-full rounded-md border border-slate-200 px-3 text-xs shadow-sm"
               >
-                <option value="Master">Master</option>
-                <option value="Doctoral">Ph.D</option>
+                <option value="Master">{{ t('common.master') }}</option>
+                <option value="Doctoral">{{ t('common.doctoral') }}</option>
               </select>
             </label>
           </div>
@@ -181,7 +183,7 @@ function confirmCopy() {
                 v-model="toYear"
                 class="mt-1 h-10 w-full rounded-md border border-slate-200 px-3 text-xs shadow-sm"
               >
-                <option value="all">All Year</option>
+                <option value="all">{{ t('milestone.allYear') }}</option>
                 <option v-for="year in yearOptions" :key="year" :value="year">{{ year }}</option>
               </select>
             </label>
@@ -192,8 +194,8 @@ function confirmCopy() {
                 v-model="toDegreeLevel"
                 class="mt-1 h-10 w-full rounded-md border border-slate-200 px-3 text-xs shadow-sm"
               >
-                <option value="Master">Master</option>
-                <option value="Doctoral">Ph.D</option>
+                <option value="Master">{{ t('common.master') }}</option>
+                <option value="Doctoral">{{ t('common.doctoral') }}</option>
               </select>
             </label>
           </div>
@@ -273,7 +275,7 @@ function confirmCopy() {
       <div
         class="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:max-h-[calc(100vh-3rem)] sm:p-6"
       >
-        <h3 class="text-base font-semibold text-[#8b0000]">Duplicate milestone titles found</h3>
+        <h3 class="text-base font-semibold text-[#8b0000]">{{ t('milestone.duplicateTitles') }}</h3>
         <p class="mt-2 text-sm text-slate-600">
           The destination already has milestones with the same title. If you continue, new
           milestones will still be created and their order will be assigned automatically.

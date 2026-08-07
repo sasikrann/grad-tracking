@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { Advisor } from '@/types/advisor'
+import { useLanguage } from '@/composables/useLanguage'
+const { t } = useLanguage()
 
 defineProps<{
   advisors: Advisor[]
@@ -20,7 +22,7 @@ function initials(name: string) {
 }
 
 function statusLabel(status: Advisor['status']) {
-  return status === 'inactive' ? 'Active' : 'Inactive'
+  return status === 'inactive' ? t('common.enable') : t('advisor.inactive')
 }
 </script>
 
@@ -28,23 +30,23 @@ function statusLabel(status: Advisor['status']) {
   <section class="mt-4 rounded-xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h2 class="text-lg font-semibold">Advisor</h2>
-        <p class="text-xs text-slate-500">Showing {{ advisors.length }} users</p>
+        <h2 class="text-lg font-semibold">{{ t('advisor.advisor') }}</h2>
+        <p class="text-xs text-slate-500">{{ t('advisor.showingUsers', { count: advisors.length }) }}</p>
       </div>
     </div>
 
-    <div v-if="isLoading" class="py-10 text-center text-sm text-slate-500">Loading advisors...</div>
+    <div v-if="isLoading" class="py-10 text-center text-sm text-slate-500">{{ t('common.loading') }}</div>
     <div v-else-if="error" class="py-10 text-center text-sm text-red-600">{{ error }}</div>
     <div v-else class="mt-4 overflow-x-auto">
       <table class="min-w-full table-fixed text-left text-sm">
         <thead class="border-b border-slate-200 text-slate-900">
           <tr class="text-xs">
-            <th class="w-[38%] py-3 pr-4 font-semibold">Advisors</th>
+            <th class="w-[38%] py-3 pr-4 font-semibold">{{ t('advisor.advisor') }}</th>
             <th class="w-[37%] px-4 py-3 font-semibold">
-              <div class="mx-auto w-64 text-left">Email</div>
+              <div class="mx-auto w-64 text-left">{{ t('common.email') }}</div>
             </th>
             <th class="w-[25%] py-3 pl-4 font-semibold">
-              <div class="ml-auto w-38 text-center">Status</div>
+              <div class="ml-auto w-38 text-center">{{ t('common.status') }}</div>
             </th>
           </tr>
         </thead>

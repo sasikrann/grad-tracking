@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import LanguageSwitch from '@/components/navigation/LanguageSwitch.vue'
+import { useLanguage } from '@/composables/useLanguage'
 import { getUnreadNotificationCount } from '@/services/notifications.api'
 import type { CurrentUser } from '@/types/user'
 
@@ -23,6 +25,7 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
+const { setLanguage, t } = useLanguage()
 const isMobileMenuOpen = ref(false)
 const notificationUnreadCount = ref(0)
 let unreadCountTimer: number | undefined
@@ -34,14 +37,14 @@ const emit = defineEmits<{
 const menus: Record<MenuRole, MenuItem[]> = {
   admin: [
     {
-      label: 'Student Management',
+      label: 'nav.studentManagement',
       to: '/admin/student-dashboard',
       icon: 'dashboard',
       activePaths: ['/admin/students/'],
     },
-    { label: 'Advisor Management', to: '/admin/advisor-dashboard', icon: 'advisor' },
-    { label: 'Milestone Management', to: '/milestones', icon: 'milestone' },
-    { label: 'Notification Management', to: '/admin/notifications', icon: 'notification' },
+    { label: 'nav.advisorManagement', to: '/admin/advisor-dashboard', icon: 'advisor' },
+    { label: 'nav.milestoneManagement', to: '/milestones', icon: 'milestone' },
+    { label: 'nav.notificationManagement', to: '/admin/notifications', icon: 'notification' },
   ],
   lecturer: [
     {
@@ -70,6 +73,11 @@ const routePath = computed(() => route?.path ?? '')
 const shouldShowNotificationBadge = computed(
   () => menuRole.value === 'student' && notificationUnreadCount.value > 0,
 )
+const canChangeLanguage = computed(() => props.user.role === 'admin')
+
+function menuLabel(item: MenuItem) {
+  return menuRole.value === 'admin' ? t(item.label as Parameters<typeof t>[0]) : item.label
+}
 
 // ใช้ initials ที่ส่งมา หรือสร้างจากชื่อผู้ใช้ให้อัตโนมัติ เช่น John Doe เป็น JD
 const userInitials = computed(() => {
@@ -135,6 +143,14 @@ watch(
     void loadNotificationUnreadCount()
   },
 )
+
+watch(
+  () => props.user.role,
+  (role) => {
+    if (role !== 'admin') setLanguage('en')
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -146,7 +162,7 @@ watch(
         <img src="@/assets/logomfu.png" alt="MFU Logo" class="size-9 object-contain" />
       </div>
       <div>
-        <p class="text-base font-semibold leading-tight">Thesis Tracker</p>
+        <p class="text-base font-semibold leading-tight">GRAD Tracking</p>
         <p class="text-xs text-white/75">Progress System</p>
       </div>
     </div>
@@ -192,7 +208,7 @@ watch(
           </div>
 
           <div>
-            <h1 class="text-xl font-semibold leading-tight">Thesis Tracker</h1>
+            <h1 class="text-xl font-semibold leading-tight">GRAD Tracking</h1>
             <p class="mt-0.5 text-sm text-white/80">Progress System</p>
           </div>
         </div>
@@ -218,7 +234,7 @@ watch(
 
       <!-- ส่วนเมนู: สร้างรายการตาม role ด้วย v-for -->
       <nav class="mt-3">
-        <p class="mb-1 px-1 py-1 text-sm text-white/60">Overview</p>
+        <p class="mb-1 px-1 py-1 text-sm text-white/60">{{ menuRole === 'admin' ? t('nav.overview') : 'Overview' }}</p>
 
         <RouterLink
           v-for="item in menuItems"
@@ -274,14 +290,16 @@ watch(
           </span>
 
           <span class="flex min-w-0 flex-1 items-center gap-2">
-            <span class="-translate-y-0.5 whitespace-nowrap leading-none">{{ item.label }}</span>
+            <span class="-translate-y-0.5 whitespace-nowrap leading-none">{{ menuLabel(item) }}</span>
           </span>
         </RouterLink>
       </nav>
     </div>
 
     <!-- ส่วนข้อมูลผู้ใช้ที่แสดงด้านล่างสุดของ Navbar -->
-    <div class="flex items-center gap-2">
+    <div>
+      <LanguageSwitch :enabled="canChangeLanguage" />
+      <div class="flex items-center gap-2">
       <div
         class="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#720008] text-xs"
       >
@@ -295,7 +313,7 @@ watch(
 
       <button
         type="button"
-        aria-label="Sign out"
+        :aria-label="menuRole === 'admin' ? t('nav.signOut') : 'Sign out'"
         class="rounded p-1.5 hover:bg-[#720008]"
         @click="emit('logout')"
       >
@@ -310,6 +328,7 @@ watch(
           <path d="M14 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
         </svg>
       </button>
+      </div>
     </div>
   </aside>
 </template>
