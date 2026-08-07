@@ -21,7 +21,10 @@ const studentRows = computed(() => [
   { label: 'Semester', value: props.profile.semester, icon: 'calendar' },
   {
     label: 'Expected Graduation Year',
-    value: formatAcademicYear(props.profile.expectedGraduationYear),
+    value:
+      props.profile.graduationSemester && props.profile.graduationAcademicYear
+        ? `${props.profile.graduationSemester}/${props.profile.graduationAcademicYear}`
+        : 'Please complete the Graduate milestone.',
     icon: 'calendar',
   },
 ])

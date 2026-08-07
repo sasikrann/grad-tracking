@@ -58,6 +58,7 @@ const prerequisiteOptions = computed(() =>
       const effectiveDegreeLevel =
         props.filterDegreeLevel === 'All' ? form.degreeLevel : props.filterDegreeLevel
       const effectivePlans = props.filterPlan === 'All' ? form.plans : [props.filterPlan]
+      const matchesAcademicYear = milestone.academicYear === form.academicYear
       const matchesProgram =
         effectiveDegreeLevel === 'All' ||
         milestone.degreeLevel === 'All' ||
@@ -66,7 +67,7 @@ const prerequisiteOptions = computed(() =>
         effectivePlans.includes('All') ||
         milestone.plans.includes('All') ||
         milestone.plans.some((plan) => effectivePlans.includes(plan))
-      return matchesProgram && matchesPlan
+      return matchesAcademicYear && matchesProgram && matchesPlan
     })
     .sort((first, second) => first.sequenceOrder - second.sequenceOrder),
 )

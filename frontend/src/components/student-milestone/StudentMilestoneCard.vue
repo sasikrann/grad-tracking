@@ -190,12 +190,6 @@ const evidenceName = computed(() => {
   const fileName = decodeURIComponent(value.split('/').pop() || value)
   return fileName.replace(/^\d+-/, '')
 })
-const fallbackDescription = computed(
-  () =>
-    `Complete course registration for ${
-      props.milestone.semester === '2' ? 'second' : 'first'
-    } semester`,
-)
 const canRemoveEvidence = computed(
   () =>
     !props.readonly &&
@@ -261,8 +255,8 @@ function handleFileChange(event: Event) {
           <h3 class="text-base font-semibold" :class="isLocked ? 'text-slate-500' : 'text-black'">
             {{ milestone.title }}
           </h3>
-          <p class="mt-0.5 text-sm text-slate-500">
-            {{ milestone.description || fallbackDescription }}
+          <p v-if="milestone.description" class="mt-2 text-sm text-slate-500">
+            {{ milestone.description }}
           </p>
         </div>
 
@@ -314,7 +308,7 @@ function handleFileChange(event: Event) {
         </span>
         <div
           v-if="referenceLinks.length || referenceLabels.length"
-          class="mt-3 text-xs"
+          class="!mt-1 text-xs"
         >
           <p
             v-for="reference in referenceLabels"
