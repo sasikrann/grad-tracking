@@ -32,6 +32,17 @@ function isWebReference(value: string) {
   return /^https?:\/\//i.test(value)
 }
 
+function planLabel(plan: string) {
+  const keys: Record<string, 'common.planA1' | 'common.planA2' | 'common.planB' | 'common.plan21' | 'common.plan22'> = {
+    A1: 'common.planA1',
+    A2: 'common.planA2',
+    B: 'common.planB',
+    '2.1': 'common.plan21',
+    '2.2': 'common.plan22',
+  }
+  return plan === 'All' ? t('common.allPlan') : keys[plan] ? t(keys[plan]) : plan
+}
+
 const tableRows = computed(() => {
   if (!props.groupBySemester) {
     return props.milestones.map((milestone, index) => ({
@@ -72,7 +83,7 @@ const tableRows = computed(() => {
 
 <template>
   <div class="mt-5 overflow-x-auto">
-    <table class="w-full min-w-[920px] table-fixed border-collapse text-left">
+    <table class="w-full min-w-[1120px] table-fixed border-collapse text-left">
       <thead>
         <tr class="border-b border-slate-200 text-xs whitespace-nowrap">
           <th class="w-[10%] py-3 font-semibold">{{ t('common.order') }}</th>
@@ -82,7 +93,7 @@ const tableRows = computed(() => {
           <th class="w-[10%] py-3 text-center font-semibold">{{ t('common.program') }}</th>
           <th class="w-[11%] py-3 text-center font-semibold">{{ t('common.plan') }}</th>
           <th class="w-[9.5%] py-3 pl-4 font-semibold">{{ t('common.deadline') }}</th>
-          <th class="w-[10%] py-3 text-right font-semibold">{{ t('common.actions') }}</th>
+          <th class="w-[210px] py-3 text-right font-semibold">{{ t('common.actions') }}</th>
         </tr>
       </thead>
 
@@ -181,11 +192,9 @@ const tableRows = computed(() => {
                   class="inline-flex min-w-14 items-center justify-center rounded-md border border-slate-200 px-3 py-1 leading-none"
                 >
                   {{
-                    row.milestone.degreeLevel === 'All'
-                      ? 'All'
-                      : row.milestone.degreeLevel === 'Doctoral'
-                        ? 'Ph.D'
-                        : 'Master'
+                    row.milestone.degreeLevel === 'Doctoral'
+                      ? t('common.doctoral')
+                      : t('common.master')
                   }}
                 </span>
               </td>
@@ -195,9 +204,7 @@ const tableRows = computed(() => {
                   class="inline-flex min-w-14 items-center justify-center rounded-md border border-slate-200 px-3 py-1 leading-none"
                 >
                   {{
-                    row.milestone.plans.includes('All')
-                      ? 'All Plan'
-                      : row.milestone.plans.join(', ')
+                    row.milestone.plans.map(planLabel).join(', ')
                   }}
                 </span>
               </td>
@@ -207,7 +214,7 @@ const tableRows = computed(() => {
               </td>
 
               <td class="py-4 align-middle">
-                <div class="-mt-1 flex justify-end gap-2">
+                <div class="-mt-1 flex flex-nowrap justify-end gap-2 whitespace-nowrap">
                   <button
                     type="button"
                     class="rounded-md border px-3 py-1 text-[11px]"

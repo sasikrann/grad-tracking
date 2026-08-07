@@ -31,6 +31,17 @@ const isDeleting = ref(false)
 type MilestoneFilterKey = 'year' | 'degreeLevel' | 'plan'
 const openFilter = ref<MilestoneFilterKey | null>(null)
 
+function planLabel(plan: EducationPlan) {
+  const keys = {
+    A1: 'common.planA1',
+    A2: 'common.planA2',
+    B: 'common.planB',
+    '2.1': 'common.plan21',
+    '2.2': 'common.plan22',
+  } as const
+  return plan === 'All' || plan === '1.1' ? (plan === 'All' ? t('common.allPlan') : plan) : t(keys[plan])
+}
+
 const filteredMilestones = computed(() =>
   milestones.value
     .filter((milestone) => {
@@ -60,29 +71,27 @@ const filterDefinitions = computed(() => [
   {
     key: 'degreeLevel' as const,
     label:
-      selectedDegreeLevel.value === 'Doctoral'
-          ? 'Ph.D'
-          : selectedDegreeLevel.value,
+      selectedDegreeLevel.value === 'Doctoral' ? t('common.doctoral') : t('common.master'),
     options: [
-      { label: 'Master', value: 'Master' },
-      { label: 'Ph.D', value: 'Doctoral' },
+      { label: t('common.master'), value: 'Master' },
+      { label: t('common.doctoral'), value: 'Doctoral' },
     ],
   },
   {
     key: 'plan' as const,
-    label: selectedPlan.value,
+    label: planLabel(selectedPlan.value),
     options: [
       ...(selectedDegreeLevel.value === 'Master'
         ? ['A1', 'A2', 'B']
         : ['2.1', '2.2']
-      ).map((plan) => ({ label: plan, value: plan })),
+      ).map((plan) => ({ label: planLabel(plan as EducationPlan), value: plan })),
     ],
   },
   {
     key: 'year' as const,
     label:
       selectedYear.value === null
-        ? 'Academic Year'
+        ? t('common.academicYear')
         : formatAcademicYear(selectedYear.value, language.value),
     options: [
       ...yearOptions.value.map((year) => ({
@@ -202,7 +211,7 @@ async function saveMilestone(input: MilestoneInput) {
     }
 
     if (editingMilestone.value) {
-      await updateMilestone(editingMilestone.value.milestoneId, normalizedInput)
+      await updateMilestone(editingMilestone.value.milestoneId, normalizedInput, selectedPlan.value)
       showNotification('Milestone updated successfully')
     } else {
       await createMilestone(normalizedInput)

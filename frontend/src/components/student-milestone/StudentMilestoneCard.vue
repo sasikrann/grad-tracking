@@ -255,7 +255,7 @@ function handleFileChange(event: Event) {
           <h3 class="text-base font-semibold" :class="isLocked ? 'text-slate-500' : 'text-black'">
             {{ milestone.title }}
           </h3>
-          <p v-if="milestone.description" class="mt-2 text-sm text-slate-500">
+          <p v-if="milestone.description" class="mt-0.5 text-sm text-slate-500">
             {{ milestone.description }}
           </p>
         </div>
@@ -286,7 +286,10 @@ function handleFileChange(event: Event) {
         </div>
       </div>
 
-      <div class="mt-2 space-y-1 text-sm">
+      <div
+        class="space-y-1 text-sm"
+        :class="milestone.description ? 'mt-2' : 'mt-0.5'"
+      >
         <span
           class="flex items-center gap-1.5"
           :class="
@@ -308,7 +311,7 @@ function handleFileChange(event: Event) {
         </span>
         <div
           v-if="referenceLinks.length || referenceLabels.length"
-          class="!mt-1 text-xs"
+          class="!mt-2 text-xs"
         >
           <p
             v-for="reference in referenceLabels"

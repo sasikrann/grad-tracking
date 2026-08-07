@@ -55,6 +55,7 @@ export interface StudentMilestone {
   firstReminderDate: string | null
   secondReminderDate: string | null
   prerequisiteMilestoneIds?: string[]
+  prerequisiteTitles?: string[]
   isLocked?: boolean
   lockedReason?: string
   status: StudentMilestoneStatus

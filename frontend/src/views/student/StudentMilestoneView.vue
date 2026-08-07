@@ -100,20 +100,28 @@ function prerequisiteIdsFor(milestone: StudentMilestone) {
 
 const visibleMilestones = computed(() =>
   milestones.value.map((milestone) => {
-    const incompletePrerequisiteIds = prerequisiteIdsFor(milestone).filter(
+    const prerequisiteIds = prerequisiteIdsFor(milestone)
+    const incompletePrerequisiteIds = prerequisiteIds.filter(
       (milestoneId) => !completedMilestoneIds.value.has(milestoneId),
     )
-    const prerequisiteTitles = incompletePrerequisiteIds.map(
-      (milestoneId) =>
-        milestones.value.find((candidate) => candidate.milestoneId === milestoneId)?.title ??
-        'the prerequisite milestone',
-    )
+    const prerequisiteTitles = milestone.prerequisiteTitles?.length
+      ? milestone.prerequisiteTitles
+      : prerequisiteIds.map(
+          (milestoneId) =>
+            milestones.value.find((candidate) => candidate.milestoneId === milestoneId)?.title ??
+            'the prerequisite milestone',
+        )
+    const hasPrerequisites = Boolean(milestone.prerequisiteMilestoneIds?.length)
 
     return {
       ...milestone,
       isLocked: milestone.isLocked || incompletePrerequisiteIds.length > 0,
-      lockedReason: prerequisiteTitles.length
-        ? `Complete ${prerequisiteTitles.map((title) => `“${title}”`).join(', ')} first.`
+      lockedReason: hasPrerequisites
+        ? prerequisiteTitles.length === 1
+          ? `Complete “${prerequisiteTitles[0]}” first.`
+          : prerequisiteTitles.length > 1
+            ? `Complete ${prerequisiteTitles.length} prerequisite milestones first.`
+          : 'Complete the prerequisite milestones first.'
         : undefined,
     }
   }),

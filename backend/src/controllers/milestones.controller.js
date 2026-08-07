@@ -11,6 +11,7 @@ import {
   removeMilestone,
   setMilestoneEnabled,
   updateMilestone,
+  updateMilestoneForPlan,
 } from '../services/milestones.service.js'
 
 const degreeLevels = new Set(['All', 'Master', 'Doctoral'])
@@ -129,7 +130,14 @@ export async function addMilestone(request, response) {
 }
 
 export async function editMilestone(request, response) {
-  const milestone = await updateMilestone(request.params.milestoneId, normalizeMilestone(request.body))
+  const scopePlan = optionalText(request.body.scopePlan)
+  if (scopePlan && !educationPlans.has(scopePlan)) {
+    throw new ApiError(400, 'scopePlan is invalid')
+  }
+  const input = normalizeMilestone(request.body)
+  const milestone = scopePlan
+    ? await updateMilestoneForPlan(request.params.milestoneId, scopePlan, input)
+    : await updateMilestone(request.params.milestoneId, input)
   if (!milestone) throw new ApiError(404, 'Milestone not found')
   response.json({ data: milestone })
 }

@@ -16,10 +16,10 @@ export function createMilestone(input: MilestoneInput) {
   })
 }
 
-export function updateMilestone(milestoneId: string, input: MilestoneInput) {
+export function updateMilestone(milestoneId: string, input: MilestoneInput, scopePlan?: string) {
   return request<Milestone>(`/api/milestones/${milestoneId}`, {
     method: 'PUT',
-    body: JSON.stringify(input),
+    body: JSON.stringify({ ...input, scopePlan }),
   })
 }
 

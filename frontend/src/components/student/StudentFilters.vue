@@ -45,6 +45,17 @@ function yearLabel(year: string) {
   return Number.isFinite(numericYear) ? String(numericYear + 543) : year
 }
 
+function planLabel(plan: string) {
+  const keys: Record<string, 'common.planA1' | 'common.planA2' | 'common.planB' | 'common.plan21' | 'common.plan22'> = {
+    A1: 'common.planA1',
+    A2: 'common.planA2',
+    B: 'common.planB',
+    '2.1': 'common.plan21',
+    '2.2': 'common.plan22',
+  }
+  return keys[plan] ? t(keys[plan]) : plan
+}
+
 const planOptions = computed<FilterOption[]>(() => {
   const allPlan = { label: t('student.allPlan'), value: 'all' }
   const planOrder = ['A1', 'A2', 'B', '2.1', '2.2']
@@ -63,7 +74,7 @@ const planOptions = computed<FilterOption[]>(() => {
         if (leftIndex === -1 || rightIndex === -1) return left.localeCompare(right)
         return leftIndex - rightIndex
       })
-      .map((plan) => ({ label: plan, value: plan })),
+      .map((plan) => ({ label: planLabel(plan), value: plan })),
   ]
 })
 
