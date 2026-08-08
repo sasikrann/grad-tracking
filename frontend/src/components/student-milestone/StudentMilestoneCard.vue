@@ -257,7 +257,7 @@ function handleFileChange(event: Event) {
           </h3>
           <p
             v-if="milestone.description"
-            class="mt-0.5 whitespace-pre-line break-words text-sm text-slate-500"
+            class="mt-0.5 whitespace-pre-line wrap-break-word text-sm text-slate-500"
           >
             {{ milestone.description }}
           </p>
