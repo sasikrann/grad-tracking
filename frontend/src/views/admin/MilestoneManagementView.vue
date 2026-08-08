@@ -385,11 +385,13 @@ onBeforeUnmount(() => {
               type="button"
               class="flex h-9 w-full items-center justify-between gap-3 rounded-lg border border-slate-100 bg-white px-4 text-left text-xs whitespace-nowrap shadow-sm outline-none hover:border-[#dfcccc] focus:border-[#8a2b25]"
               :class="{ 'border-[#8a2b25]': openFilter === filter.key }"
+              :disabled="filter.options.length === 0"
               :aria-expanded="openFilter === filter.key"
               @click="openFilter = openFilter === filter.key ? null : filter.key"
             >
               <span class="whitespace-nowrap">{{ filter.label }}</span>
               <svg
+                v-if="filter.options.length"
                 class="size-4 shrink-0 text-slate-500 transition-transform"
                 :class="{ 'rotate-180': openFilter === filter.key }"
                 viewBox="0 0 24 24"
@@ -403,7 +405,7 @@ onBeforeUnmount(() => {
             </button>
 
             <div
-              v-if="openFilter === filter.key"
+              v-if="openFilter === filter.key && filter.options.length"
               class="absolute left-0 top-[calc(100%+8px)] z-30 min-w-full overflow-hidden rounded-lg border border-slate-100 bg-white p-1.5 shadow-[0_5px_12px_rgba(0,0,0,0.12)]"
             >
               <button
