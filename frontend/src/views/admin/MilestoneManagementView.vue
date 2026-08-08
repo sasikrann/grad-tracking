@@ -12,8 +12,11 @@ import {
   setMilestoneEnabled,
   updateMilestone,
 } from '@/services/milestones.api'
+import { getStudents } from '@/services/students.api'
 import type { EducationPlan, Milestone, MilestoneInput, MilestoneProgram } from '@/types/milestone'
+import type { Student } from '@/types/student'
 const milestones = ref<Milestone[]>([])
+const students = ref<Student[]>([])
 const { language, t } = useLanguage()
 const isLoading = ref(false)
 const message = ref('')
@@ -59,13 +62,59 @@ const filteredMilestones = computed(() =>
 
 const yearOptions = computed(() => {
   const years = new Set(
-    milestones.value
-      .flatMap((milestone) =>
-        milestone.academicYear === null ? [] : [milestone.academicYear],
-      ),
+    students.value.map((student) => Number(student.enrollmentAcademicYear)),
   )
-  return Array.from(years).sort((first, second) => second - first)
+  return Array.from(years)
+    .filter(Number.isInteger)
+    .sort((first, second) => second - first)
 })
+
+function studentDegree(student: Student): MilestoneProgram {
+  return student.degree === 'Master' ? 'Master' : 'Doctoral'
+}
+
+const degreeOptions = computed(() =>
+  Array.from(
+    new Set(
+      students.value
+        .filter(
+          (student) =>
+            selectedYear.value === null ||
+            Number(student.enrollmentAcademicYear) === selectedYear.value,
+        )
+        .map(studentDegree),
+    ),
+  ),
+)
+
+const planOptions = computed(() =>
+  Array.from(
+    new Set(
+      students.value
+        .filter(
+          (student) =>
+            (selectedYear.value === null ||
+              Number(student.enrollmentAcademicYear) === selectedYear.value) &&
+            studentDegree(student) === selectedDegreeLevel.value,
+        )
+        .map((student) => student.educationPlan)
+        .filter((plan) => plan && plan !== '-')
+        .map((plan) => plan as EducationPlan),
+    ),
+  ),
+)
+
+function syncStudentFilters() {
+  if (!yearOptions.value.includes(selectedYear.value ?? Number.NaN)) {
+    selectedYear.value = yearOptions.value[0] ?? null
+  }
+  if (!degreeOptions.value.includes(selectedDegreeLevel.value)) {
+    selectedDegreeLevel.value = degreeOptions.value[0] ?? 'Master'
+  }
+  if (!planOptions.value.includes(selectedPlan.value)) {
+    selectedPlan.value = planOptions.value[0] ?? (selectedDegreeLevel.value === 'Doctoral' ? '2.1' : 'A1')
+  }
+}
 
 const filterDefinitions = computed(() => [
   {
@@ -73,18 +122,17 @@ const filterDefinitions = computed(() => [
     label:
       selectedDegreeLevel.value === 'Doctoral' ? t('common.doctoral') : t('common.master'),
     options: [
-      { label: t('common.master'), value: 'Master' },
-      { label: t('common.doctoral'), value: 'Doctoral' },
+      ...degreeOptions.value.map((degree) => ({
+        label: degree === 'Doctoral' ? t('common.doctoral') : t('common.master'),
+        value: degree,
+      })),
     ],
   },
   {
     key: 'plan' as const,
     label: planLabel(selectedPlan.value),
     options: [
-      ...(selectedDegreeLevel.value === 'Master'
-        ? ['A1', 'A2', 'B']
-        : ['2.1', '2.2']
-      ).map((plan) => ({ label: planLabel(plan as EducationPlan), value: plan })),
+      ...planOptions.value.map((plan) => ({ label: planLabel(plan), value: plan })),
     ],
   },
   {
@@ -147,19 +195,13 @@ async function loadMilestones() {
   isLoading.value = true
   errorMessage.value = ''
   try {
-    milestones.value = await getMilestones()
-    const availableYears = [
-      ...new Set(
-        milestones.value.flatMap(({ academicYear }) =>
-          academicYear === null ? [] : [academicYear],
-        ),
-      ),
-    ]
-    if (selectedYear.value === null || !availableYears.includes(selectedYear.value)) {
-      selectedYear.value = availableYears.sort((first, second) => second - first)[0] ?? null
-    }
+    const [milestoneList, studentList] = await Promise.all([getMilestones(), getStudents()])
+    milestones.value = milestoneList
+    students.value = studentList
+    syncStudentFilters()
   } catch (error) {
     milestones.value = []
+    students.value = []
     showNotification(
       formatMilestoneError(error, 'Unable to load milestones.'),
       'error',
@@ -277,11 +319,16 @@ function selectedFilterValue(key: MilestoneFilterKey) {
 }
 
 function selectFilter(key: MilestoneFilterKey, value: string) {
-  if (key === 'year') selectedYear.value = Number(value)
+  if (key === 'year') {
+    selectedYear.value = Number(value)
+    syncStudentFilters()
+  }
   if (key === 'plan') selectedPlan.value = value as EducationPlan
   if (key === 'degreeLevel') {
     selectedDegreeLevel.value = value as MilestoneProgram
-    selectedPlan.value = value === 'Doctoral' ? '2.1' : 'A1'
+    if (!planOptions.value.includes(selectedPlan.value)) {
+      selectedPlan.value = planOptions.value[0] ?? (value === 'Doctoral' ? '2.1' : 'A1')
+    }
   }
   openFilter.value = null
 }
