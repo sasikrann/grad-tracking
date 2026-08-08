@@ -1,8 +1,4 @@
 import pool from "../config/database.js";
-import {
-  ensureAcademicYearMilestoneTemplates,
-} from "../services/academic-year-milestones.service.js";
-import { ensureMilestoneSchema } from "../services/milestones.service.js";
 
 if (process.env.NODE_ENV === "production") {
   throw new Error("Development users cannot be created in production");
@@ -15,21 +11,7 @@ const users = {
     fullName: "Admin User",
     role: "admin",
   },
-  advisor: {
-    userId: "10000000-0000-4000-8000-000000000002",
-    email: "6631501107@lamduan.mfu.ac.th",
-    fullName: "Advisor User",
-    role: "advisor",
-  },
-  student: {
-    userId: "10000000-0000-4000-8000-000000000003",
-    email: "6631501114@lamduan.mfu.ac.th",
-    fullName: "Student User",
-    role: "student",
-  },
 };
-
-await ensureMilestoneSchema();
 
 const client = await pool.connect();
 
@@ -84,109 +66,9 @@ try {
     }
   }
 
-  // สร้างหรืออัปเดตข้อมูล advisor mock สำหรับ development
-  const existingAdvisor = await client.query(
-    `
-      SELECT advisor_id
-      FROM advisors
-      WHERE user_id = $1 OR LOWER(email) = LOWER($2)
-      LIMIT 1
-    `,
-    [users.advisor.userId, users.advisor.email],
-  );
-  const advisorId = existingAdvisor.rows[0]?.advisor_id ?? "ADV001";
-
-  if (existingAdvisor.rows[0]) {
-    await client.query(
-      `
-        UPDATE advisors
-        SET user_id = $2, email = $3
-        WHERE advisor_id = $1
-      `,
-      [advisorId, users.advisor.userId, users.advisor.email],
-    );
-  } else {
-    await client.query(
-      `
-        INSERT INTO advisors (advisor_id, user_id, full_name, email)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (advisor_id) DO UPDATE SET
-          user_id = EXCLUDED.user_id,
-          full_name = EXCLUDED.full_name,
-          email = EXCLUDED.email
-      `,
-      [advisorId, users.advisor.userId, users.advisor.fullName, users.advisor.email],
-    );
-  }
-
-  // จัดการข้อมูลของนักศึกษา โดยใช้ user_id ที่ได้จากการสร้างผู้ใช้
-  const existingStudent = await client.query(
-    "SELECT student_id FROM students WHERE user_id = $1 LIMIT 1",
-    [users.student.userId],
-  );
-  const studentId = "6631501108";
-  const legacyStudentId = existingStudent.rows[0]?.student_id;
-
-  if (legacyStudentId && legacyStudentId !== studentId) {
-    const conflictingStudent = await client.query(
-      "SELECT user_id FROM students WHERE student_id = $1",
-      [studentId],
-    );
-    if (conflictingStudent.rowCount) {
-      throw new Error(`Cannot migrate development student: ${studentId} already exists`);
-    }
-
-    await client.query("UPDATE students SET user_id = NULL WHERE student_id = $1", [
-      legacyStudentId,
-    ]);
-  }
-
-  await client.query(
-    `
-      INSERT INTO students (
-        student_id,
-        user_id,
-        full_name,
-        school_name,
-        program,
-        education_plan,
-        degree_level,
-        enrollment_academic_year,
-        semester,
-        expected_graduation_year,
-        advisor_id
-      )
-      VALUES ($1, $2, $3, 'School of Information Technology', 'CE', '2.1',
-        'Doctoral', 2023, '1', 2030, $4)
-      ON CONFLICT (student_id) DO UPDATE SET
-        user_id = EXCLUDED.user_id,
-        full_name = EXCLUDED.full_name,
-        school_name = EXCLUDED.school_name,
-        program = EXCLUDED.program,
-        education_plan = EXCLUDED.education_plan,
-        degree_level = EXCLUDED.degree_level,
-        enrollment_academic_year = EXCLUDED.enrollment_academic_year,
-        semester = EXCLUDED.semester,
-        expected_graduation_year = EXCLUDED.expected_graduation_year,
-        advisor_id = EXCLUDED.advisor_id,
-        updated_at = NOW()
-    `,
-    [studentId, users.student.userId, users.student.fullName, advisorId],
-  );
-
-  await ensureAcademicYearMilestoneTemplates(client, 2023);
-
-  if (legacyStudentId && legacyStudentId !== studentId) {
-    await client.query("UPDATE student_milestones SET student_id = $1 WHERE student_id = $2", [
-      studentId,
-      legacyStudentId,
-    ]);
-    await client.query("DELETE FROM students WHERE student_id = $1", [legacyStudentId]);
-  }
-
   await client.query("COMMIT");
 
-  console.info("Development users are ready:");
+  console.info("Development admin is ready:");
   // Log a compact summary for local development. Avoid dumping large tables in production logs.
   console.info(
     JSON.stringify(
