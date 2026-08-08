@@ -255,7 +255,10 @@ function handleFileChange(event: Event) {
           <h3 class="text-base font-semibold" :class="isLocked ? 'text-slate-500' : 'text-black'">
             {{ milestone.title }}
           </h3>
-          <p v-if="milestone.description" class="mt-0.5 text-sm text-slate-500">
+          <p
+            v-if="milestone.description"
+            class="mt-0.5 whitespace-pre-line break-words text-sm text-slate-500"
+          >
             {{ milestone.description }}
           </p>
         </div>
