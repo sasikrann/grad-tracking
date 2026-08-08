@@ -1,8 +1,8 @@
 import pool from "../config/database.js";
 import {
   ensureAcademicYearMilestoneTemplates,
-  ensureMilestoneSchema,
-} from "../services/milestones.service.js";
+} from "../services/academic-year-milestones.service.js";
+import { ensureMilestoneSchema } from "../services/milestones.service.js";
 
 if (process.env.NODE_ENV === "production") {
   throw new Error("Development users cannot be created in production");

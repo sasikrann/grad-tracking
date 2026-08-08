@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { ensureAcademicYearMilestoneTemplates } from './milestones.service.js'
+import { ensureAcademicYearMilestoneTemplates } from './academic-year-milestones.service.js'
 
 test('copies the latest academic-year templates with blank dates', async () => {
   const calls = []

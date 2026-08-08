@@ -10,6 +10,8 @@ import { currentUser } from '@/services/auth'
 import { getAdvisorStudentOverview, getAdvisorStudents } from '@/services/students.api'
 import type { Student } from '@/types/student'
 
+defineOptions({ name: 'AdvisorStudentOverallView' })
+
 const router = useRouter()
 const { isThai } = useLanguage()
 

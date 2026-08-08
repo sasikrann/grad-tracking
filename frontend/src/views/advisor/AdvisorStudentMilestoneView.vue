@@ -11,6 +11,8 @@ import {
 } from '@/services/advisor-milestones.api'
 import type { StudentMilestone } from '@/types/milestone'
 
+defineOptions({ name: 'AdvisorStudentMilestoneView' })
+
 const route = useRoute()
 
 const studentId = computed(() => String(route.params.studentId ?? ''))

@@ -4,12 +4,8 @@ import { currentUser, initializeAuth } from '@/services/auth'
 import AdvisorDashboardView from '@/views/admin/AdvisorDashboardView.vue'
 import StudentDashboardView from '@/views/admin/StudentDashboardView.vue'
 
-function normalizeRole(role: string | undefined) {
-  return role === 'lecturer' ? 'advisor' : role
-}
-
 function getDefaultRoute() {
-  const role = normalizeRole(currentUser.value?.role)
+  const role = currentUser.value?.role
 
   if (role === 'student') {
     return { name: 'student-information' }
@@ -100,19 +96,19 @@ const router = createRouter({
       path: '/advisor/student-overall',
       alias: '/advisor',
       name: 'advisor-student-overall',
-      component: () => import('../views/lecturer/LecturerStudentOverallView.vue'),
+      component: () => import('../views/advisor/AdvisorStudentOverallView.vue'),
       meta: { requiresAuth: true, role: 'advisor' },
     },
     {
       path: '/advisor/summary',
       name: 'advisor-milestone-summary',
-      component: () => import('../views/lecturer/LecturerMilestoneSummaryView.vue'),
+      component: () => import('../views/advisor/AdvisorMilestoneSummaryView.vue'),
       meta: { requiresAuth: true, role: 'advisor' },
     },
     {
       path: '/advisor/students/:studentId/milestones',
       name: 'advisor-student-milestones',
-      component: () => import('../views/lecturer/LecturerStudentMilestoneView.vue'),
+      component: () => import('../views/advisor/AdvisorStudentMilestoneView.vue'),
       meta: { requiresAuth: true, role: 'advisor' },
     },
   ],
@@ -130,7 +126,7 @@ router.beforeEach(async (to) => {
   }
 
   const requiredRole = typeof to.meta.role === 'string' ? to.meta.role : undefined
-  const userRole = normalizeRole(currentUser.value?.role)
+  const userRole = currentUser.value?.role
 
   if (requiredRole && userRole !== requiredRole) {
     return getDefaultRoute()

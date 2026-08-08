@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import LanguageSwitch from '@/components/navigation/LanguageSwitch.vue'
+import LanguageSwitch from './LanguageSwitch.vue'
 import { useLanguage } from '@/composables/useLanguage'
 import { getUnreadNotificationCount } from '@/services/notifications.api'
 import type { CurrentUser } from '@/types/user'
@@ -9,7 +9,7 @@ import type { CurrentUser } from '@/types/user'
 defineOptions({ name: 'AppNavbar' })
 
 // ชนิดข้อมูลที่ใช้สร้างเมนูของแต่ละ role
-type MenuRole = 'admin' | 'lecturer' | 'student'
+type MenuRole = 'admin' | 'advisor' | 'student'
 type MenuIcon = 'dashboard' | 'student' | 'advisor' | 'milestone' | 'notification'
 
 interface MenuItem {
@@ -46,7 +46,7 @@ const menus: Record<MenuRole, MenuItem[]> = {
     { label: 'nav.milestoneManagement', to: '/milestones', icon: 'milestone' },
     { label: 'nav.notificationManagement', to: '/admin/notifications', icon: 'notification' },
   ],
-  lecturer: [
+  advisor: [
     {
       label: 'Student Overall',
       to: '/advisor/student-overall',
@@ -62,10 +62,7 @@ const menus: Record<MenuRole, MenuItem[]> = {
   ],
 }
 
-// Backend ใช้ชื่อ advisor แต่หน้าเว็บเรียกว่า lecturer จึงให้ใช้เมนูชุดเดียวกัน
-const menuRole = computed<MenuRole>(() =>
-  props.user.role === 'advisor' ? 'lecturer' : props.user.role,
-)
+const menuRole = computed<MenuRole>(() => props.user.role)
 
 // เลือกรายการเมนูให้ตรงกับ role ของผู้ใช้
 const menuItems = computed(() => menus[menuRole.value])

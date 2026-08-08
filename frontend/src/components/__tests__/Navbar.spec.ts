@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { mount, RouterLinkStub } from '@vue/test-utils'
-import Navbar from '../navbar.vue'
+import Navbar from '../navigation/Navbar.vue'
 import { useLanguage } from '@/composables/useLanguage'
 
 describe('Navbar', () => {
@@ -8,7 +8,6 @@ describe('Navbar', () => {
 
   it.each([
     ['admin', 'Advisor Management'],
-    ['lecturer', 'Milestone Summary'],
     ['advisor', 'Milestone Summary'],
     ['student', 'Student Information'],
   ] as const)('renders the correct menu for %s', (role, expectedMenu) => {

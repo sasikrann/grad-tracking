@@ -5,6 +5,8 @@ import { getAdvisorMilestoneSummary } from '@/services/advisor-milestone-summary
 import { currentUser } from '@/services/auth'
 import type { AdvisorMilestoneBreakdown, AdvisorMilestoneSummary, DegreeLevel } from '@/types/milestone'
 
+defineOptions({ name: 'AdvisorMilestoneSummaryView' })
+
 type SummaryIcon = 'completed' | 'progress' | 'approved' | 'overall'
 type SummaryFilterKey = 'degreeLevel' | 'semester' | 'year'
 

@@ -311,7 +311,7 @@ function handleFileChange(event: Event) {
         </span>
         <div
           v-if="referenceLinks.length || referenceLabels.length"
-          class="!mt-2 text-xs"
+          class="mt-2! text-xs"
         >
           <p
             v-for="reference in referenceLabels"

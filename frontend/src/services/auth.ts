@@ -5,7 +5,7 @@ import type { CurrentUser, UserRole } from '@/types/user'
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 const tokenStorageKey = 'accessToken'
 const userStorageKey = 'currentUser'
-const validRoles: UserRole[] = ['admin', 'advisor', 'lecturer', 'student']
+const validRoles: UserRole[] = ['admin', 'advisor', 'student']
 
 function isCurrentUser(value: unknown): value is CurrentUser {
   if (!value || typeof value !== 'object') return false

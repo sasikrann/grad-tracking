@@ -21,7 +21,7 @@ export interface Student extends StudentTableItem {
   isAdvised: boolean
 }
 
-// ค่าของตัวกรองที่ใช้ร่วมกันระหว่าง Admin และ Lecturer
+// ค่าของตัวกรองที่ใช้ร่วมกันระหว่าง Admin และ Advisor
 export interface StudentFiltersState {
   semester: string
   year: string

@@ -2,10 +2,8 @@ import { randomUUID } from 'node:crypto'
 
 import pool from '../config/database.js'
 import { resolveAdvisorReference } from './advisors.service.js'
-import {
-  ensureAcademicYearMilestoneTemplates,
-  ensureMilestoneSchema,
-} from './milestones.service.js'
+import { ensureAcademicYearMilestoneTemplates } from './academic-year-milestones.service.js'
+import { ensureMilestoneSchema } from './milestones.service.js'
 
 let studentSchemaReady
 async function ensureStudentSchema() {

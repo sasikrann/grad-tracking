@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
-import Navbar from '@/components/navbar.vue'
+import Navbar from '@/components/navigation/Navbar.vue'
 import { currentUser, logout } from '@/services/auth'
 
 const route = useRoute()
