@@ -33,12 +33,29 @@ export async function ensureAcademicYearMilestoneTemplates(client, academicYear)
     sourceYear ? [sourceYear] : [],
   )
 
-  const copiedIdBySourceId = new Map(
-    source.rows.map((template) => [template.milestone_id, randomUUID()]),
+  const copies = source.rows.flatMap((template) => {
+    const plans = template.plans.length > 1 && !template.plans.includes('All')
+      ? template.plans
+      : [template.plans[0]]
+
+    return plans.map((plan) => ({
+      source: template,
+      plan,
+      milestoneId: randomUUID(),
+    }))
+  })
+  const copiedIdByPlanAndSourceId = new Map(
+    copies.map(({ source: template, plan, milestoneId }) => [
+      `${plan}:${template.milestone_id}`,
+      milestoneId,
+    ]),
   )
 
-  for (const template of source.rows) {
+  for (const { source: template, plan, milestoneId } of copies) {
     const baseKey = template.default_template_key.replace(/^academic-\d+-/, '')
+    const planKey = template.plans.length > 1 && !template.plans.includes('All')
+      ? `${plan}-`
+      : ''
     await client.query(
       `
         INSERT INTO milestone_templates (
@@ -51,13 +68,13 @@ export async function ensureAcademicYearMilestoneTemplates(client, academicYear)
           NULL, NULL, NULL, NULL, $12)
       `,
       [
-        copiedIdBySourceId.get(template.milestone_id),
-        `academic-${year}-${baseKey}`,
+        milestoneId,
+        `academic-${year}-${planKey}${baseKey}`,
         defaultMilestoneTemplateVersion,
         year,
         template.degree_level,
         template.semester,
-        template.plans,
+        [plan],
         template.title,
         template.description,
         template.reference_urls,
@@ -67,13 +84,13 @@ export async function ensureAcademicYearMilestoneTemplates(client, academicYear)
     )
   }
 
-  for (const template of source.rows) {
+  for (const { source: template, plan, milestoneId } of copies) {
     const prerequisiteIds = template.prerequisite_milestone_ids
-      .map((id) => copiedIdBySourceId.get(id))
+      .map((id) => copiedIdByPlanAndSourceId.get(`${plan}:${id}`))
       .filter(Boolean)
     await client.query(
       'UPDATE milestone_templates SET prerequisite_milestone_ids = $2 WHERE milestone_id = $1',
-      [copiedIdBySourceId.get(template.milestone_id), prerequisiteIds],
+      [milestoneId, prerequisiteIds],
     )
   }
 
