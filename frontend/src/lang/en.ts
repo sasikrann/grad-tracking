@@ -138,8 +138,7 @@ export const en = {
   },
   notification: {
     pageTitle: 'Notification Management',
-    pageDescription: 'Create and manage notifications for students',
-    manageDescription: 'View and manage all notifications sent to students',
+    pageDescription: 'View and manage all notifications sent to students',
     add: 'Add Notification',
     history: 'Notification History',
     historyCount: '{count} Notification History',
@@ -154,7 +153,6 @@ export const en = {
     sending: 'Sending...',
     allStudents: 'All Students',
     allProgram: 'All Program',
-    noHistory: 'No notifications found.',
     noHistoryFor: 'No notifications found for {filter}.',
     attachment: 'Attachment',
     enterTitle: 'Enter notification title',

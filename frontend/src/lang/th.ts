@@ -132,8 +132,7 @@ export const th = {
   },
   notification: {
     pageTitle: 'จัดการการแจ้งเตือน',
-    pageDescription: 'สร้างและจัดการการแจ้งเตือนสำหรับนักศึกษา',
-    manageDescription: 'ดูและจัดการการแจ้งเตือนทั้งหมดที่ส่งให้นักศึกษา',
+    pageDescription: 'ดูและจัดการการแจ้งเตือนทั้งหมดที่ส่งให้นักศึกษา',
     add: 'เพิ่มการแจ้งเตือน',
     history: 'ประวัติการแจ้งเตือน',
     historyCount: 'ประวัติการแจ้งเตือน {count} รายการ',
@@ -148,7 +147,6 @@ export const th = {
     sending: 'กำลังส่ง...',
     allStudents: 'นักศึกษาทั้งหมด',
     allProgram: 'ทุกหลักสูตร',
-    noHistory: 'ไม่พบการแจ้งเตือน',
     noHistoryFor: 'ไม่พบการแจ้งเตือนสำหรับ{filter}',
     attachment: 'ไฟล์แนบ',
     enterTitle: 'กรอกชื่อการแจ้งเตือน',

@@ -392,7 +392,7 @@ onBeforeUnmount(() => {
       <div>
         <h1 class="text-3xl font-bold tracking-tight text-black">{{ t('notification.pageTitle') }}</h1>
         <p class="mt-1 text-sm text-slate-500">
-          {{ t('notification.manageDescription') }}
+          {{ t('notification.pageDescription') }}
         </p>
       </div>
 
