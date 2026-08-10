@@ -200,6 +200,7 @@ async function splitSharedAcademicYearTemplates() {
 
         for (const plan of additionalPlans) {
           const cloneId = randomUUID()
+          const baseKey = template.default_template_key.replace(/^academic-\d+-/, '')
           targetIdByPlan.set(`${plan}:${template.milestone_id}`, cloneId)
           await client.query(
             `
@@ -215,7 +216,7 @@ async function splitSharedAcademicYearTemplates() {
             `,
             [
               cloneId,
-              `admin-${cloneId}`,
+              `academic-${template.academic_year}-${plan}-${baseKey}`,
               template.default_template_version,
               template.academic_year,
               template.degree_level,
@@ -279,6 +280,46 @@ async function splitSharedAcademicYearTemplates() {
           )
         }
       }
+    }
+
+    const legacyKeys = await client.query(`
+      SELECT DISTINCT ON (broken.milestone_id)
+        broken.milestone_id,
+        broken.academic_year,
+        broken.plans[1] AS plan,
+        canonical.default_template_key AS canonical_key,
+        canonical.plans[1] AS canonical_plan
+      FROM milestone_templates broken
+      JOIN milestone_templates canonical
+        ON canonical.academic_year = broken.academic_year
+        AND canonical.degree_level = broken.degree_level
+        AND canonical.semester = broken.semester
+        AND canonical.title = broken.title
+        AND canonical.sequence_order = broken.sequence_order
+        AND canonical.default_template_version = broken.default_template_version
+        AND canonical.milestone_id <> broken.milestone_id
+        AND canonical.default_template_key NOT LIKE 'admin-%'
+      WHERE broken.academic_year IS NOT NULL
+        AND broken.default_template_key LIKE 'admin-%'
+        AND cardinality(broken.plans) = 1
+        AND cardinality(canonical.plans) = 1
+      ORDER BY broken.milestone_id, canonical.created_at
+    `)
+
+    for (const template of legacyKeys.rows) {
+      let baseKey = template.canonical_key.replace(/^academic-\d+-/, '')
+      if (baseKey.startsWith(`${template.canonical_plan}-`)) {
+        baseKey = baseKey.slice(template.canonical_plan.length + 1)
+      }
+      await client.query(
+        `UPDATE milestone_templates
+         SET default_template_key = $2, updated_at = NOW()
+         WHERE milestone_id = $1`,
+        [
+          template.milestone_id,
+          `academic-${template.academic_year}-${template.plan}-${baseKey}`,
+        ],
+      )
     }
 
     await client.query('COMMIT')
