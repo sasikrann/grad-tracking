@@ -44,7 +44,7 @@ const duplicateAdvisorMessage =
   'Some advisor emails already exist. Please choose which advisor record to keep before importing.'
 
 function advisorStatusLabel(status: Advisor['status']) {
-  return status === 'inactive' ? 'Active' : 'Inactive'
+  return status === 'active' ? 'Active' : 'Inactive'
 }
 
 function showNotification(text: string, type: 'success' | 'error' = 'success') {

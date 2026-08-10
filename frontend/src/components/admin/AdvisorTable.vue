@@ -22,7 +22,7 @@ function initials(name: string) {
 }
 
 function statusLabel(status: Advisor['status']) {
-  return status === 'inactive' ? t('common.enable') : t('advisor.inactive')
+  return status === 'active' ? t('advisor.active') : t('advisor.inactive')
 }
 </script>
 
@@ -65,7 +65,7 @@ function statusLabel(status: Advisor['status']) {
             </td>
             <td class="w-[25%] py-3 pl-4 text-right">
               <div class="ml-auto flex w-38 justify-center gap-2">
-                <button v-for="status in (['inactive', 'disabled'] as const)" :key="status" type="button" :disabled="advisor.status === status" :aria-label="`Set ${advisor.fullName} status to ${statusLabel(status)}`" class="rounded-md border px-3 py-1 text-[11px] disabled:cursor-default" :class="advisor.status === status ? (status === 'inactive' ? 'border-green-200 bg-green-100 text-green-700' : 'border-red-200 bg-red-50 text-red-700') : 'border-slate-200 text-slate-500 hover:bg-slate-50'" @click="$emit('status', advisor.advisorId, status)">
+                <button v-for="status in (['active', 'inactive'] as const)" :key="status" type="button" :disabled="advisor.status === status" :aria-label="`Set ${advisor.fullName} status to ${statusLabel(status)}`" class="rounded-md border px-3 py-1 text-[11px] disabled:cursor-default" :class="advisor.status === status ? (status === 'active' ? 'border-green-200 bg-green-100 text-green-700' : 'border-red-200 bg-red-50 text-red-700') : 'border-slate-200 text-slate-500 hover:bg-slate-50'" @click="$emit('status', advisor.advisorId, status)">
                   {{ statusLabel(status) }}
                 </button>
               </div>
@@ -73,7 +73,7 @@ function statusLabel(status: Advisor['status']) {
           </tr>
           <tr v-if="advisors.length === 0">
             <td colspan="3" class="py-10 text-center text-sm text-slate-500">
-              No advisors match the selected filters.
+              {{ t('advisor.noMatchingAdvisors') }}
             </td>
           </tr>
         </tbody>

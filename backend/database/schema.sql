@@ -42,7 +42,7 @@ CREATE TABLE advisors (
   user_id UUID UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
   full_name VARCHAR NOT NULL,
   email VARCHAR UNIQUE NOT NULL,
-  status VARCHAR NOT NULL DEFAULT 'inactive' CHECK (status IN ('inactive', 'disabled')),
+  status VARCHAR NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
   created_at TIMESTAMP DEFAULT NOW()
 );
 

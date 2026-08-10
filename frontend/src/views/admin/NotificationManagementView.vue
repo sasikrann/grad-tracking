@@ -392,7 +392,7 @@ onBeforeUnmount(() => {
       <div>
         <h1 class="text-3xl font-bold tracking-tight text-black">{{ t('notification.pageTitle') }}</h1>
         <p class="mt-1 text-sm text-slate-500">
-          View and manage all notifications sent to students
+          {{ t('notification.manageDescription') }}
         </p>
       </div>
 
@@ -411,7 +411,7 @@ onBeforeUnmount(() => {
         >
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
         </svg>
-        Add Notification
+        {{ t('notification.add') }}
       </button>
     </header>
 
@@ -422,7 +422,7 @@ onBeforeUnmount(() => {
         <div>
           <h2 class="text-base font-semibold text-slate-950">{{ t('notification.history') }}</h2>
           <p class="mt-2 text-xs text-slate-500">
-            {{ notifications.length }} Notification History
+            {{ t('notification.historyCount', { count: notifications.length }) }}
           </p>
         </div>
 
@@ -495,7 +495,7 @@ onBeforeUnmount(() => {
             </tr>
             <tr v-else-if="!notifications.length">
               <td colspan="4" class="px-1 py-8 text-center text-sm text-slate-500">
-                No notifications found for {{ selectedFilterLabel }}.
+                {{ t('notification.noHistoryFor', { filter: selectedFilterLabel }) }}
               </td>
             </tr>
             <tr
@@ -560,7 +560,7 @@ onBeforeUnmount(() => {
     >
       <div class="min-h-0 flex-1 overflow-y-auto pr-1">
         <h2 id="send-notification-title" class="text-lg font-semibold text-slate-950">
-          Send Notification
+          {{ t('notification.send') }}
         </h2>
         <p class="mt-2 text-sm text-slate-500">{{ t('notification.createDescription') }}</p>
 
@@ -738,7 +738,7 @@ onBeforeUnmount(() => {
           :disabled="isSubmitting"
           @click="closeAddPanel"
         >
-          Cancel
+          {{ t('common.cancel') }}
         </button>
         <button
           type="button"

@@ -5,9 +5,38 @@ import { ensureMilestoneSchema } from './milestones.service.js'
 
 let advisorSchemaReady
 async function ensureAdvisorSchema() {
-  advisorSchemaReady ??= pool.query("ALTER TABLE advisors ADD COLUMN IF NOT EXISTS status VARCHAR NOT NULL DEFAULT 'inactive'")
-    .then(() => pool.query("UPDATE advisors SET status = 'inactive' WHERE status = 'active'"))
-    .then(() => pool.query("ALTER TABLE advisors ALTER COLUMN status SET DEFAULT 'inactive'"))
+  advisorSchemaReady ??= pool.query(`
+    ALTER TABLE advisors ADD COLUMN IF NOT EXISTS status VARCHAR NOT NULL DEFAULT 'active';
+
+    DO $$
+    DECLARE
+      uses_legacy_statuses BOOLEAN;
+    BEGIN
+      SELECT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conrelid = 'advisors'::regclass
+          AND contype = 'c'
+          AND pg_get_constraintdef(oid) ILIKE '%disabled%'
+      ) INTO uses_legacy_statuses;
+
+      ALTER TABLE advisors DROP CONSTRAINT IF EXISTS advisors_status_check;
+
+      IF uses_legacy_statuses THEN
+        UPDATE advisors
+        SET status = CASE
+          WHEN status = 'disabled' THEN 'inactive'
+          ELSE 'active'
+        END;
+      ELSE
+        UPDATE advisors SET status = 'inactive' WHERE status = 'disabled';
+      END IF;
+    END $$;
+
+    ALTER TABLE advisors ALTER COLUMN status SET DEFAULT 'active';
+    ALTER TABLE advisors
+      ADD CONSTRAINT advisors_status_check CHECK (status IN ('active', 'inactive'));
+  `)
   await advisorSchemaReady
 }
 
@@ -357,8 +386,8 @@ export async function replaceAdvisor(advisorId, input) {
 
 export async function updateAdvisorStatus(advisorId, status) {
   await ensureAdvisorSchema()
-  if (!['inactive', 'disabled'].includes(status)) {
-    const error = new Error('Status must be inactive or disabled')
+  if (!['active', 'inactive'].includes(status)) {
+    const error = new Error('Status must be active or inactive')
     error.statusCode = 400
     throw error
   }

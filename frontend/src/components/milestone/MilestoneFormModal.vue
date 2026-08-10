@@ -195,27 +195,27 @@ onBeforeUnmount(() => {
 
       <form class="mt-5 space-y-3" novalidate @submit.prevent="saveForm">
         <label class="block text-xs font-semibold">
-          Title
+          {{ t('common.title') }}
           <input
             v-model="form.title"
-            placeholder="e.g., Research Proposal"
+            :placeholder="t('milestone.titlePlaceholder')"
             class="mt-1 h-10 w-full rounded-md border border-[#c9827c] px-3 text-xs outline-none focus:border-[#7D2923]"
           />
         </label>
 
         <label class="block text-xs font-semibold">
-          Description
+          {{ t('common.description') }}
           <textarea
             v-model="form.description"
             rows="3"
-            placeholder="Describe this milestone..."
+            :placeholder="t('milestone.descriptionPlaceholder')"
             class="mt-1 w-full rounded-md border border-[#c9827c] px-3 py-2 text-xs outline-none focus:border-[#7D2923]"
           ></textarea>
         </label>
 
         <div>
           <MilestoneSelectDropdown
-            label="Program"
+            :label="t('common.program')"
             :model-value="form.degreeLevel"
             :options="programOptions"
             :open="openDropdown === 'program'"
@@ -226,7 +226,7 @@ onBeforeUnmount(() => {
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label class="block text-xs font-semibold">
-            Order
+            {{ t('common.order') }}
             <input
               v-model.number="form.sequenceOrder"
               type="number"
@@ -262,13 +262,13 @@ onBeforeUnmount(() => {
             <input
               v-model="form.references[index]"
               type="text"
-              placeholder="e.g., DGC24 – แบบยื่นผลการทดสอบภาษาอังกฤษ หรือ https://postgrads.mfu.ac.th"
+              :placeholder="t('milestone.referencePlaceholder')"
               class="h-10 min-w-0 flex-1 rounded-md border border-[#c9827c] px-3 text-xs outline-none focus:border-[#7D2923]"
             />
             <button
               type="button"
               class="rounded-md border border-red-100 px-3 py-2 text-xs text-red-600 hover:bg-red-50"
-              aria-label="Remove reference"
+              :aria-label="t('milestone.removeReference')"
               @click="removeReference(index)"
             >
               {{ t('common.remove') }}
@@ -276,11 +276,11 @@ onBeforeUnmount(() => {
           </div>
         </fieldset>
 
-        <DateInput v-model="form.deadline" label="Deadline" />
+        <DateInput v-model="form.deadline" :label="t('common.deadline')" />
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <DateInput v-model="form.firstReminderDate" label="First Reminder" />
-          <DateInput v-model="form.secondReminderDate" label="Second Reminder" />
+          <DateInput v-model="form.firstReminderDate" :label="t('milestone.firstReminder')" />
+          <DateInput v-model="form.secondReminderDate" :label="t('milestone.secondReminder')" />
         </div>
 
         <fieldset class="text-xs">
@@ -317,8 +317,7 @@ onBeforeUnmount(() => {
             {{ t('milestone.noPrerequisites') }}
           </p>
           <span class="mt-1 block font-normal text-slate-500">
-            Check milestones that must be completed first. Uncheck them or use Clear all to remove
-            the condition.
+            {{ t('milestone.prerequisiteHelp') }}
           </span>
         </fieldset>
 

@@ -4,5 +4,5 @@ export interface Advisor {
   fullName: string
   email: string
   createdAt: string
-  status: 'inactive' | 'disabled'
+  status: 'active' | 'inactive'
 }
