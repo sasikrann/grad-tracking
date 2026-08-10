@@ -127,7 +127,7 @@ function coAdvisorOptions(slotIndex: number) {
 }
 function coAdvisorDropdownOptions(slotIndex: number) {
   return [
-    { value: '', label: 'No co-advisor' },
+    { value: '', label: 'Select co-advisor' },
     ...coAdvisorOptions(slotIndex).map((advisor) => ({
       value: advisor.advisorId,
       label: `${advisor.fullName} - ${advisor.email}`,
@@ -349,6 +349,7 @@ function handleFileChange(event: Event) {
           :model-value="selectedAdvisorId"
           :options="primaryAdvisorOptions"
           :open="openAdvisorDropdown === 'advisor'"
+          clearable
           @toggle="toggleAdvisorDropdown('advisor')"
           @select="selectPrimaryAdvisor"
         />
@@ -360,6 +361,7 @@ function handleFileChange(event: Event) {
               :model-value="selectedCoAdvisorIds[slotIndex - 1] ?? ''"
               :options="coAdvisorDropdownOptions(slotIndex - 1)"
               :open="openAdvisorDropdown === `coAdvisor${slotIndex}`"
+              clearable
               @toggle="toggleAdvisorDropdown(slotIndex === 1 ? 'coAdvisor1' : 'coAdvisor2')"
               @select="selectCoAdvisor(slotIndex - 1, $event)"
             />

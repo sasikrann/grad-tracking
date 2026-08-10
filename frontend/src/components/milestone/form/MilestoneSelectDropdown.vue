@@ -1,20 +1,29 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 export interface MilestoneSelectOption {
   label: string
   value: string
 }
 
-defineProps<{
+const props = defineProps<{
   label: string
   modelValue: string
   options: MilestoneSelectOption[]
   open: boolean
+  clearable?: boolean
 }>()
 
 const emit = defineEmits<{
   toggle: []
   select: [value: string]
 }>()
+
+const dropdownOptions = computed(() =>
+  props.clearable
+    ? props.options.filter((option) => option.value !== '')
+    : props.options,
+)
 </script>
 
 <template>
@@ -29,7 +38,20 @@ const emit = defineEmits<{
       <span class="truncate">
         {{ options.find((option) => option.value === modelValue)?.label ?? options[0]?.label }}
       </span>
+      <span
+        v-if="clearable && modelValue"
+        class="flex size-6 shrink-0 items-center justify-center rounded-full text-lg font-normal leading-none text-slate-500 hover:bg-red-50 hover:text-red-600"
+        role="button"
+        tabindex="0"
+        aria-label="Clear selected advisor"
+        @click.stop="emit('select', '')"
+        @keydown.enter.stop="emit('select', '')"
+        @keydown.space.prevent.stop="emit('select', '')"
+      >
+        &times;
+      </span>
       <svg
+        v-else
         class="size-4 shrink-0 text-[#777] transition-transform"
         :class="{ 'rotate-180': open }"
         viewBox="0 0 24 24"
@@ -47,7 +69,7 @@ const emit = defineEmits<{
       class="absolute left-0 top-[calc(100%+8px)] z-30 w-full overflow-hidden rounded-lg border border-[#eeeeee] bg-white p-1.5 shadow-[0_5px_12px_rgba(0,0,0,0.12)]"
     >
       <button
-        v-for="option in options"
+        v-for="option in dropdownOptions"
         :key="option.value"
         type="button"
         class="flex w-full min-w-0 items-center justify-between gap-3 rounded-md px-2.5 py-2 text-left text-xs font-semibold hover:bg-[#f8eeee]"
