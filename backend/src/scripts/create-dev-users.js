@@ -7,7 +7,7 @@ if (process.env.NODE_ENV === "production") {
 const users = {
   admin: {
     userId: "10000000-0000-4000-8000-000000000001",
-    email: "6631501107@lamduan.mfu.ac.th",
+    email: "6631501108@lamduan.mfu.ac.th",
     fullName: "Admin User",
     role: "admin",
   },

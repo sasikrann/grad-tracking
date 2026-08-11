@@ -18,6 +18,7 @@ interface StudentApiResponse {
   advisorName: string | null
   progress: number
   status: StudentStatus
+  studyExtensionGranted: boolean
 }
 
 interface StudentsApiResponse {
@@ -64,6 +65,7 @@ function toStudent(student: StudentApiResponse, currentAdvisorId?: string): Stud
     year: String(student.year ?? student.enrollmentAcademicYear),
     progress: Number(student.progress),
     status: student.status,
+    studyExtensionGranted: Boolean(student.studyExtensionGranted),
     advisor: student.advisorName ?? 'Unassigned',
     isAdvised: currentAdvisorId ? student.advisorId === currentAdvisorId : false,
   }
@@ -88,6 +90,39 @@ async function requestStudents(path: string, currentAdvisorId?: string) {
 
 export function getStudents() {
   return requestStudents('/api/students')
+}
+
+export interface StudentDetail {
+  studentId: string
+  fullName: string
+  degreeLevel: 'Master' | 'Doctoral'
+  enrollmentAcademicYear: number
+  studyExtensionGranted: boolean
+  graduationSemester: string | null
+  graduationAcademicYear: number | null
+}
+
+export async function getStudent(studentId: string) {
+  const response = await authenticatedFetch(apiUrl(`/api/students/${encodeURIComponent(studentId)}`), {
+    cache: 'no-store',
+  })
+  const result = await readJson<ApiResponse<StudentDetail>>(response)
+  if (!response.ok || !result?.data) {
+    throw new Error(`Unable to load student (${response.status})`)
+  }
+  return result.data
+}
+
+export async function extendStudentStudyPeriod(studentId: string) {
+  const response = await authenticatedFetch(
+    apiUrl(`/api/students/${encodeURIComponent(studentId)}/study-extension`),
+    { method: 'PATCH' },
+  )
+  const result = await readJson<ApiResponse<{ studyExtensionGranted: boolean }> & ApiErrorResponse>(response)
+  if (!response.ok || !result?.data) {
+    throw new Error(result?.message ?? `Unable to extend study period (${response.status})`)
+  }
+  return result.data
 }
 
 export function getAdvisorStudents(advisorId: string) {

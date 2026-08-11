@@ -2,7 +2,7 @@
 defineProps<{
   title: string
   value: number
-  icon: 'students' | 'on-track' | 'overdue'
+  icon: 'students' | 'on-track' | 'overdue' | 'graduate'
 }>()
 </script>
 
@@ -28,9 +28,13 @@ defineProps<{
           <circle cx="12" cy="12" r="9" />
           <path d="m8 12 2.5 2.5L16 9" />
         </template>
-        <template v-else>
+        <template v-else-if="icon === 'overdue'">
           <circle cx="12" cy="12" r="9" />
           <path d="M12 7v6M12 17h.01" />
+        </template>
+        <template v-else>
+          <path d="m3 9 9-4 9 4-9 4-9-4Z" />
+          <path d="M7 11v4.5c2.7 2 7.3 2 10 0V11" />
         </template>
       </svg>
     </div>

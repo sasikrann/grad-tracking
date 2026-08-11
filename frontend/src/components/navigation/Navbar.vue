@@ -144,7 +144,7 @@ watch(
 watch(
   () => props.user.role,
   (role) => {
-    if (role !== 'admin') setLanguage('en')
+    setLanguage(role === 'admin' ? 'th' : 'en')
   },
   { immediate: true },
 )

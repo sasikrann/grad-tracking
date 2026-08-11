@@ -21,7 +21,6 @@ const {
   loadError,
   loadStudents,
   search,
-  statistics,
   students,
 } = useStudentOverview(getStudents, 'all')
 
@@ -35,6 +34,12 @@ const selectedImportFile = ref<File | null>(null)
 let messageTimer: ReturnType<typeof setTimeout> | undefined
 
 const notificationText = computed(() => errorMessage.value || message.value)
+const dashboardStatistics = computed(() => ({
+  total: filteredStudents.value.length,
+  onTrack: filteredStudents.value.filter((student) => student.status === 'On-track').length,
+  overdue: filteredStudents.value.filter((student) => student.status === 'Overdue').length,
+  graduate: filteredStudents.value.filter((student) => student.status === 'Graduate').length,
+}))
 
 function showNotification(text: string, type: 'success' | 'error' = 'success') {
   message.value = type === 'success' ? text : ''
@@ -233,10 +238,11 @@ onBeforeUnmount(() => {
       />
     </section>
 
-    <section class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-3">
-      <SummaryCard :title="t('dashboard.totalStudents')" :value="statistics.total" icon="students" />
-      <SummaryCard :title="t('dashboard.onTrack')" :value="statistics.onTrack" icon="on-track" />
-      <SummaryCard :title="t('dashboard.overdue')" :value="statistics.overdue" icon="overdue" />
+    <section class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <SummaryCard :title="t('dashboard.totalStudents')" :value="dashboardStatistics.total" icon="students" />
+      <SummaryCard :title="t('dashboard.onTrack')" :value="dashboardStatistics.onTrack" icon="on-track" />
+      <SummaryCard :title="t('dashboard.overdue')" :value="dashboardStatistics.overdue" icon="overdue" />
+      <SummaryCard :title="t('dashboard.graduate')" :value="dashboardStatistics.graduate" icon="graduate" />
     </section>
 
     <StudentOverview

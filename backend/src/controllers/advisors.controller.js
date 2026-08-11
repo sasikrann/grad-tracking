@@ -24,8 +24,8 @@ import {
 } from '../services/milestones.service.js'
 import { findAllStudents, findStudentsByAdvisorId } from '../services/students.service.js'
 
-export async function getAdvisors(_request, response) {
-  response.json({ data: await findAllAdvisors() })
+export async function getAdvisors(request, response) {
+  response.json({ data: await findAllAdvisors({ activeOnly: request.user.role === 'student' }) })
 }
 
 export async function getAdvisor(request, response) {

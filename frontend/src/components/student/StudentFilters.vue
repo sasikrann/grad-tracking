@@ -56,6 +56,13 @@ function planLabel(plan: string) {
   return keys[plan] ? t(keys[plan]) : plan
 }
 
+function statusLabel(status: string) {
+  if (status === 'Graduate') return t('dashboard.graduate')
+  if (status === 'Overdue') return t('dashboard.overdue')
+  if (status === 'On-track') return t('dashboard.onTrack')
+  return status
+}
+
 const planOptions = computed<FilterOption[]>(() => {
   const allPlan = { label: t('student.allPlan'), value: 'all' }
   const planOrder = ['A1', 'A2', 'B', '2.1', '2.2']
@@ -132,7 +139,9 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
     defaultLabel: 'All Status',
     options: [
       { label: t('student.allStatus'), value: 'all' },
-      ...optionsFromValues(props.availableStudents.map((student) => student.status)),
+      ...optionsFromValues(props.availableStudents.map((student) => student.status)).map(
+        (option) => ({ ...option, label: statusLabel(option.value) }),
+      ),
     ],
   },
 ])

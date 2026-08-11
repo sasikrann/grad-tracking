@@ -50,6 +50,14 @@ test('uses bilingual titles and excludes Doctoral Plan 1.1', () => {
   }
 })
 
+test('uses bilingual descriptions when a description is provided', () => {
+  for (const template of defaultMilestoneTemplates) {
+    if (template.description !== null) {
+      assert.match(template.description, /^[^\n]+\n\(.+\)$/)
+    }
+  }
+})
+
 test('stores form names and university links as separate references', () => {
   const englishTemplates = defaultMilestoneTemplates.filter(({ key }) =>
     key.endsWith('english-proficiency'),

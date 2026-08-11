@@ -10,6 +10,7 @@ import { findStudentMilestonesByStudentId } from '../services/milestones.service
 import {
   findAllStudents,
   findStudentById,
+  grantStudentStudyExtension,
   findStudentsForExport,
   importStudents,
   insertStudent,
@@ -24,6 +25,16 @@ export async function getStudents(_request, response) {
 export async function getStudent(request, response) {
   const student = await findStudentById(request.params.studentId)
   if (!student) throw new ApiError(404, 'Student not found')
+  response.json({ data: student })
+}
+
+export async function extendStudentStudyPeriod(request, response) {
+  const student = await grantStudentStudyExtension(request.params.studentId)
+  if (!student) {
+    const existingStudent = await findStudentById(request.params.studentId)
+    if (!existingStudent) throw new ApiError(404, 'Student not found')
+    throw new ApiError(409, 'Study extension is available only for overdue students who have not been extended')
+  }
   response.json({ data: student })
 }
 
