@@ -19,13 +19,19 @@ defineProps<{
       </div>
     </div>
 
-    <div v-if="coAdvisors.length" class="mt-4 grid gap-3 sm:grid-cols-2">
+    <div
+      v-if="coAdvisors.length"
+      class="mt-4 grid gap-3"
+      :class="{ 'sm:grid-cols-2': coAdvisors.length > 1 }"
+    >
       <div
         v-for="(coAdvisor, index) in coAdvisors"
         :key="coAdvisor.advisorId"
         class="rounded-lg border border-slate-200 bg-[#faf7f7] p-4"
       >
-        <p class="text-xs text-slate-500">Current Co-advisor {{ index + 1 }}</p>
+        <p class="text-xs text-slate-500">
+          Current Co-advisor{{ coAdvisors.length > 1 ? ` ${index + 1}` : '' }}
+        </p>
         <p class="mt-1 text-sm font-semibold text-slate-900">{{ coAdvisor.fullName }}</p>
         <p class="mt-1 text-xs text-slate-500">{{ coAdvisor.email }}</p>
       </div>
