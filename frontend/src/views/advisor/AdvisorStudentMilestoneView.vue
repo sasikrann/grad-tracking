@@ -19,6 +19,7 @@ const route = useRoute()
 const studentId = computed(() => String(route.params.studentId ?? ''))
 const studentName = ref('')
 const milestones = ref<StudentMilestone[]>([])
+const advisorCanReview = ref(false)
 const isLoading = ref(false)
 const errorMessage = ref('')
 const reviewingMilestoneId = ref<string | null>(null)
@@ -42,7 +43,9 @@ async function loadMilestones({ silent = false } = {}) {
     const result = await getAdvisorStudentMilestones(studentId.value)
     studentName.value = result.student.studentName
     milestones.value = result.milestones
+    advisorCanReview.value = result.canReview
   } catch (error) {
+    advisorCanReview.value = false
     errorMessage.value = error instanceof Error ? error.message : 'Unable to load student milestones'
   } finally {
     if (!silent) isLoading.value = false
@@ -50,7 +53,11 @@ async function loadMilestones({ silent = false } = {}) {
 }
 
 function canReview(milestone: StudentMilestone) {
-  return milestone.status === 'Completed' && Boolean(milestone.evidenceUrl)
+  return (
+    advisorCanReview.value &&
+    milestone.status === 'Completed' &&
+    Boolean(milestone.evidenceUrl)
+  )
 }
 
 async function approveMilestone(milestone: StudentMilestone) {
@@ -113,7 +120,11 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
         <div>
           <h1 class="text-3xl font-bold tracking-tight text-black">Milestone</h1>
           <p class="mt-1 text-sm text-slate-500">
-            You have permission to approve, reject, and view students' progress.
+            {{
+              advisorCanReview
+                ? "You have permission to approve, reject, and view students' progress."
+                : "You have permission to view this student's progress."
+            }}
           </p>
         </div>
 

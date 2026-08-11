@@ -126,7 +126,9 @@ export async function getAdvisorStudents(request, response) {
   }
 
   const students =
-    scope === 'all' ? await findAllStudents() : await findStudentsByAdvisorId(requestedAdvisorId)
+    scope === 'all'
+      ? await findAllStudents({ viewerAdvisorId: requestedAdvisorId })
+      : await findStudentsByAdvisorId(requestedAdvisorId)
 
   response.json({
     data: students,
@@ -151,7 +153,7 @@ export async function getAdvisorMilestoneSummaryReport(request, response) {
   response.json({
     data: await getAdvisorMilestoneSummary(requestedAdvisorId, {
       degreeLevel: String(request.query.degreeLevel ?? '').trim() || null,
-      semester: String(request.query.semester ?? '').trim() || null,
+      educationPlan: String(request.query.educationPlan ?? '').trim() || null,
       year: String(request.query.year ?? '').trim() || null,
     }),
   })

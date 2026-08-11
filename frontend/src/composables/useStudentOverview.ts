@@ -18,18 +18,6 @@ export function useStudentOverview(
     advisor: initialAdvisorFilter,
   })
 
-  const advisorScopedStudents = computed(() =>
-    filters.value.advisor === 'all'
-      ? students.value
-      : students.value.filter((student) => student.isAdvised),
-  )
-
-  const statistics = computed(() => ({
-    total: advisorScopedStudents.value.length,
-    onTrack: advisorScopedStudents.value.filter((student) => student.status === 'On-track').length,
-    overdue: advisorScopedStudents.value.filter((student) => student.status === 'Overdue').length,
-  }))
-
   const filteredStudents = computed(() => {
     const keyword = search.value.trim().toLowerCase()
 
@@ -48,7 +36,10 @@ export function useStudentOverview(
           filters.value.plan === 'all' || student.educationPlan === filters.value.plan
         const matchesStatus =
           filters.value.status === 'all' || student.status === filters.value.status
-        const matchesAdvisor = filters.value.advisor === 'all' || student.isAdvised
+        const matchesAdvisor =
+          filters.value.advisor === 'all' ||
+          (filters.value.advisor === 'default' && student.isAdvised) ||
+          (filters.value.advisor === 'co-advisor' && student.isCoAdvised)
 
         return (
           matchesSearch &&
@@ -65,6 +56,13 @@ export function useStudentOverview(
           Number(right.year) - Number(left.year) || left.studentId.localeCompare(right.studentId),
       )
   })
+
+  const statistics = computed(() => ({
+    total: filteredStudents.value.length,
+    onTrack: filteredStudents.value.filter((student) => student.status === 'On-track').length,
+    overdue: filteredStudents.value.filter((student) => student.status === 'Overdue').length,
+    graduate: filteredStudents.value.filter((student) => student.status === 'Graduate').length,
+  }))
 
   const yearOptions = computed(() =>
     Array.from(new Set(students.value.map((student) => student.year))).sort(

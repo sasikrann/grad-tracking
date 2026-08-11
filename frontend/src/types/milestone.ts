@@ -93,7 +93,12 @@ export interface AdvisorMilestoneSummary {
   milestones: AdvisorMilestoneBreakdown[]
   filters: {
     degreeLevels: DegreeLevel[]
-    semesters: string[]
+    educationPlans: string[]
     years: number[]
+    advisorFilters: Array<{
+      degreeLevel: DegreeLevel
+      educationPlan: string
+      year: number
+    }>
   }
 }

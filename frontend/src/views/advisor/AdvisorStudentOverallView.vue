@@ -8,8 +8,7 @@ import { useStudentOverview } from '@/composables/useStudentOverview'
 import { useLanguage } from '@/composables/useLanguage'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { currentUser } from '@/services/auth'
-import { getAdvisorStudentOverview, getAdvisorStudents } from '@/services/students.api'
-import type { Student } from '@/types/student'
+import { getAdvisorStudentOverview } from '@/services/students.api'
 
 defineOptions({ name: 'AdvisorStudentOverallView' })
 
@@ -23,16 +22,7 @@ async function loadAdvisorStudentOverview() {
     throw new Error('Advisor profile is not linked to this account')
   }
 
-  const advisorStudents = await getAdvisorStudents(advisorId)
-  const allStudents = await getAdvisorStudentOverview(advisorId).catch(() => [])
-
-  if (!allStudents.length) return advisorStudents
-
-  const studentsById = new Map<string, Student>()
-  allStudents.forEach((student) => studentsById.set(student.studentId, student))
-  advisorStudents.forEach((student) => studentsById.set(student.studentId, student))
-
-  return Array.from(studentsById.values())
+  return getAdvisorStudentOverview(advisorId)
 }
 
 const {
@@ -49,9 +39,11 @@ const {
 
 useAutoRefresh(() => loadStudents({ silent: true }))
 
-const totalStudentsTitle = computed(() =>
-  filters.value.advisor === 'all' ? 'Total Students' : 'Advised Students',
-)
+const totalStudentsTitle = computed(() => {
+  if (filters.value.advisor === 'all') return 'Total Students'
+  if (filters.value.advisor === 'co-advisor') return 'Co-advised Students'
+  return 'Advised Students'
+})
 
 function viewStudentMilestones(studentId: string) {
   void router.push({ name: 'advisor-student-milestones', params: { studentId } })
@@ -68,10 +60,11 @@ function viewStudentMilestones(studentId: string) {
       </p>
     </header>
 
-    <section class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-3">
+    <section class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
       <SummaryCard :title="totalStudentsTitle" :value="statistics.total" icon="students" />
       <SummaryCard title="On-track" :value="statistics.onTrack" icon="on-track" />
       <SummaryCard title="Overdue" :value="statistics.overdue" icon="overdue" />
+      <SummaryCard title="Graduate" :value="statistics.graduate" icon="graduate" />
     </section>
 
     <StudentOverview
