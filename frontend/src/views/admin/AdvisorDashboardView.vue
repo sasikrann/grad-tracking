@@ -17,6 +17,7 @@ import {
 import type { AdvisorImportConflict, AdvisorImportResult } from '@/services/advisors.api'
 import type { Advisor } from '@/types/advisor'
 import { useLanguage } from '@/composables/useLanguage'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const { t } = useLanguage()
 
@@ -59,15 +60,15 @@ function showNotification(text: string, type: 'success' | 'error' = 'success') {
   }, 10_000)
 }
 
-async function loadAdvisors() {
-  isLoading.value = true
+async function loadAdvisors({ silent = false } = {}) {
+  if (!silent) isLoading.value = true
   loadError.value = ''
   try {
     advisors.value = await getAdvisors()
   } catch (error) {
     loadError.value = error instanceof Error ? error.message : 'Unable to load advisors'
   } finally {
-    isLoading.value = false
+    if (!silent) isLoading.value = false
   }
 }
 
@@ -204,6 +205,15 @@ async function handleDelete(advisorId: string) {
 onMounted(loadAdvisors)
 onBeforeUnmount(() => {
   if (messageTimer) clearTimeout(messageTimer)
+})
+
+useAutoRefresh(() => loadAdvisors({ silent: true }), {
+  canRefresh: () =>
+    !isImportModalOpen.value &&
+    !isExportModalOpen.value &&
+    !isDuplicateEmailModalOpen.value &&
+    !isImporting.value &&
+    !isExporting.value,
 })
 </script>
 

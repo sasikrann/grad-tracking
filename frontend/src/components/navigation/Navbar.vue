@@ -118,16 +118,24 @@ function handleNotificationUnreadCountChanged(event: Event) {
   }
 }
 
+function refreshUnreadCountWhenVisible() {
+  if (document.visibilityState === 'visible') void loadNotificationUnreadCount()
+}
+
 onMounted(() => {
   void loadNotificationUnreadCount()
   unreadCountTimer = window.setInterval(() => {
     void loadNotificationUnreadCount()
-  }, 3_000)
+  }, 15_000)
+  window.addEventListener('focus', refreshUnreadCountWhenVisible)
+  document.addEventListener('visibilitychange', refreshUnreadCountWhenVisible)
   window.addEventListener('notifications:unread-count-changed', handleNotificationUnreadCountChanged)
 })
 
 onBeforeUnmount(() => {
   if (unreadCountTimer) window.clearInterval(unreadCountTimer)
+  window.removeEventListener('focus', refreshUnreadCountWhenVisible)
+  document.removeEventListener('visibilitychange', refreshUnreadCountWhenVisible)
   window.removeEventListener(
     'notifications:unread-count-changed',
     handleNotificationUnreadCountChanged,
@@ -159,7 +167,7 @@ watch(
         <img src="@/assets/logomfu.png" alt="MFU Logo" class="size-9 object-contain" />
       </div>
       <div>
-        <p class="text-base font-semibold leading-tight">GRAD Tracking</p>
+        <p class="text-base font-semibold leading-tight">ADT GRAD Tracking</p>
         <p class="text-xs text-white/75">Progress System</p>
       </div>
     </div>
@@ -205,7 +213,7 @@ watch(
           </div>
 
           <div>
-            <h1 class="text-xl font-semibold leading-tight">GRAD Tracking</h1>
+            <h1 class="text-xl font-semibold leading-tight">ADT GRAD Tracking</h1>
             <p class="mt-0.5 text-sm text-white/80">Progress System</p>
           </div>
         </div>

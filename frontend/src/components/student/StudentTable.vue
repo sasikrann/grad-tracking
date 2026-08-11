@@ -164,7 +164,7 @@ function statusLabel(status: StudentTableItem['status']) {
         </tr>
         <tr v-else-if="students.length === 0">
           <td colspan="8" class="py-14 text-center text-[#777]">
-            No students match the selected filters.
+            {{ t('student.noStudents') }}
           </td>
         </tr>
       </tbody>

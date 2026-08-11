@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { getAdvisorMilestoneSummary } from '@/services/advisor-milestone-summary.api'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { currentUser } from '@/services/auth'
 import type { AdvisorMilestoneBreakdown, AdvisorMilestoneSummary, DegreeLevel } from '@/types/milestone'
 
@@ -119,18 +120,18 @@ function mergeOptions(nextSummary: AdvisorMilestoneSummary) {
   ).sort((first, second) => second - first)
 }
 
-async function loadSummary() {
+async function loadSummary({ silent = false } = {}) {
   const advisorId = currentUser.value?.advisorId
 
   if (!advisorId) {
     summary.value = defaultSummary
     loadError.value = 'Advisor profile is not linked to this account'
-    isLoading.value = false
+    if (!silent) isLoading.value = false
     return
   }
 
-  isLoading.value = true
-  loadError.value = ''
+  if (!silent) isLoading.value = true
+  if (!silent) loadError.value = ''
 
   try {
     const result = await getAdvisorMilestoneSummary(advisorId, {
@@ -144,7 +145,7 @@ async function loadSummary() {
     summary.value = defaultSummary
     loadError.value = error instanceof Error ? error.message : 'Unable to load milestone summary'
   } finally {
-    isLoading.value = false
+    if (!silent) isLoading.value = false
   }
 }
 
@@ -173,7 +174,8 @@ onMounted(() => {
   document.addEventListener('click', closeDropdown)
 })
 onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
-watch([selectedDegreeLevel, selectedSemester, selectedYear], loadSummary)
+watch([selectedDegreeLevel, selectedSemester, selectedYear], () => void loadSummary())
+useAutoRefresh(() => loadSummary({ silent: true }))
 </script>
 
 <template>
@@ -310,7 +312,7 @@ watch([selectedDegreeLevel, selectedSemester, selectedYear], loadSummary)
         <button
           class="mt-4 rounded-lg bg-[#8a2b25] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#6f211d]"
           type="button"
-          @click="loadSummary"
+          @click="loadSummary()"
         >
           Retry
         </button>

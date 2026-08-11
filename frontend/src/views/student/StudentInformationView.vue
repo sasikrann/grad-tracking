@@ -8,25 +8,27 @@ import {
   getMyStudentProfile,
   type StudentProfile,
 } from '@/services/student-profile.api'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
 const profile = ref<StudentProfile | null>(null)
 const isLoading = ref(true)
 const loadError = ref('')
 
-async function loadPage() {
-  isLoading.value = true
-  loadError.value = ''
+async function loadPage({ silent = false } = {}) {
+  if (!silent) isLoading.value = true
+  if (!silent) loadError.value = ''
 
   try {
     profile.value = await getMyStudentProfile()
   } catch (error) {
     loadError.value = error instanceof Error ? error.message : 'Unable to load student information'
   } finally {
-    isLoading.value = false
+    if (!silent) isLoading.value = false
   }
 }
 
 onMounted(loadPage)
+useAutoRefresh(() => loadPage({ silent: true }))
 </script>
 
 <template>

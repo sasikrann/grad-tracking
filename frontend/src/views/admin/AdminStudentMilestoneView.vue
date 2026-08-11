@@ -13,6 +13,7 @@ import {
 } from '@/services/students.api'
 import type { StudentMilestone } from '@/types/milestone'
 import { useLanguage } from '@/composables/useLanguage'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 const { t } = useLanguage()
 
 const route = useRoute()
@@ -45,9 +46,9 @@ const progressPercentage = computed(() => {
   return Math.round((completedCount.value / milestones.value.length) * 100)
 })
 
-async function loadMilestones() {
-  isLoading.value = true
-  errorMessage.value = ''
+async function loadMilestones({ silent = false } = {}) {
+  if (!silent) isLoading.value = true
+  if (!silent) errorMessage.value = ''
 
   try {
     const [result, studentResult] = await Promise.all([
@@ -60,7 +61,7 @@ async function loadMilestones() {
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Unable to load student milestones'
   } finally {
-    isLoading.value = false
+    if (!silent) isLoading.value = false
   }
 }
 
@@ -78,6 +79,9 @@ async function extendStudyPeriod() {
 }
 
 onMounted(loadMilestones)
+useAutoRefresh(() => loadMilestones({ silent: true }), {
+  canRefresh: () => !isExtending.value,
+})
 </script>
 
 <template>

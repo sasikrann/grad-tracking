@@ -9,6 +9,7 @@ import {
 } from '@/services/notifications.api'
 import type { Notification, NotificationInput, NotificationTargetAudience } from '@/types/notification'
 import { useLanguage } from '@/composables/useLanguage'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 const { t } = useLanguage()
 
 type AudienceFilter = NotificationTargetAudience | 'all'
@@ -255,9 +256,9 @@ function closeDropdown() {
   isFilterOpen.value = false
 }
 
-async function loadNotifications() {
-  isLoading.value = true
-  errorMessage.value = ''
+async function loadNotifications({ silent = false } = {}) {
+  if (!silent) isLoading.value = true
+  if (!silent) errorMessage.value = ''
 
   try {
     notifications.value = await getNotifications(
@@ -267,7 +268,7 @@ async function loadNotifications() {
     notifications.value = []
     showToast(error instanceof Error ? error.message : 'Unable to load notifications', 'error')
   } finally {
-    isLoading.value = false
+    if (!silent) isLoading.value = false
   }
 }
 
@@ -383,6 +384,10 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('click', closeDropdown)
   if (toastTimer) window.clearTimeout(toastTimer)
+})
+
+useAutoRefresh(() => loadNotifications({ silent: true }), {
+  canRefresh: () => !isPanelOpen.value && !isSubmitting.value,
 })
 </script>
 

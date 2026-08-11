@@ -111,13 +111,17 @@ const router = createRouter({
       component: () => import('../views/advisor/AdvisorStudentMilestoneView.vue'),
       meta: { requiresAuth: true, role: 'advisor' },
     },
+    {
+      path: '/:pathMatch(.*)*',
+      redirect: getDefaultRoute,
+    },
   ],
 })
 
 router.beforeEach(async (to) => {
   await initializeAuth()
 
-  if (to.meta.requiresAuth && !currentUser.value) {
+  if (to.name !== 'login' && !currentUser.value) {
     return { name: 'login' }
   }
 

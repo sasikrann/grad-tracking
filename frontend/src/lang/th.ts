@@ -84,7 +84,7 @@ export const th = {
     progress: 'ความก้าวหน้า',
     advisorDefault: 'อาจารย์ที่ปรึกษา (ค่าเริ่มต้น)',
     allView: 'ดูทั้งหมด',
-    noStudents: 'ไม่พบนักศึกษา',
+    noStudents: 'ไม่พบข้อมูลนักศึกษา',
     exportExcel: 'ส่งออก Excel',
     readyForExport: 'พร้อมส่งออก',
     extendStudyPeriod: 'ขยายเวลาการศึกษา',

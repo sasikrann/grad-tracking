@@ -4,6 +4,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import MilestoneFormModal from '@/components/milestone/MilestoneFormModal.vue'
 import MilestoneTable from '@/components/milestone/MilestoneTable.vue'
 import { formatAcademicYear, useLanguage } from '@/composables/useLanguage'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import {
   createMilestone,
   deleteMilestone,
@@ -191,9 +192,9 @@ function formatMilestoneError(error: unknown, fallback: string) {
   return readableMessages[text] ?? text
 }
 
-async function loadMilestones() {
-  isLoading.value = true
-  errorMessage.value = ''
+async function loadMilestones({ silent = false } = {}) {
+  if (!silent) isLoading.value = true
+  if (!silent) errorMessage.value = ''
   try {
     const [milestoneList, studentList] = await Promise.all([getMilestones(), getStudents()])
     milestones.value = milestoneList
@@ -207,7 +208,7 @@ async function loadMilestones() {
       'error',
     )
   } finally {
-    isLoading.value = false
+    if (!silent) isLoading.value = false
   }
 }
 
@@ -344,6 +345,10 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('click', closeDropdown)
   if (notificationTimer) clearTimeout(notificationTimer)
+})
+
+useAutoRefresh(() => loadMilestones({ silent: true }), {
+  canRefresh: () => !isFormOpen.value && !deletingMilestone.value && !isDeleting.value,
 })
 </script>
 

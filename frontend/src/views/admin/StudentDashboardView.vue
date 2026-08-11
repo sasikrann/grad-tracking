@@ -8,6 +8,7 @@ import StudentOverview from '@/components/student/StudentOverview.vue'
 import SummaryCard from '@/components/student/SummaryCard.vue'
 import { useStudentOverview } from '@/composables/useStudentOverview'
 import { useLanguage } from '@/composables/useLanguage'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { exportStudents, getStudents, importStudents } from '@/services/students.api'
 import type { StudentImportResult } from '@/services/students.api'
 
@@ -211,6 +212,10 @@ function viewStudentMilestones(studentId: string) {
 
 onBeforeUnmount(() => {
   if (messageTimer) clearTimeout(messageTimer)
+})
+
+useAutoRefresh(() => loadStudents({ silent: true }), {
+  canRefresh: () => !isImportModalOpen.value && !isImporting.value,
 })
 </script>
 

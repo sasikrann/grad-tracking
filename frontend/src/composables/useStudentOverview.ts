@@ -72,8 +72,8 @@ export function useStudentOverview(
     ),
   )
 
-  async function loadStudents() {
-    isLoading.value = true
+  async function loadStudents({ silent = false } = {}) {
+    if (!silent) isLoading.value = true
     loadError.value = ''
 
     try {
@@ -82,7 +82,7 @@ export function useStudentOverview(
       students.value = []
       loadError.value = error instanceof Error ? error.message : 'Unable to load students'
     } finally {
-      isLoading.value = false
+      if (!silent) isLoading.value = false
     }
   }
 

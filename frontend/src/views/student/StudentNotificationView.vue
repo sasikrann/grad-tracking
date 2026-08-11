@@ -349,7 +349,7 @@ function handleVisibilityChange() {
 
 onMounted(() => {
   void loadNotifications()
-  notificationRefreshTimer = window.setInterval(refreshNotificationsSilently, 3_000)
+  notificationRefreshTimer = window.setInterval(refreshNotificationsSilently, 15_000)
   window.addEventListener('focus', refreshNotificationsSilently)
   document.addEventListener('visibilitychange', handleVisibilityChange)
 })
