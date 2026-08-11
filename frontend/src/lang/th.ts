@@ -96,6 +96,7 @@ export const th = {
     pageDescription: 'จัดการข้อมูลอาจารย์ที่ปรึกษาและดูสถานะการใช้งานของอาจารย์ที่ปรึกษา',
     advisor: 'อาจารย์ที่ปรึกษา',
     showingUsers: 'แสดงผู้ใช้ {count} คน',
+    searchPlaceholder: 'ค้นหาด้วยชื่ออาจารย์ที่ปรึกษา...',
     active: 'เปิดใช้งาน',
     inactive: 'ปิดใช้งาน',
     noMatchingAdvisors: 'ไม่พบข้อมูลอาจารย์ที่ปรึกษา',

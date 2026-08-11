@@ -1,13 +1,23 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import type { Advisor } from '@/types/advisor'
 import { useLanguage } from '@/composables/useLanguage'
 const { t } = useLanguage()
 
-defineProps<{
+const props = defineProps<{
   advisors: Advisor[]
   isLoading: boolean
   error: string
 }>()
+
+const search = ref('')
+const filteredAdvisors = computed(() => {
+  const keyword = search.value.trim().toLocaleLowerCase()
+  if (!keyword) return props.advisors
+  return props.advisors.filter((advisor) =>
+    advisor.fullName.toLocaleLowerCase().includes(keyword),
+  )
+})
 
 defineEmits<{
   status: [advisorId: string, status: Advisor['status']]
@@ -31,11 +41,31 @@ function statusLabel(status: Advisor['status']) {
 
 <template>
   <section class="mt-4 rounded-xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
-    <div class="flex flex-wrap items-start justify-between gap-3">
+    <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h2 class="text-lg font-semibold">{{ t('advisor.advisor') }}</h2>
-        <p class="text-xs text-slate-500">{{ t('advisor.showingUsers', { count: advisors.length }) }}</p>
+        <p class="text-xs text-slate-500">{{ t('advisor.showingUsers', { count: filteredAdvisors.length }) }}</p>
       </div>
+      <label class="relative block w-full sm:w-80">
+        <span class="sr-only">{{ t('advisor.searchPlaceholder') }}</span>
+        <svg
+          class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#cfcfcf]"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-4-4" />
+        </svg>
+        <input
+          v-model="search"
+          type="search"
+          :placeholder="t('advisor.searchPlaceholder')"
+          class="h-8 w-full rounded-lg border border-[#eeeeee] bg-white pr-4 pl-10 text-xs font-medium text-[#333] shadow-[0_2px_4px_rgba(0,0,0,0.08)] outline-none placeholder:text-[#888] focus:border-[#8a2b25]"
+        />
+      </label>
     </div>
 
     <div v-if="isLoading" class="py-10 text-center text-sm text-slate-500">{{ t('common.loading') }}</div>
@@ -54,7 +84,7 @@ function statusLabel(status: Advisor['status']) {
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-200">
-          <tr v-for="advisor in advisors" :key="advisor.advisorId">
+          <tr v-for="advisor in filteredAdvisors" :key="advisor.advisorId">
             <td class="w-[38%] py-3 pr-4">
               <div class="flex items-center gap-4">
                 <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f4e7e7] text-xs font-semibold text-[#a33a3a]">
@@ -94,7 +124,7 @@ function statusLabel(status: Advisor['status']) {
               </div>
             </td>
           </tr>
-          <tr v-if="advisors.length === 0">
+          <tr v-if="filteredAdvisors.length === 0">
             <td colspan="3" class="py-10 text-center text-sm text-slate-500">
               {{ t('advisor.noMatchingAdvisors') }}
             </td>
