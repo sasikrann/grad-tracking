@@ -207,7 +207,7 @@ onBeforeUnmount(() => {
           {{ t('common.description') }}
           <textarea
             v-model="form.description"
-            rows="3"
+            rows="6"
             :placeholder="t('milestone.descriptionPlaceholder')"
             class="mt-1 w-full rounded-md border border-[#c9827c] px-3 py-2 text-xs outline-none focus:border-[#7D2923]"
           ></textarea>

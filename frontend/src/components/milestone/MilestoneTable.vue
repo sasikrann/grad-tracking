@@ -32,6 +32,10 @@ function isWebReference(value: string) {
   return /^https?:\/\//i.test(value)
 }
 
+function descriptionLines(description: string | null) {
+  return description?.split('\n').filter(Boolean) ?? []
+}
+
 function planLabel(plan: string) {
   const keys: Record<string, 'common.planA1' | 'common.planA2' | 'common.planB' | 'common.plan21' | 'common.plan22'> = {
     A1: 'common.planA1',
@@ -166,7 +170,20 @@ const tableRows = computed(() => {
                 </div>
               </td>
               <td class="py-4 align-top leading-snug text-slate-500">
-                {{ row.milestone.description || '-' }}
+                <div
+                  v-if="row.milestone.description"
+                  class="min-w-0 space-y-0.5"
+                  :title="row.milestone.description"
+                >
+                  <div
+                    v-for="(line, index) in descriptionLines(row.milestone.description)"
+                    :key="index"
+                    class="truncate"
+                  >
+                    {{ line }}
+                  </div>
+                </div>
+                <span v-else>-</span>
               </td>
               <td class="py-4 pl-4 align-top leading-snug">
                 <div v-if="row.milestone.references.length" class="space-y-1">
