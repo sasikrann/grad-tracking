@@ -18,6 +18,7 @@ export interface AdvisorMilestoneSubmission {
 }
 
 export interface AdvisorStudentMilestones {
+  canReview: boolean
   student: {
     studentId: string
     studentName: string

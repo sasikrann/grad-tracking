@@ -16,6 +16,7 @@ interface StudentApiResponse {
   expectedGraduationYear: number
   advisorId: string | null
   advisorName: string | null
+  isCoAdvised?: boolean
   progress: number
   status: StudentStatus
   studyExtensionGranted: boolean
@@ -68,6 +69,7 @@ function toStudent(student: StudentApiResponse, currentAdvisorId?: string): Stud
     studyExtensionGranted: Boolean(student.studyExtensionGranted),
     advisor: student.advisorName ?? 'Unassigned',
     isAdvised: currentAdvisorId ? student.advisorId === currentAdvisorId : false,
+    isCoAdvised: Boolean(student.isCoAdvised),
   }
 }
 

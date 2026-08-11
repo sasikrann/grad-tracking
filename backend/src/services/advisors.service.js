@@ -565,19 +565,19 @@ export async function resolveAdvisorReference(client, { advisorId, advisorEmail,
   return null
 }
 
-export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, semester, year } = {}) {
+export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, educationPlan, year } = {}) {
   await ensureMilestoneSchema()
   const values = [advisorId]
   const filters = []
 
   if (degreeLevel) {
     values.push(String(degreeLevel))
-    filters.push(`mt.degree_level = $${values.length}::degree_level`)
+    filters.push(`mt.degree_level = $${values.length}`)
   }
 
-  if (semester) {
-    values.push(String(semester))
-    filters.push(`mt.semester = $${values.length}`)
+  if (educationPlan) {
+    values.push(String(educationPlan))
+    filters.push(`mt.education_plan = $${values.length}`)
   }
 
   if (year) {
@@ -595,9 +595,10 @@ export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, semes
           mt.milestone_id,
           mt.title,
           mt.sequence_order,
-          mt.degree_level,
+          s.degree_level::text AS degree_level,
+          s.education_plan,
           mt.semester,
-          EXTRACT(YEAR FROM mt.deadline)::INT AS year,
+          s.enrollment_academic_year AS year,
           COALESCE(
             sm.status,
             CASE
@@ -672,8 +673,26 @@ export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, semes
           '[]'::json
         ) AS milestones,
         COALESCE((SELECT json_agg(DISTINCT degree_level ORDER BY degree_level) FROM all_eligible), '[]'::json) AS "degreeLevels",
-        COALESCE((SELECT json_agg(DISTINCT semester ORDER BY semester) FROM all_eligible), '[]'::json) AS semesters,
-        COALESCE((SELECT json_agg(DISTINCT year ORDER BY year DESC) FROM all_eligible), '[]'::json) AS years
+        COALESCE((SELECT json_agg(DISTINCT education_plan ORDER BY education_plan) FROM all_eligible WHERE education_plan IS NOT NULL), '[]'::json) AS "educationPlans",
+        COALESCE((SELECT json_agg(DISTINCT year ORDER BY year DESC) FROM all_eligible), '[]'::json) AS years,
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'degreeLevel', degree_level,
+                'educationPlan', education_plan,
+                'year', year
+              )
+              ORDER BY year DESC, degree_level, education_plan
+            )
+            FROM (
+              SELECT DISTINCT degree_level, education_plan, year
+              FROM all_eligible
+              WHERE education_plan IS NOT NULL
+            ) advisor_filters
+          ),
+          '[]'::json
+        ) AS "advisorFilters"
     `,
     values,
   )
@@ -694,8 +713,9 @@ export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, semes
     milestones: row.milestones,
     filters: {
       degreeLevels: row.degreeLevels,
-      semesters: row.semesters,
+      educationPlans: row.educationPlans,
       years: row.years,
+      advisorFilters: row.advisorFilters,
     },
   }
 }

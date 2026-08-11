@@ -80,11 +80,17 @@ function studentRecordsMatch(left, right) {
   ].every((field) => normalizeComparableValue(left[field]) === normalizeComparableValue(right[field]))
 }
 
-async function findStudents({ advisorId } = {}) {
+async function findStudents({ advisorId, viewerAdvisorId } = {}) {
   await ensureStudentSchema()
   await ensureMilestoneSchema()
-  const values = advisorId ? [advisorId] : []
-  const advisorFilter = advisorId ? 'WHERE s.advisor_id = $1' : ''
+  const values = []
+  let advisorFilter = ''
+  if (advisorId) {
+    values.push(advisorId)
+    advisorFilter = `WHERE s.advisor_id = $${values.length}`
+  }
+  if (viewerAdvisorId) values.push(viewerAdvisorId)
+  const viewerAdvisorParameter = viewerAdvisorId ? `$${values.length}` : 'NULL'
 
   const result = await pool.query(
     `
@@ -102,6 +108,12 @@ async function findStudents({ advisorId } = {}) {
         s.study_extension_granted AS "studyExtensionGranted",
         s.advisor_id AS "advisorId",
         a.full_name AS "advisorName",
+        EXISTS (
+          SELECT 1
+          FROM student_co_advisors sca
+          WHERE sca.student_id = s.student_id
+            AND sca.advisor_id = ${viewerAdvisorParameter}
+        ) AS "isCoAdvised",
         COALESCE(
           ROUND(
             100.0 * COUNT(sm.student_milestone_id)
@@ -155,8 +167,8 @@ async function findStudents({ advisorId } = {}) {
   return result.rows
 }
 
-export function findAllStudents() {
-  return findStudents()
+export function findAllStudents({ viewerAdvisorId } = {}) {
+  return findStudents({ viewerAdvisorId })
 }
 
 export function findStudentsByAdvisorId(advisorId) {
