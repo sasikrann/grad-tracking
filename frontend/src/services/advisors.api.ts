@@ -57,6 +57,13 @@ export async function updateAdvisorStatus(advisorId: string, status: Advisor['st
   })
 }
 
+export async function deleteAdvisor(advisorId: string) {
+  await apiRequest<void>(`/api/advisors/${encodeURIComponent(advisorId)}`, {
+    method: 'DELETE',
+    errorMessage: 'Unable to delete advisor',
+  })
+}
+
 export function exportAdvisors() {
   return downloadApiFile('/api/advisors/export', 'advisors.xlsx')
 }

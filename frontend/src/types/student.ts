@@ -1,4 +1,4 @@
-export type StudentStatus = 'On-track' | 'Overdue'
+export type StudentStatus = 'On-track' | 'Overdue' | 'Graduate'
 
 // ข้อมูลขั้นต่ำที่ StudentTable ต้องใช้
 export interface StudentTableItem {
@@ -13,6 +13,7 @@ export interface StudentTableItem {
   year: string
   progress: number
   status: StudentStatus
+  studyExtensionGranted: boolean
 }
 
 // ข้อมูล Student ที่ใช้ในหน้า Dashboard

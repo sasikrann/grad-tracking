@@ -184,7 +184,7 @@ function applyAdvisorImportResolutions(records, conflicts, resolutions = {}) {
   })
 }
 
-export async function findAllAdvisors() {
+export async function findAllAdvisors({ activeOnly = false } = {}) {
   await ensureAdvisorSchema()
   await ensureAdvisorProfilesForAdvisorUsers()
 
@@ -192,6 +192,7 @@ export async function findAllAdvisors() {
     SELECT ${advisorColumns}
     FROM advisors a
     INNER JOIN users u ON u.user_id = a.user_id AND u.role = 'advisor'
+    ${activeOnly ? "WHERE a.status = 'active'" : ''}
     ORDER BY
       CASE
         WHEN a.advisor_id ~* '^ADV[0-9]+$'

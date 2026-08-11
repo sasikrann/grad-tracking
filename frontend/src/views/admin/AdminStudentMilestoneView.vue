@@ -5,7 +5,12 @@ import { useRoute } from 'vue-router'
 import MilestoneStatusOverview from '@/components/student-milestone/MilestoneStatusOverview.vue'
 import StudentMilestoneCard from '@/components/student-milestone/StudentMilestoneCard.vue'
 import StudentMilestoneProgress from '@/components/student-milestone/StudentMilestoneProgress.vue'
-import { getStudentMilestones } from '@/services/students.api'
+import {
+  extendStudentStudyPeriod,
+  getStudent,
+  getStudentMilestones,
+  type StudentDetail,
+} from '@/services/students.api'
 import type { StudentMilestone } from '@/types/milestone'
 import { useLanguage } from '@/composables/useLanguage'
 const { t } = useLanguage()
@@ -17,6 +22,19 @@ const studentName = ref('')
 const milestones = ref<StudentMilestone[]>([])
 const isLoading = ref(false)
 const errorMessage = ref('')
+const student = ref<StudentDetail | null>(null)
+const isExtending = ref(false)
+
+const canExtendStudyPeriod = computed(() => {
+  if (!student.value || student.value.studyExtensionGranted) return false
+  if (student.value.graduationSemester && student.value.graduationAcademicYear) return false
+  const currentYear = new Date().getFullYear()
+  const maximumStudyYears = student.value.degreeLevel === 'Doctoral' ? 5 : 4
+  return (
+    currentYear > student.value.enrollmentAcademicYear + 2 &&
+    currentYear <= student.value.enrollmentAcademicYear + maximumStudyYears
+  )
+})
 
 const completedCount = computed(
   () => milestones.value.filter((milestone) => ['Approved', 'Completed'].includes(milestone.status)).length,
@@ -32,13 +50,30 @@ async function loadMilestones() {
   errorMessage.value = ''
 
   try {
-    const result = await getStudentMilestones(studentId.value)
+    const [result, studentResult] = await Promise.all([
+      getStudentMilestones(studentId.value),
+      getStudent(studentId.value),
+    ])
     studentName.value = result.student.studentName
+    student.value = studentResult
     milestones.value = result.milestones
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Unable to load student milestones'
   } finally {
     isLoading.value = false
+  }
+}
+
+async function extendStudyPeriod() {
+  if (!canExtendStudyPeriod.value || isExtending.value || !student.value) return
+  isExtending.value = true
+  try {
+    await extendStudentStudyPeriod(studentId.value)
+    student.value.studyExtensionGranted = true
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : 'Unable to extend study period'
+  } finally {
+    isExtending.value = false
   }
 }
 
@@ -58,12 +93,28 @@ onMounted(loadMilestones)
       <div class="flex flex-col items-end gap-2">
         <div
           v-if="studentName"
-          class="inline-flex flex-wrap items-center gap-2 rounded-lg border border-[#ead7d5] bg-white px-3 py-2 text-sm shadow-sm"
+          class="flex flex-wrap items-center justify-end gap-2"
         >
-          <span class="font-medium text-[#3b2f2e]">{{ studentName }}</span>
-          <span class="rounded-md bg-[#f5e6e5] px-2 py-0.5 text-xs font-medium text-[#8a2b25]">
-            {{ studentId }}
-          </span>
+          <div
+            class="inline-flex items-center gap-2 rounded-lg border border-[#ead7d5] bg-white px-3 py-2 text-sm shadow-sm"
+          >
+            <span class="font-medium text-[#3b2f2e]">{{ studentName }}</span>
+            <span class="rounded-md bg-[#f5e6e5] px-2 py-0.5 text-xs font-medium text-[#8a2b25]">
+              {{ studentId }}
+            </span>
+          </div>
+          <button
+            type="button"
+            class="rounded-lg border border-[#ead7d5] bg-[#8a2b25] px-3 py-2 text-xs font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+            :disabled="!canExtendStudyPeriod || isExtending"
+            @click="extendStudyPeriod"
+          >
+            {{
+              student?.studyExtensionGranted
+                ? t('student.studyPeriodExtended')
+                : t('student.extendStudyPeriod')
+            }}
+          </button>
         </div>
         <MilestoneStatusOverview :milestones="milestones" />
       </div>

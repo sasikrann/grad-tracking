@@ -12,6 +12,7 @@ export async function findAuthorizedUserByEmail(email) {
       FROM users u
       LEFT JOIN advisors a ON a.user_id = u.user_id
       WHERE LOWER(u.email) = LOWER($1)
+        AND (u.role <> 'advisor' OR a.status = 'active')
       LIMIT 1
     `,
     [email],

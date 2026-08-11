@@ -9,7 +9,10 @@ defineProps<{
   error: string
 }>()
 
-defineEmits<{ status: [advisorId: string, status: Advisor['status']] }>()
+defineEmits<{
+  status: [advisorId: string, status: Advisor['status']]
+  delete: [advisorId: string]
+}>()
 
 function initials(name: string) {
   return name
@@ -46,7 +49,7 @@ function statusLabel(status: Advisor['status']) {
               <div class="mx-auto w-64 text-left">{{ t('common.email') }}</div>
             </th>
             <th class="w-[25%] py-3 pl-4 font-semibold">
-              <div class="ml-auto w-38 text-center">{{ t('common.status') }}</div>
+              <div class="ml-auto w-48 text-center">{{ t('common.status') }}</div>
             </th>
           </tr>
         </thead>
@@ -64,9 +67,29 @@ function statusLabel(status: Advisor['status']) {
               <div class="mx-auto w-64 text-left">{{ advisor.email }}</div>
             </td>
             <td class="w-[25%] py-3 pl-4 text-right">
-              <div class="ml-auto flex w-38 justify-center gap-2">
+              <div class="ml-auto flex w-48 items-center justify-end gap-2">
                 <button v-for="status in (['active', 'inactive'] as const)" :key="status" type="button" :disabled="advisor.status === status" :aria-label="`Set ${advisor.fullName} status to ${statusLabel(status)}`" class="rounded-md border px-3 py-1 text-[11px] disabled:cursor-default" :class="advisor.status === status ? (status === 'active' ? 'border-green-200 bg-green-100 text-green-700' : 'border-red-200 bg-red-50 text-red-700') : 'border-slate-200 text-slate-500 hover:bg-slate-50'" @click="$emit('status', advisor.advisorId, status)">
                   {{ statusLabel(status) }}
+                </button>
+                <button
+                  type="button"
+                  class="shrink-0 rounded-md border border-red-100 p-1.5 text-red-500 hover:bg-red-50"
+                  :aria-label="`${t('common.delete')} ${advisor.fullName}`"
+                  @click="$emit('delete', advisor.advisorId)"
+                >
+                  <svg
+                    class="size-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    aria-hidden="true"
+                  >
+                    <path d="M3 6h18" />
+                    <path d="M8 6V4h8v2" />
+                    <path d="M19 6l-1 14H6L5 6" />
+                    <path d="M10 11v5M14 11v5" />
+                  </svg>
                 </button>
               </div>
             </td>

@@ -7,6 +7,7 @@ import ExportConfirmModal from '@/components/admin/ExportConfirmModal.vue'
 import ImportFileModal from '@/components/admin/ImportFileModal.vue'
 import {
   AdvisorImportConflictError,
+  deleteAdvisor,
   downloadAdvisorTemplate,
   exportAdvisors,
   getAdvisors,
@@ -191,6 +192,15 @@ async function handleStatusChange(advisorId: string, status: Advisor['status']) 
   }
 }
 
+async function handleDelete(advisorId: string) {
+  try {
+    await deleteAdvisor(advisorId)
+    advisors.value = advisors.value.filter((advisor) => advisor.advisorId !== advisorId)
+  } catch (error) {
+    showNotification(error instanceof Error ? error.message : 'Unable to delete advisor.', 'error')
+  }
+}
+
 onMounted(loadAdvisors)
 onBeforeUnmount(() => {
   if (messageTimer) clearTimeout(messageTimer)
@@ -234,7 +244,13 @@ onBeforeUnmount(() => {
       />
     </section>
 
-    <AdvisorTable :advisors="advisors" :is-loading="isLoading" :error="loadError" @status="handleStatusChange" />
+    <AdvisorTable
+      :advisors="advisors"
+      :is-loading="isLoading"
+      :error="loadError"
+      @status="handleStatusChange"
+      @delete="handleDelete"
+    />
 
     <ImportFileModal
       v-if="isImportModalOpen && !isDuplicateEmailModalOpen"

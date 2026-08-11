@@ -26,6 +26,12 @@ function displayYear(year: string) {
   const numericYear = Number(year)
   return Number.isFinite(numericYear) ? String(numericYear + 543) : year
 }
+
+function statusLabel(status: StudentTableItem['status']) {
+  if (status === 'Graduate') return t('dashboard.graduate')
+  if (status === 'Overdue') return t('dashboard.overdue')
+  return t('dashboard.onTrack')
+}
 </script>
 
 <template>
@@ -33,14 +39,14 @@ function displayYear(year: string) {
     <table class="w-full min-w-225 table-fixed border-collapse text-left">
       <thead>
         <tr class="border-b border-[#dddddd] text-xs">
-          <th class="w-[25%] pb-3 font-semibold">{{ t('student.student') }}</th>
-          <th class="w-[13%] pb-3 text-center font-semibold">{{ t('common.program') }}</th>
-          <th class="w-[10%] -translate-x-2 pb-3 text-center font-semibold">{{ t('common.plan') }}</th>
-          <th class="w-[10%] pb-3 font-semibold">{{ t('common.semester') }}</th>
-          <th class="w-[10%] pb-3 text-center font-semibold">{{ t('common.year') }}</th>
-          <th class="w-[22%] pb-3 text-center font-semibold">{{ t('student.progress') }}</th>
-          <th class="w-[14%] pb-3 text-center font-semibold">{{ t('common.status') }}</th>
-          <th class="w-[8%] pb-3 text-center font-semibold">{{ t('common.actions') }}</th>
+          <th class="w-[25%] pt-1 pb-3 leading-5 font-semibold">{{ t('student.student') }}</th>
+          <th class="w-[13%] pt-1 pb-3 text-center leading-5 font-semibold">{{ t('common.program') }}</th>
+          <th class="w-[10%] -translate-x-2 pt-1 pb-3 text-center leading-5 font-semibold">{{ t('common.plan') }}</th>
+          <th class="w-[10%] pt-1 pb-3 leading-5 font-semibold">{{ t('common.semester') }}</th>
+          <th class="w-[10%] pt-1 pb-3 text-center leading-5 font-semibold">{{ t('common.enrollmentYear') }}</th>
+          <th class="w-[22%] pt-1 pb-3 text-center leading-5 font-semibold">{{ t('student.progress') }}</th>
+          <th class="w-[14%] pt-1 pb-3 text-center leading-5 font-semibold">{{ t('common.status') }}</th>
+          <th class="w-[8%] pt-1 pb-3 text-center leading-5 font-semibold">{{ t('common.actions') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -115,9 +121,15 @@ function displayYear(year: string) {
           <td class="text-center">
             <span
               class="inline-flex min-w-20.5 justify-center rounded-xl px-3 py-1 text-xs font-semibold text-white"
-              :class="student.status === 'Overdue' ? 'bg-[#d90012]' : 'bg-[#ffb51b]'"
+              :class="
+                student.status === 'Graduate'
+                  ? 'bg-[#49b866]'
+                  : student.status === 'Overdue'
+                    ? 'bg-[#d90012]'
+                    : 'bg-[#ffb51b]'
+              "
             >
-              {{ student.status }}
+              {{ statusLabel(student.status) }}
             </span>
           </td>
           <td class="text-center">

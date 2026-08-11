@@ -12,6 +12,7 @@ async function ensureStudentSchema() {
     ALTER TABLE students ADD COLUMN IF NOT EXISTS school_name VARCHAR;
     ALTER TABLE students ADD COLUMN IF NOT EXISTS graduation_semester VARCHAR;
     ALTER TABLE students ADD COLUMN IF NOT EXISTS graduation_academic_year INT;
+    ALTER TABLE students ADD COLUMN IF NOT EXISTS study_extension_granted BOOLEAN NOT NULL DEFAULT FALSE;
     ALTER TABLE students DROP CONSTRAINT IF EXISTS students_graduation_semester_check;
     ALTER TABLE students ADD CONSTRAINT students_graduation_semester_check
       CHECK (graduation_semester IN ('1', '2'));
@@ -40,6 +41,7 @@ const studentDetailColumns = `
   s.expected_graduation_year AS "expectedGraduationYear",
   s.graduation_semester AS "graduationSemester",
   s.graduation_academic_year AS "graduationAcademicYear",
+  s.study_extension_granted AS "studyExtensionGranted",
   s.advisor_id AS "advisorId",
   a.full_name AS "advisorName",
   a.email AS "advisorEmail",
@@ -97,6 +99,7 @@ async function findStudents({ advisorId } = {}) {
         s.semester,
         s.enrollment_academic_year AS "year",
         s.expected_graduation_year AS "expectedGraduationYear",
+        s.study_extension_granted AS "studyExtensionGranted",
         s.advisor_id AS "advisorId",
         a.full_name AS "advisorName",
         COALESCE(
@@ -108,10 +111,14 @@ async function findStudents({ advisorId } = {}) {
           0
         )::INT AS progress,
         CASE
-          WHEN COUNT(mt.milestone_id) FILTER (
-            WHERE mt.deadline < CURRENT_DATE
-              AND COALESCE(sm.status, 'Missing') NOT IN ('Completed', 'Approved')
-          ) > 0 THEN 'Overdue'
+          WHEN s.graduation_semester IS NOT NULL
+            AND s.graduation_academic_year IS NOT NULL THEN 'Graduate'
+          WHEN EXTRACT(YEAR FROM CURRENT_DATE)::INT >
+            s.enrollment_academic_year + CASE
+              WHEN s.study_extension_granted AND s.degree_level = 'Master' THEN 4
+              WHEN s.study_extension_granted AND s.degree_level = 'Doctoral' THEN 5
+              ELSE 2
+            END THEN 'Overdue'
           ELSE 'On-track'
         END AS status
       FROM students s
@@ -135,6 +142,9 @@ async function findStudents({ advisorId } = {}) {
         s.enrollment_academic_year,
         s.semester,
         s.expected_graduation_year,
+        s.graduation_semester,
+        s.graduation_academic_year,
+        s.study_extension_granted,
         s.advisor_id,
         a.full_name
       ORDER BY s.student_id
@@ -151,6 +161,28 @@ export function findAllStudents() {
 
 export function findStudentsByAdvisorId(advisorId) {
   return findStudents({ advisorId })
+}
+
+export async function grantStudentStudyExtension(studentId) {
+  await ensureStudentSchema()
+  const result = await pool.query(
+    `
+      UPDATE students
+      SET study_extension_granted = TRUE, updated_at = NOW()
+      WHERE student_id = $1
+        AND study_extension_granted = FALSE
+        AND graduation_semester IS NULL
+        AND graduation_academic_year IS NULL
+        AND EXTRACT(YEAR FROM CURRENT_DATE)::INT > enrollment_academic_year + 2
+        AND EXTRACT(YEAR FROM CURRENT_DATE)::INT <= enrollment_academic_year + CASE
+          WHEN degree_level = 'Master' THEN 4
+          WHEN degree_level = 'Doctoral' THEN 5
+        END
+      RETURNING student_id AS "studentId", study_extension_granted AS "studyExtensionGranted"
+    `,
+    [studentId],
+  )
+  return result.rows[0] || null
 }
 
 export async function findStudentById(studentId) {
