@@ -20,6 +20,7 @@ export interface StudentTableItem {
 export interface Student extends StudentTableItem {
   advisor: string
   isAdvised: boolean
+  isCoAdvised: boolean
 }
 
 // ค่าของตัวกรองที่ใช้ร่วมกันระหว่าง Admin และ Advisor
@@ -29,7 +30,7 @@ export interface StudentFiltersState {
   degree: string
   plan: string
   status: string
-  advisor: string
+  advisor: 'default' | 'co-advisor' | 'all'
 }
 
 export type StudentFilterKey = keyof StudentFiltersState

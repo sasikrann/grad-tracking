@@ -636,6 +636,7 @@ export async function findAdvisorStudentMilestones(advisorUserId, studentId) {
       SELECT
         s.student_id AS "studentId",
         s.full_name AS "studentName",
+        (s.advisor_id = a.advisor_id) AS "canReview",
         mt.milestone_id AS "milestoneId",
         mt.degree_level AS "degreeLevel",
         mt.semester,
@@ -664,8 +665,7 @@ export async function findAdvisorStudentMilestones(advisorUserId, studentId) {
         sm.reviewed_at AS "reviewedAt"
       FROM advisors a
       JOIN students s
-        ON s.advisor_id = a.advisor_id
-        AND s.student_id = $2
+        ON s.student_id = $2
       LEFT JOIN milestone_templates mt
         ON (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
         AND mt.academic_year = s.enrollment_academic_year
@@ -675,6 +675,15 @@ export async function findAdvisorStudentMilestones(advisorUserId, studentId) {
         ON sm.student_id = s.student_id
         AND sm.milestone_id = mt.milestone_id
       WHERE a.user_id = $1
+        AND (
+          s.advisor_id = a.advisor_id
+          OR EXISTS (
+            SELECT 1
+            FROM student_co_advisors sca
+            WHERE sca.student_id = s.student_id
+              AND sca.advisor_id = a.advisor_id
+          )
+        )
       ORDER BY CASE WHEN mt.semester = 'all' THEN 0 ELSE mt.semester::int END, mt.sequence_order, mt.created_at
     `,
     [advisorUserId, studentId],
@@ -683,13 +692,17 @@ export async function findAdvisorStudentMilestones(advisorUserId, studentId) {
   if (!result.rows.length) return null
 
   return {
+    canReview: result.rows[0].canReview,
     student: {
       studentId: result.rows[0].studentId,
       studentName: result.rows[0].studentName,
     },
     milestones: result.rows
       .filter((row) => row.milestoneId)
-      .map(({ studentId: _studentId, studentName: _studentName, ...milestone }) => milestone),
+      .map(
+        ({ studentId: _studentId, studentName: _studentName, canReview: _canReview, ...milestone }) =>
+          milestone,
+      ),
   }
 }
 

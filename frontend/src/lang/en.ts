@@ -88,6 +88,7 @@ export const en = {
     student: 'Student',
     progress: 'Progress',
     advisorDefault: 'Advisor (Default)',
+    coAdvisor: 'Co-advisor',
     allView: 'All View',
     noStudents: 'No students match the selected filters.',
     exportExcel: 'Export Excel',

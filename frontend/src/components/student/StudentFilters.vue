@@ -156,16 +156,21 @@ const filterDefinitions = computed<FilterDefinition[]>(() => {
       defaultLabel: 'Advisor (Default)',
       options: [
         { label: t('student.advisorDefault'), value: 'default' },
+        { label: t('student.coAdvisor'), value: 'co-advisor' },
         { label: t('student.allView'), value: 'all' },
       ],
     },
   ]
 })
 
+const searchGridClass = computed(() =>
+  props.advisorMode === 'all-only' ? 'lg:col-span-5' : 'lg:col-span-4',
+)
+
 const filterGridClass = computed(() =>
   props.advisorMode === 'all-only'
     ? 'sm:grid-cols-2 lg:col-span-7 lg:grid-cols-5'
-    : 'sm:grid-cols-2 lg:col-span-7 lg:grid-cols-6',
+    : 'sm:grid-cols-2 lg:col-span-8 lg:grid-cols-6',
 )
 
 function selectedFilterLabel(filter: FilterDefinition) {
@@ -198,7 +203,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
 
 <template>
   <div class="mt-4 grid grid-cols-1 gap-2 lg:grid-cols-12">
-    <label class="relative lg:col-span-5">
+    <label class="relative" :class="searchGridClass">
       <span class="sr-only">{{ t('student.searchPlaceholder') }}</span>
       <svg
         class="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#cfcfcf]"

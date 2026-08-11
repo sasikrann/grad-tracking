@@ -83,6 +83,7 @@ export const th = {
     student: 'นักศึกษา',
     progress: 'ความก้าวหน้า',
     advisorDefault: 'อาจารย์ที่ปรึกษา (ค่าเริ่มต้น)',
+    coAdvisor: 'อาจารย์ที่ปรึกษาร่วม',
     allView: 'ดูทั้งหมด',
     noStudents: 'ไม่พบข้อมูลนักศึกษา',
     exportExcel: 'ส่งออก Excel',

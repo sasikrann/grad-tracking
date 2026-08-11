@@ -49,9 +49,11 @@ const {
 
 useAutoRefresh(() => loadStudents({ silent: true }))
 
-const totalStudentsTitle = computed(() =>
-  filters.value.advisor === 'all' ? 'Total Students' : 'Advised Students',
-)
+const totalStudentsTitle = computed(() => {
+  if (filters.value.advisor === 'all') return 'Total Students'
+  if (filters.value.advisor === 'co-advisor') return 'Co-advised Students'
+  return 'Advised Students'
+})
 
 function viewStudentMilestones(studentId: string) {
   void router.push({ name: 'advisor-student-milestones', params: { studentId } })
@@ -68,10 +70,11 @@ function viewStudentMilestones(studentId: string) {
       </p>
     </header>
 
-    <section class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-3">
+    <section class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
       <SummaryCard :title="totalStudentsTitle" :value="statistics.total" icon="students" />
       <SummaryCard title="On-track" :value="statistics.onTrack" icon="on-track" />
       <SummaryCard title="Overdue" :value="statistics.overdue" icon="overdue" />
+      <SummaryCard title="Graduate" :value="statistics.graduate" icon="graduate" />
     </section>
 
     <StudentOverview
