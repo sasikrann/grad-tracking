@@ -646,6 +646,7 @@ export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, educa
       )
       SELECT
         COALESCE((SELECT SUM(count) FROM status_counts), 0)::INT AS total,
+        COALESCE((SELECT COUNT(DISTINCT student_id) FROM eligible), 0)::INT AS "totalStudents",
         COALESCE((SELECT count FROM status_counts WHERE status = 'Completed'), 0)::INT AS completed,
         COALESCE((SELECT count FROM status_counts WHERE status = 'In Progress'), 0)::INT AS "inProgress",
         COALESCE((SELECT count FROM status_counts WHERE status = 'Approved'), 0)::INT AS approved,
@@ -699,7 +700,6 @@ export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, educa
 
   const row = result.rows[0]
   const total = row.total
-  const achieved = row.completed + row.approved
 
   return {
     counts: {
@@ -708,8 +708,9 @@ export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, educa
       approved: row.approved,
       missing: row.missing,
       total,
+      totalStudents: row.totalStudents,
     },
-    overallProgress: total ? Math.round((achieved / total) * 100) : 0,
+    overallProgress: total ? Math.round((row.completed / total) * 100) : 0,
     milestones: row.milestones,
     filters: {
       degreeLevels: row.degreeLevels,

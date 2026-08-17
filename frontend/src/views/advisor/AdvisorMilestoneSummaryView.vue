@@ -11,7 +11,7 @@ defineOptions({ name: 'AdvisorMilestoneSummaryView' })
 type SummaryFilterKey = 'degreeLevel' | 'educationPlan' | 'year'
 
 const defaultSummary: AdvisorMilestoneSummary = {
-  counts: { completed: 0, inProgress: 0, approved: 0, missing: 0, total: 0 },
+  counts: { completed: 0, inProgress: 0, approved: 0, missing: 0, total: 0, totalStudents: 0 },
   overallProgress: 0,
   milestones: [],
   filters: { degreeLevels: [], educationPlans: [], years: [], advisorFilters: [] },
@@ -34,6 +34,12 @@ const inProgressCount = computed(
 
 const summaryCards = computed(() => [
   {
+    title: 'Total Student',
+    value: summary.value.counts.totalStudents.toString(),
+    icon: 'students',
+    accent: 'bg-blue-100 text-blue-500',
+  },
+  {
     title: 'In Progress',
     value: inProgressCount.value.toString(),
     icon: 'progress',
@@ -46,7 +52,7 @@ const summaryCards = computed(() => [
     accent: 'bg-emerald-100 text-emerald-600',
   },
   {
-    title: 'Overall Progress',
+    title: 'Overall Completed',
     value: `${summary.value.overallProgress}%`,
     icon: 'overall',
     accent: 'bg-violet-100 text-violet-500',
@@ -203,7 +209,7 @@ useAutoRefresh(() => loadSummary({ silent: true }))
       </p>
     </header>
 
-    <section class="mt-7 grid grid-cols-1 gap-3 md:grid-cols-3">
+    <section class="mt-7 grid grid-cols-4 gap-3">
       <article
         v-for="card in summaryCards"
         :key="card.title"
@@ -220,7 +226,12 @@ useAutoRefresh(() => loadSummary({ silent: true }))
             stroke-width="1.6"
             aria-hidden="true"
           >
-            <template v-if="card.icon === 'progress'">
+            <template v-if="card.icon === 'students'">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+            </template>
+            <template v-else-if="card.icon === 'progress'">
               <circle cx="12" cy="12" r="9" />
               <path d="M12 7v5l3 2" />
             </template>
@@ -314,18 +325,17 @@ useAutoRefresh(() => loadSummary({ silent: true }))
         <table class="w-full min-w-[720px] border-collapse text-left text-sm">
           <thead>
             <tr class="border-b border-[#dedede]">
-              <th class="w-[44%] py-3 font-semibold">Milestone</th>
-              <th class="w-[22%] py-3 text-center font-semibold">
+              <th class="w-1/2 py-3 font-semibold">Milestone</th>
+              <th class="w-1/4 py-3 text-center font-semibold">
                 <span class="inline-flex items-center gap-1.5"
                   ><span class="size-3 rounded-full bg-[#ffbd38]"></span>In Progress</span
                 >
               </th>
-              <th class="w-[22%] py-3 text-center font-semibold">
+              <th class="w-1/4 py-3 text-center font-semibold">
                 <span class="inline-flex items-center gap-1.5"
                   ><span class="size-3 rounded-full bg-[#49b866]"></span>Completed</span
                 >
               </th>
-              <th class="w-[12%] py-3 text-center font-semibold">Total</th>
             </tr>
           </thead>
           <tbody>
@@ -339,9 +349,6 @@ useAutoRefresh(() => loadSummary({ silent: true }))
               </td>
               <td class="py-4 text-center">{{ milestone.inProgress + milestone.missing }}</td>
               <td class="py-4 text-center">{{ milestone.completed + milestone.approved }}</td>
-              <td class="py-4 text-center">
-                {{ milestone.totalStudents }}
-              </td>
             </tr>
           </tbody>
         </table>
