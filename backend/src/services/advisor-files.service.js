@@ -5,6 +5,7 @@ import { ApiError } from '../errors/api-error.js'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const importRequiredFields = [
+  { key: 'advisorId', label: 'Advisor ID' },
   { key: 'fullName', label: 'Full Name' },
   { key: 'email', label: 'Email' },
 ]
@@ -112,7 +113,7 @@ export async function readAdvisorImportFile(file) {
     if (rowNumber === 1 || !row.hasValues) return
 
     const rawAdvisor = {
-      advisorId: cellValue(row, headerMap, ['advisorid', 'advisor id']),
+      advisorId: cellValue(row, headerMap, ['advisorid', 'advisor id', 'รหัสอาจารย์']),
       fullName: cellValue(row, headerMap, ['fullname', 'full name', 'name', 'advisor name']),
       email: cellValue(row, headerMap, ['email', 'advisor email']),
     }
@@ -143,6 +144,13 @@ export async function readAdvisorImportFile(file) {
 
   if (!records.length) throw new ApiError(400, 'No data found.')
 
+  const duplicateAdvisorIds = records
+    .map((record) => record.advisorId.toLocaleLowerCase())
+    .filter((advisorId, index, values) => values.indexOf(advisorId) !== index)
+  if (duplicateAdvisorIds.length) {
+    throw new ApiError(400, 'Duplicate Advisor ID found in the import file.')
+  }
+
   return records
 }
 
@@ -157,6 +165,7 @@ function addAdvisorExportHeaders(worksheet) {
 
 function addAdvisorTemplateHeaders(worksheet) {
   worksheet.columns = [
+    { header: 'Advisor ID', key: 'advisorId', width: 16 },
     { header: 'Full Name', key: 'fullName', width: 28 },
     { header: 'Email', key: 'email', width: 32 },
   ]

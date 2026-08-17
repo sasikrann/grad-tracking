@@ -1,29 +1,81 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import DashboardActionCard from '@/components/admin/DashboardActionCard.vue'
 import ImportFileModal from '@/components/admin/ImportFileModal.vue'
 import StudentOverview from '@/components/student/StudentOverview.vue'
 import SummaryCard from '@/components/student/SummaryCard.vue'
-import { useStudentOverview } from '@/composables/useStudentOverview'
 import { useLanguage } from '@/composables/useLanguage'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
-import { exportStudents, getStudents, importStudents } from '@/services/students.api'
-import type { StudentImportResult } from '@/services/students.api'
+import { exportStudents, getStudentsPage, importStudents } from '@/services/students.api'
+import type { StudentImportResult, StudentPaginationResult } from '@/services/students.api'
+import type { Student, StudentFiltersState } from '@/types/student'
 
 const router = useRouter()
 const { isThai, t } = useLanguage()
 
-const {
-  filteredStudents,
-  filters,
-  isLoading,
-  loadError,
-  loadStudents,
-  search,
-  students,
-} = useStudentOverview(getStudents, 'all')
+const students = ref<Student[]>([])
+const isLoading = ref(true)
+const loadError = ref('')
+const search = ref('')
+const page = ref(1)
+const pagination = ref({ page: 1, limit: 10, totalRecords: 0, totalPages: 0 })
+const dashboardStatistics = ref({ total: 0, onTrack: 0, overdue: 0, graduate: 0 })
+const filterOptions = ref<StudentPaginationResult['filterOptions']>({
+  semesters: [], years: [], degrees: [], plans: [], statuses: [],
+})
+const paginationItems = computed<Array<number | 'ellipsis'>>(() => {
+  const total = pagination.value.totalPages
+  if (total <= 5) return Array.from({ length: total }, (_, index) => index + 1)
+  if (page.value <= 3) return [1, 2, 3, 4, 'ellipsis']
+  if (page.value >= total - 2) return ['ellipsis', total - 3, total - 2, total - 1, total]
+  return ['ellipsis', page.value - 1, page.value, page.value + 1, 'ellipsis']
+})
+const filters = ref<StudentFiltersState>({
+  semester: 'all', year: 'all', degree: 'all', plan: 'all', status: 'all', advisor: 'all',
+})
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+
+async function loadStudents({ silent = false } = {}) {
+  if (!silent) isLoading.value = true
+  loadError.value = ''
+  try {
+    const result = await getStudentsPage({ page: page.value, limit: 10, search: search.value, ...filters.value })
+    students.value = result.students
+    pagination.value = result.pagination
+    dashboardStatistics.value = result.statistics
+    filterOptions.value = result.filterOptions
+    if (page.value > 1 && result.students.length === 0) {
+      page.value = 1
+      await loadStudents({ silent })
+      return
+    }
+    if (page.value > result.pagination.totalPages && result.pagination.totalPages > 0) {
+      page.value = result.pagination.totalPages
+      await loadStudents({ silent })
+    }
+  } catch (error) {
+    students.value = []
+    loadError.value = error instanceof Error ? error.message : 'Unable to load students'
+  } finally {
+    if (!silent) isLoading.value = false
+  }
+}
+
+watch(filters, () => { page.value = 1; void loadStudents() }, { deep: true })
+watch(search, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => { page.value = 1; void loadStudents() }, 300)
+})
+
+function changePage(nextPage: number) {
+  if (nextPage < 1 || nextPage > pagination.value.totalPages || nextPage === page.value) return
+  page.value = nextPage
+  void loadStudents()
+}
+
+onMounted(loadStudents)
 
 const message = ref('')
 const errorMessage = ref('')
@@ -35,12 +87,6 @@ const selectedImportFile = ref<File | null>(null)
 let messageTimer: ReturnType<typeof setTimeout> | undefined
 
 const notificationText = computed(() => errorMessage.value || message.value)
-const dashboardStatistics = computed(() => ({
-  total: filteredStudents.value.length,
-  onTrack: filteredStudents.value.filter((student) => student.status === 'On-track').length,
-  overdue: filteredStudents.value.filter((student) => student.status === 'Overdue').length,
-  graduate: filteredStudents.value.filter((student) => student.status === 'Graduate').length,
-}))
 
 function showNotification(text: string, type: 'success' | 'error' = 'success') {
   message.value = type === 'success' ? text : ''
@@ -185,7 +231,7 @@ async function handleImport() {
 }
 
 async function handleExport() {
-  if (!filteredStudents.value.length) {
+  if (!students.value.length) {
     showNotification(isThai.value ? 'ไม่มีข้อมูลในตารางสำหรับส่งออก' : 'There are no displayed students to export.', 'error')
     return
   }
@@ -194,8 +240,20 @@ async function handleExport() {
   errorMessage.value = ''
   isExporting.value = true
   try {
+    const exportStudentsList: Student[] = []
+    const exportPageSize = 100
+    const firstPage = await getStudentsPage({
+      page: 1, limit: exportPageSize, search: search.value, ...filters.value,
+    })
+    exportStudentsList.push(...firstPage.students)
+    for (let exportPage = 2; exportPage <= firstPage.pagination.totalPages; exportPage += 1) {
+      const result = await getStudentsPage({
+        page: exportPage, limit: exportPageSize, search: search.value, ...filters.value,
+      })
+      exportStudentsList.push(...result.students)
+    }
     await exportStudents(
-      filteredStudents.value.map((student) => student.studentId),
+      exportStudentsList.map((student) => student.studentId),
       isThai.value ? 'th' : 'en',
     )
     showNotification('Exported students successfully')
@@ -212,6 +270,7 @@ function viewStudentMilestones(studentId: string) {
 
 onBeforeUnmount(() => {
   if (messageTimer) clearTimeout(messageTimer)
+  if (searchTimer) clearTimeout(searchTimer)
 })
 
 useAutoRefresh(() => loadStudents({ silent: true }), {
@@ -253,10 +312,12 @@ useAutoRefresh(() => loadStudents({ silent: true }), {
     <StudentOverview
       v-model:filters="filters"
       v-model:search="search"
-      :students="filteredStudents"
+      :students="students"
       :is-loading="isLoading"
+      color-program-badges
       :error="loadError"
       :available-students="students"
+      :filter-options="filterOptions"
       :buddhist-year="isThai"
       advisor-mode="all-only"
       @view="viewStudentMilestones"
@@ -274,6 +335,23 @@ useAutoRefresh(() => loadStudents({ silent: true }), {
         />
       </template>
     </StudentOverview>
+
+    <nav v-if="pagination.totalPages > 1" class="mt-5 flex justify-end" aria-label="Student pages">
+      <div class="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <button type="button" class="flex size-8 items-center justify-center border-r border-slate-200 text-xs text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300" :disabled="page === 1" aria-label="Previous page" @click="changePage(page - 1)">
+          ‹
+        </button>
+        <template v-for="(item, index) in paginationItems" :key="`${item}-${index}`">
+          <span v-if="item === 'ellipsis'" class="flex size-8 items-center justify-center border-r border-slate-200 text-xs text-slate-400">…</span>
+          <button v-else type="button" class="flex size-8 items-center justify-center border-r border-slate-200 text-xs font-medium transition-colors" :class="item === page ? 'bg-[#f7c9cf] text-[#a13a34]' : 'text-slate-700 hover:bg-[#fdf1f3]'" :aria-current="item === page ? 'page' : undefined" :aria-label="`Page ${item}`" @click="changePage(item)">
+            {{ item }}
+          </button>
+        </template>
+        <button type="button" class="flex size-8 items-center justify-center text-xs text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300" :disabled="page === pagination.totalPages" aria-label="Next page" @click="changePage(page + 1)">
+          ›
+        </button>
+      </div>
+    </nav>
 
     <ImportFileModal
       v-if="isImportModalOpen"

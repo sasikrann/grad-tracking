@@ -1,4 +1,4 @@
-export type StudentStatus = 'On-track' | 'Overdue' | 'Graduate'
+export type StudentStatus = 'On-track' | 'Overdue' | 'Extended' | 'Graduate'
 
 // ข้อมูลขั้นต่ำที่ StudentTable ต้องใช้
 export interface StudentTableItem {

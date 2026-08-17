@@ -8,6 +8,7 @@ import {
 } from '../services/advisor-files.service.js'
 import {
   findAdvisorById,
+  findAdvisorsPage,
   findAllAdvisors,
   getAdvisorMilestoneSummary,
   importAdvisors,
@@ -25,6 +26,15 @@ import {
 import { findAllStudents, findStudentsByAdvisorId } from '../services/students.service.js'
 
 export async function getAdvisors(request, response) {
+  if (request.query.page && request.user.role === 'admin') {
+    const result = await findAdvisorsPage({
+      page: request.query.page,
+      limit: request.query.limit,
+      search: request.query.search,
+    })
+    response.json({ data: result.advisors, pagination: result.pagination })
+    return
+  }
   response.json({ data: await findAllAdvisors({ activeOnly: request.user.role === 'student' }) })
 }
 

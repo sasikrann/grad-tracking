@@ -11,10 +11,12 @@ withDefaults(
     error: string
     useDoctoralLabel?: boolean
     buddhistYear?: boolean
+    colorProgramBadges?: boolean
   }>(),
   {
     useDoctoralLabel: false,
     buddhistYear: false,
+    colorProgramBadges: false,
   },
 )
 
@@ -29,6 +31,7 @@ function displayYear(year: string) {
 
 function statusLabel(status: StudentTableItem['status']) {
   if (status === 'Graduate') return t('dashboard.graduate')
+  if (status === 'Extended') return t('dashboard.extended')
   if (status === 'Overdue') return t('dashboard.overdue')
   return t('dashboard.onTrack')
 }
@@ -42,9 +45,9 @@ function statusLabel(status: StudentTableItem['status']) {
           <th class="w-[25%] pt-1 pb-3 leading-5 font-semibold">{{ t('student.student') }}</th>
           <th class="w-[13%] pt-1 pb-3 text-center leading-5 font-semibold">{{ t('common.program') }}</th>
           <th class="w-[10%] -translate-x-2 pt-1 pb-3 text-center leading-5 font-semibold">{{ t('common.plan') }}</th>
-          <th class="w-[10%] pt-1 pb-3 leading-5 font-semibold">{{ t('common.semester') }}</th>
-          <th class="w-[10%] pt-1 pb-3 text-center leading-5 font-semibold">{{ t('common.enrollmentYear') }}</th>
-          <th class="w-[22%] pt-1 pb-3 text-center leading-5 font-semibold">{{ t('student.progress') }}</th>
+          <th class="w-[15%] -translate-x-2 whitespace-nowrap pt-1 pb-3 text-center leading-5 font-semibold">{{ t('common.semester') }}</th>
+          <th class="w-[12%] pt-1 pb-3 text-center leading-5 font-semibold">{{ t('common.enrollmentYear') }}</th>
+          <th class="w-[19%] pt-1 pb-3 text-center leading-5 font-semibold">{{ t('student.progress') }}</th>
           <th class="w-[14%] pt-1 pb-3 text-center leading-5 font-semibold">{{ t('common.status') }}</th>
           <th class="w-[8%] pt-1 pb-3 text-center leading-5 font-semibold">{{ t('common.actions') }}</th>
         </tr>
@@ -82,6 +85,13 @@ function statusLabel(status: StudentTableItem['status']) {
             <div class="inline-flex flex-col items-center gap-1">
               <span
                 class="rounded-md border border-[#dedede] px-2 py-0.5 text-xs font-semibold leading-none"
+                :class="
+                  colorProgramBadges
+                    ? student.degree === 'Ph. D.'
+                      ? 'border-blue-900 bg-blue-900 text-white'
+                      : 'border-teal-500 bg-teal-500 text-white'
+                    : ''
+                "
               >
                 {{ useDoctoralLabel && student.degree === 'Ph. D.' ? 'Doctoral' : student.degree }}
               </span>
@@ -97,7 +107,7 @@ function statusLabel(status: StudentTableItem['status']) {
               {{ student.educationPlan || '-' }}
             </span>
           </td>
-          <td>
+          <td class="-translate-x-2 text-center">
             <span class="inline-flex min-w-12 justify-center px-3 py-0.5 text-xs leading-none">
               {{ student.semester }}
             </span>
@@ -124,6 +134,8 @@ function statusLabel(status: StudentTableItem['status']) {
               :class="
                 student.status === 'Graduate'
                   ? 'bg-[#49b866]'
+                  : student.status === 'Extended'
+                    ? 'bg-orange-500'
                   : student.status === 'Overdue'
                     ? 'bg-[#d90012]'
                     : 'bg-[#ffb51b]'

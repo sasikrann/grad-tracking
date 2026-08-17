@@ -26,6 +26,19 @@ interface StudentsApiResponse {
   data?: StudentApiResponse[]
 }
 
+export interface StudentPaginationResult {
+  students: Student[]
+  pagination: { page: number; limit: number; totalRecords: number; totalPages: number }
+  statistics: { total: number; onTrack: number; overdue: number; graduate: number }
+  filterOptions: {
+    semesters: Array<string | number>
+    years: Array<string | number>
+    degrees: string[]
+    plans: string[]
+    statuses: StudentStatus[]
+  }
+}
+
 interface ApiResponse<T> {
   data: T
 }
@@ -92,6 +105,32 @@ async function requestStudents(path: string, currentAdvisorId?: string) {
 
 export function getStudents() {
   return requestStudents('/api/students')
+}
+
+export async function getStudentsPage(input: {
+  page: number
+  limit?: number
+  search?: string
+  semester?: string
+  year?: string
+  degree?: string
+  plan?: string
+  status?: string
+}): Promise<StudentPaginationResult> {
+  const query = new URLSearchParams({ page: String(input.page), limit: String(input.limit ?? 10) })
+  for (const key of ['search', 'semester', 'year', 'degree', 'plan', 'status'] as const) {
+    const value = input[key]
+    if (value && value !== 'all') query.set(key, value)
+  }
+  const response = await authenticatedFetch(apiUrl(`/api/students?${query}`), { cache: 'no-store' })
+  if (!response.ok) throw new Error(`Unable to load students (${response.status})`)
+  const result = (await response.json()) as Omit<StudentPaginationResult, 'students'> & { data?: StudentApiResponse[] }
+  return {
+    students: (result.data ?? []).map((student) => toStudent(student)),
+    pagination: result.pagination,
+    statistics: result.statistics,
+    filterOptions: result.filterOptions,
+  }
 }
 
 export interface StudentDetail {

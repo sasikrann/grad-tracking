@@ -205,6 +205,52 @@ export async function findAllAdvisors({ activeOnly = false } = {}) {
   return result.rows
 }
 
+export async function findAdvisorsPage({ page = 1, limit = 10, search = '' } = {}) {
+  await ensureAdvisorSchema()
+  await ensureAdvisorProfilesForAdvisorUsers()
+
+  const normalizedPage = Math.max(1, Number(page) || 1)
+  const normalizedLimit = Math.min(100, Math.max(1, Number(limit) || 10))
+  const keyword = String(search).trim()
+  const values = keyword ? [`%${keyword}%`] : []
+  const where = keyword
+    ? `WHERE LOWER(a.full_name) LIKE LOWER($1) OR LOWER(a.advisor_id) LIKE LOWER($1)`
+    : ''
+  const countResult = await pool.query(
+    `SELECT COUNT(*)::INT AS total
+     FROM advisors a
+     INNER JOIN users u ON u.user_id = a.user_id AND u.role = 'advisor'
+     ${where}`,
+    values,
+  )
+  const totalRecords = Number(countResult.rows[0]?.total ?? 0)
+  values.push(normalizedLimit, (normalizedPage - 1) * normalizedLimit)
+  const result = await pool.query(
+    `SELECT ${advisorColumns}
+     FROM advisors a
+     INNER JOIN users u ON u.user_id = a.user_id AND u.role = 'advisor'
+     ${where}
+     ORDER BY
+       CASE WHEN a.advisor_id ~* '^ADV[0-9]+$'
+         THEN CAST(SUBSTRING(a.advisor_id FROM 4) AS INT)
+         ELSE NULL
+       END NULLS LAST,
+       a.advisor_id
+     LIMIT $${values.length - 1} OFFSET $${values.length}`,
+    values,
+  )
+
+  return {
+    advisors: result.rows,
+    pagination: {
+      page: normalizedPage,
+      limit: normalizedLimit,
+      totalRecords,
+      totalPages: Math.ceil(totalRecords / normalizedLimit),
+    },
+  }
+}
+
 export async function findAdvisorById(advisorId) {
   await ensureAdvisorSchema()
   const result = await pool.query(

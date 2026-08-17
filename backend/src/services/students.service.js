@@ -80,7 +80,7 @@ function studentRecordsMatch(left, right) {
   ].every((field) => normalizeComparableValue(left[field]) === normalizeComparableValue(right[field]))
 }
 
-async function findStudents({ advisorId, viewerAdvisorId } = {}) {
+async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
   await ensureStudentSchema()
   await ensureMilestoneSchema()
   const values = []
@@ -92,8 +92,52 @@ async function findStudents({ advisorId, viewerAdvisorId } = {}) {
   if (viewerAdvisorId) values.push(viewerAdvisorId)
   const viewerAdvisorParameter = viewerAdvisorId ? `$${values.length}` : 'NULL'
 
+  const outerFilters = []
+  if (pagination?.search) {
+    values.push(`%${pagination.search}%`)
+    outerFilters.push(`(LOWER("fullName") LIKE LOWER($${values.length}) OR "studentId" LIKE $${values.length})`)
+  }
+  const filterMappings = [
+    ['semester', 'semester'],
+    ['year', 'year'],
+    ['degree', 'degreeLevel'],
+    ['plan', 'educationPlan'],
+    ['status', 'status'],
+  ]
+  for (const [inputKey, column] of filterMappings) {
+    const value = pagination?.[inputKey]
+    if (value && value !== 'all') {
+      values.push(value)
+      outerFilters.push(`"${column}"::text = $${values.length}`)
+    }
+  }
+  const outerWhere = outerFilters.length ? `WHERE ${outerFilters.join(' AND ')}` : ''
+  const page = Math.max(1, Number(pagination?.page) || 1)
+  const limit = Math.min(100, Math.max(1, Number(pagination?.limit) || 10))
+  if (pagination) {
+    values.push(limit, (page - 1) * limit)
+  }
+  const paginationClause = pagination
+    ? `LIMIT $${values.length - 1} OFFSET $${values.length}`
+    : ''
+  const paginationSelect = pagination
+    ? `*,
+        COUNT(*) OVER ()::INT AS "totalRecords",
+        COUNT(*) FILTER (WHERE status = 'On-track') OVER ()::INT AS "onTrackCount",
+        COUNT(*) FILTER (WHERE status = 'Overdue') OVER ()::INT AS "overdueCount",
+        COUNT(*) FILTER (WHERE status = 'Graduate') OVER ()::INT AS "graduateCount",
+        (SELECT json_build_object(
+          'semesters', ARRAY_AGG(DISTINCT semester),
+          'years', ARRAY_AGG(DISTINCT year),
+          'degrees', ARRAY_AGG(DISTINCT "degreeLevel"),
+          'plans', ARRAY_AGG(DISTINCT "educationPlan") FILTER (WHERE "educationPlan" IS NOT NULL),
+          'statuses', ARRAY_AGG(DISTINCT status)
+        ) FROM students_with_status) AS "filterOptions"`
+    : '*'
+
   const result = await pool.query(
     `
+      WITH students_with_status AS (
       SELECT
         s.student_id AS "studentId",
         s.full_name AS "fullName",
@@ -125,6 +169,7 @@ async function findStudents({ advisorId, viewerAdvisorId } = {}) {
         CASE
           WHEN s.graduation_semester IS NOT NULL
             AND s.graduation_academic_year IS NOT NULL THEN 'Graduate'
+          WHEN s.study_extension_granted THEN 'Extended'
           WHEN EXTRACT(YEAR FROM CURRENT_DATE)::INT >
             s.enrollment_academic_year + CASE
               WHEN s.study_extension_granted AND s.degree_level = 'Master' THEN 4
@@ -159,16 +204,39 @@ async function findStudents({ advisorId, viewerAdvisorId } = {}) {
         s.study_extension_granted,
         s.advisor_id,
         a.full_name
-      ORDER BY s.student_id
+      )
+      SELECT ${paginationSelect}
+      FROM students_with_status
+      ${outerWhere}
+      ORDER BY year DESC, "studentId"
+      ${paginationClause}
     `,
     values,
   )
 
-  return result.rows
+  if (!pagination) return result.rows
+
+  const summary = result.rows[0] ?? {}
+  const totalRecords = Number(summary.totalRecords ?? 0)
+  return {
+    students: result.rows.map(({ totalRecords: _total, onTrackCount: _onTrack, overdueCount: _overdue, graduateCount: _graduate, filterOptions: _filters, ...student }) => student),
+    pagination: { page, limit, totalRecords, totalPages: Math.ceil(totalRecords / limit) },
+    statistics: {
+      total: totalRecords,
+      onTrack: Number(summary.onTrackCount ?? 0),
+      overdue: Number(summary.overdueCount ?? 0),
+      graduate: Number(summary.graduateCount ?? 0),
+    },
+    filterOptions: summary.filterOptions ?? { semesters: [], years: [], degrees: [], plans: [], statuses: [] },
+  }
 }
 
 export function findAllStudents({ viewerAdvisorId } = {}) {
   return findStudents({ viewerAdvisorId })
+}
+
+export function findStudentsPage(pagination) {
+  return findStudents({ pagination })
 }
 
 export function findStudentsByAdvisorId(advisorId) {
