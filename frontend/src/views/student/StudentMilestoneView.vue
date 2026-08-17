@@ -98,30 +98,41 @@ function prerequisiteIdsFor(milestone: StudentMilestone) {
   })
 }
 
+function formatMilestoneNumbers(milestoneIds: string[]) {
+  const numbers = milestoneIds
+    .map(
+      (milestoneId) =>
+        milestones.value.find((milestone) => milestone.milestoneId === milestoneId)?.sequenceOrder,
+    )
+    .filter((sequenceOrder): sequenceOrder is number => typeof sequenceOrder === 'number')
+    .sort((first, second) => first - second)
+
+  if (!numbers.length) return ''
+
+  const isConsecutive = numbers.every(
+    (sequenceOrder, index) => index === 0 || sequenceOrder === numbers[index - 1]! + 1,
+  )
+  return isConsecutive && numbers.length > 1
+    ? `${numbers[0]}–${numbers[numbers.length - 1]}`
+    : numbers.join(', ')
+}
+
 const visibleMilestones = computed(() =>
   milestones.value.map((milestone) => {
     const prerequisiteIds = prerequisiteIdsFor(milestone)
     const incompletePrerequisiteIds = prerequisiteIds.filter(
       (milestoneId) => !completedMilestoneIds.value.has(milestoneId),
     )
-    const prerequisiteTitles = milestone.prerequisiteTitles?.length
-      ? milestone.prerequisiteTitles
-      : prerequisiteIds.map(
-          (milestoneId) =>
-            milestones.value.find((candidate) => candidate.milestoneId === milestoneId)?.title ??
-            'the prerequisite milestone',
-        )
     const hasPrerequisites = Boolean(milestone.prerequisiteMilestoneIds?.length)
+    const incompleteMilestoneNumbers = formatMilestoneNumbers(incompletePrerequisiteIds)
 
     return {
       ...milestone,
       isLocked: milestone.isLocked || incompletePrerequisiteIds.length > 0,
       lockedReason: hasPrerequisites
-        ? prerequisiteTitles.length === 1
-          ? `Complete “${prerequisiteTitles[0]}” first.`
-          : prerequisiteTitles.length > 1
-            ? `Complete ${prerequisiteTitles.length} prerequisite milestones first.`
-          : 'Complete the prerequisite milestones first.'
+        ? incompleteMilestoneNumbers
+          ? `Complete milestone ${incompleteMilestoneNumbers} first.`
+          : undefined
         : undefined,
     }
   }),

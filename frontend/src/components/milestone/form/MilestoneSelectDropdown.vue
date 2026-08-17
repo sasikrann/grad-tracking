@@ -12,6 +12,7 @@ const props = defineProps<{
   options: MilestoneSelectOption[]
   open: boolean
   clearable?: boolean
+  hideEmptyOption?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -20,7 +21,7 @@ const emit = defineEmits<{
 }>()
 
 const dropdownOptions = computed(() =>
-  props.clearable
+  props.clearable || props.hideEmptyOption
     ? props.options.filter((option) => option.value !== '')
     : props.options,
 )

@@ -23,6 +23,7 @@ function validateUserBody(body) {
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
   const fullName = typeof body.fullName === 'string' ? body.fullName.trim() : ''
   const role = body.role
+  const advisorId = typeof body.advisorId === 'string' ? body.advisorId.trim() : ''
 
   if (!email || !emailPattern.test(email)) {
     throw new ApiError(400, 'A valid email is required')
@@ -36,7 +37,11 @@ function validateUserBody(body) {
     throw new ApiError(400, 'role must be student, advisor, or admin')
   }
 
-  return { email, fullName, role }
+  if (role === 'advisor' && !advisorId) {
+    throw new ApiError(400, 'advisorId is required for advisor users')
+  }
+
+  return { email, fullName, role, advisorId: role === 'advisor' ? advisorId : null }
 }
 
 export async function getUsers(_request, response) {

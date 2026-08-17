@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
-import { resolveEvidenceUrl } from '@/services/student-milestones.api'
+import { createEvidencePreviewUrl } from '@/services/student-milestones.api'
+import { useLanguage } from '@/composables/useLanguage'
 import MilestoneSelectDropdown from '@/components/milestone/form/MilestoneSelectDropdown.vue'
 import type { StudentMilestone, StudentMilestoneStatus } from '@/types/milestone'
 import type { Advisor } from '@/types/advisor'
 import { milestoneStatusColor } from '@/utils/milestone-status'
 
 defineOptions({ name: 'StudentMilestoneCard' })
+const { t } = useLanguage()
 
 const props = defineProps<{
   milestone: StudentMilestone
@@ -40,6 +42,15 @@ const emit = defineEmits<{
 }>()
 
 const fileInput = ref<HTMLInputElement | null>(null)
+const isOpeningEvidence = ref(false)
+const evidenceOpenError = ref('')
+const acceptedEvidenceTypes = new Set(['image/png', 'image/jpeg', 'application/pdf'])
+type EvidenceFileHandle = { getFile: () => Promise<File> }
+type EvidenceFilePicker = (options: {
+  types: Array<{ description: string; accept: Record<string, string[]> }>
+  excludeAcceptAllOption: boolean
+  multiple: boolean
+}) => Promise<EvidenceFileHandle[]>
 const selectedAdvisorId = ref(props.currentAdvisorId ?? '')
 const selectedCoAdvisorIds = ref([...(props.currentCoAdvisorIds ?? []), '', ''].slice(0, 2))
 const openAdvisorDropdown = ref<'advisor' | 'coAdvisor1' | 'coAdvisor2' | null>(null)
@@ -181,21 +192,32 @@ const isDeadlineUrgent = computed(
     ['Missing', 'In Progress'].includes(props.milestone.status) &&
     !props.milestone.evidenceUrl,
 )
-const evidenceHref = computed(() => {
-  if (!props.milestone.evidenceUrl) return ''
-  return resolveEvidenceUrl(props.milestone.evidenceUrl)
-})
-const evidenceName = computed(() => {
-  const value = props.milestone.evidenceUrl ?? ''
-  const fileName = decodeURIComponent(value.split('/').pop() || value)
-  return fileName.replace(/^\d+-/, '')
-})
 const canRemoveEvidence = computed(
   () =>
     !props.readonly &&
     Boolean(props.milestone.evidenceUrl) &&
     props.milestone.status !== 'Approved',
 )
+
+async function openEvidence() {
+  if (!props.milestone.evidenceUrl || isOpeningEvidence.value) return
+  evidenceOpenError.value = ''
+  isOpeningEvidence.value = true
+  const previewWindow = window.open('about:blank', '_blank')
+  if (previewWindow) previewWindow.opener = null
+
+  try {
+    const previewUrl = await createEvidencePreviewUrl(props.milestone.evidenceUrl)
+    if (previewWindow) previewWindow.location.href = previewUrl
+    else window.open(previewUrl, '_blank', 'noopener,noreferrer')
+    window.setTimeout(() => URL.revokeObjectURL(previewUrl), 60_000)
+  } catch (error) {
+    previewWindow?.close()
+    evidenceOpenError.value = error instanceof Error ? error.message : 'Unable to open evidence'
+  } finally {
+    isOpeningEvidence.value = false
+  }
+}
 
 function formatDate(value: string | null) {
   if (!value) return 'Not specified'
@@ -206,7 +228,7 @@ function formatDate(value: string | null) {
   }).format(new Date(value))
 }
 
-function openUploadPicker() {
+async function openUploadPicker() {
   if (isLocked.value) {
     return
   }
@@ -220,6 +242,36 @@ function openUploadPicker() {
     return
   }
 
+  const showOpenFilePicker = (
+    window as Window & { showOpenFilePicker?: EvidenceFilePicker }
+  ).showOpenFilePicker
+
+  if (showOpenFilePicker) {
+    try {
+      const [fileHandle] = await showOpenFilePicker.call(window, {
+        types: [
+          {
+            description: 'PNG, JPG, or PDF files',
+            accept: {
+              'image/png': ['.png'],
+              'image/jpeg': ['.jpg', '.jpeg'],
+              'application/pdf': ['.pdf'],
+            },
+          },
+        ],
+        excludeAcceptAllOption: true,
+        multiple: false,
+      })
+      const file = await fileHandle?.getFile()
+      if (file && acceptedEvidenceTypes.has(file.type)) {
+        emit('upload', props.milestone.milestoneId, file)
+      }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) throw error
+    }
+    return
+  }
+
   fileInput.value?.click()
 }
 
@@ -228,7 +280,9 @@ function handleFileChange(event: Event) {
   const file = input.files?.[0]
   if (!file) return
 
-  emit('upload', props.milestone.milestoneId, file)
+  if (acceptedEvidenceTypes.has(file.type)) {
+    emit('upload', props.milestone.milestoneId, file)
+  }
   input.value = ''
 }
 </script>
@@ -336,13 +390,6 @@ function handleFileChange(event: Event) {
         </div>
       </div>
 
-      <p
-        v-if="milestone.lockedReason"
-        class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
-      >
-        {{ milestone.lockedReason }}
-      </p>
-
       <div v-if="showAdvisorAppointment" class="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
         <MilestoneSelectDropdown
           label="Advisor *"
@@ -390,6 +437,7 @@ function handleFileChange(event: Event) {
             :model-value="graduationSemester"
             :options="graduationSemesterOptions"
             :open="graduationSemesterDropdownOpen"
+            hide-empty-option
             @toggle="graduationSemesterDropdownOpen = !graduationSemesterDropdownOpen"
             @select="selectGraduationSemester"
           />
@@ -439,14 +487,14 @@ function handleFileChange(event: Event) {
         class="mt-3 flex flex-wrap items-center justify-between gap-x-5 gap-y-2"
       >
         <div v-if="milestone.evidenceUrl" class="flex flex-wrap items-center gap-2">
-          <a
-            class="break-all text-sm text-[#00a000] hover:underline"
-            :href="evidenceHref"
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
+            class="text-sm text-[#00a000] hover:underline disabled:cursor-wait disabled:opacity-60"
+            :disabled="isOpeningEvidence"
+            @click="openEvidence"
           >
-            {{ evidenceName }}
-          </a>
+            {{ isOpeningEvidence ? t('milestone.openingAttachment') : t('milestone.viewAttachment') }}
+          </button>
           <button
             v-if="canRemoveEvidence"
             type="button"
@@ -459,6 +507,10 @@ function handleFileChange(event: Event) {
           </button>
         </div>
       </div>
+
+      <p v-if="evidenceOpenError" class="mt-2 text-xs text-red-600" role="alert">
+        {{ evidenceOpenError }}
+      </p>
 
       <div v-if="canReview" class="mt-3 flex justify-end gap-3">
         <button
@@ -480,7 +532,13 @@ function handleFileChange(event: Event) {
       </div>
 
       <div v-if="showUploadEvidence" class="mt-3 flex flex-wrap items-center gap-3">
-        <input ref="fileInput" class="hidden" type="file" @change="handleFileChange" />
+        <input
+          ref="fileInput"
+          class="hidden"
+          type="file"
+          accept=".png,.jpg,.jpeg,.pdf,image/png,image/jpeg,application/pdf"
+          @change="handleFileChange"
+        />
         <button
           type="button"
           class="inline-flex h-7 items-center gap-2 rounded border border-slate-300 bg-white px-3 text-xs font-semibold text-black shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
@@ -501,7 +559,17 @@ function handleFileChange(event: Event) {
           </svg>
           {{ isUploading ? 'Uploading...' : 'Upload Evidence' }}
         </button>
+        <p class="text-[11px] text-amber-700">
+          Please upload a PNG, JPG, or PDF file (maximum 2 MB).
+        </p>
       </div>
+
+      <p
+        v-if="milestone.lockedReason"
+        class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
+      >
+        {{ milestone.lockedReason }}
+      </p>
 
       <p v-if="uploadError" class="mt-4 rounded-lg bg-[#feecec] px-3 py-2 text-xs text-[#8a2b25]">
         {{ uploadError }}

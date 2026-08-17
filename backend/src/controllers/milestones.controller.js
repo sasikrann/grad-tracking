@@ -89,6 +89,7 @@ function normalizeMilestone(body) {
       body.prerequisiteMilestoneIds,
       'prerequisiteMilestoneIds',
     ),
+    evidenceCode: optionalText(body.evidenceCode),
     title: requiredText(body.title, 'title'),
     description: optionalText(body.description),
     references: referenceItems(body.references),

@@ -1,3 +1,5 @@
+import { defaultEvidenceCodeForKey } from '../services/evidence-code.js'
+
 const formsUrl = 'https://postgrads.mfu.ac.th'
 const ethicsUrl = 'https://gradethic.mfu.ac.th'
 const registrationUrl = 'https://reg.mfu.ac.th'
@@ -9,6 +11,7 @@ function createPlanTemplates(prefix, degreeLevel, plans, definitions) {
   return definitions.map((definition, index) => ({
     ...definition,
     key: `${prefix}-${definition.key}`,
+    evidenceCode: defaultEvidenceCodeForKey(definition.key),
     degreeLevel,
     plans,
     sequenceOrder: index + 1,

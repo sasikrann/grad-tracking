@@ -17,6 +17,7 @@ export interface Milestone {
   firstReminderDate: string | null
   secondReminderDate: string | null
   prerequisiteMilestoneIds: string[]
+  evidenceCode: string
   isEnabled: boolean
   isStandard?: boolean
 }
@@ -35,6 +36,7 @@ export interface MilestoneInput {
   firstReminderDate: string
   secondReminderDate: string
   prerequisiteMilestoneIds: string[]
+  evidenceCode: string
   isEnabled: boolean
 }
 
@@ -88,6 +90,7 @@ export interface AdvisorMilestoneSummary {
     approved: number
     missing: number
     total: number
+    totalStudents: number
   }
   overallProgress: number
   milestones: AdvisorMilestoneBreakdown[]

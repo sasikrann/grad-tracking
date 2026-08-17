@@ -15,6 +15,14 @@ withDefaults(
     yearOptions?: string[]
     advisorMode?: 'default' | 'all-only'
     buddhistYear?: boolean
+    colorProgramBadges?: boolean
+    filterOptions?: {
+      semesters: Array<string | number>
+      years: Array<string | number>
+      degrees: string[]
+      plans: string[]
+      statuses: string[]
+    }
   }>(),
   {
     advisorMode: 'default',
@@ -52,6 +60,7 @@ const filters = defineModel<StudentFiltersState>('filters', { required: true })
       :year-options="yearOptions"
       :buddhist-year="buddhistYear"
       :available-students="availableStudents"
+      :filter-options="filterOptions"
     />
     <StudentTable
       :students="students"
@@ -59,6 +68,7 @@ const filters = defineModel<StudentFiltersState>('filters', { required: true })
       :error="error"
       :use-doctoral-label="advisorMode === 'all-only'"
       :buddhist-year="buddhistYear"
+      :color-program-badges="colorProgramBadges"
       @view="emit('view', $event)"
     />
   </section>

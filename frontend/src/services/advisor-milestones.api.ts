@@ -1,5 +1,4 @@
 import { apiRequest } from '@/services/api-client'
-import { resolveEvidenceUrl } from '@/services/student-milestones.api'
 import type { StudentMilestone, StudentMilestoneStatus } from '@/types/milestone'
 
 
@@ -52,8 +51,4 @@ export function reviewAdvisorMilestone(
       body: JSON.stringify({ decision, comment }),
     },
   )
-}
-
-export function getEvidenceHref(evidenceUrl: string) {
-  return resolveEvidenceUrl(evidenceUrl)
 }

@@ -29,38 +29,7 @@ export async function findUserById(userId) {
   return result.rows[0] || null
 }
 
-async function nextAdvisorId(client) {
-  await client.query('SELECT pg_advisory_xact_lock(2026062801)')
-  const result = await client.query(`
-    SELECT advisor_id
-    FROM advisors
-    WHERE advisor_id ~ '^ADV[0-9]+$'
-  `)
-
-  const usedNumbers = new Set(
-    result.rows
-      .map((row) => {
-        const match = String(row.advisor_id ?? '').match(/^ADV0*(\d+)$/i)
-        return match ? Number(match[1]) : null
-      })
-      .filter(Number.isInteger),
-  )
-  let nextNumber = 1
-
-  while (usedNumbers.has(nextNumber)) {
-    nextNumber += 1
-  }
-
-  return `ADV${String(nextNumber).padStart(3, '0')}`
-}
-
-async function upsertAdvisorForUser(client, { userId, email, fullName }) {
-  const existing = await client.query(
-    'SELECT advisor_id FROM advisors WHERE user_id = $1',
-    [userId],
-  )
-  const advisorId = existing.rows[0]?.advisor_id ?? await nextAdvisorId(client)
-
+async function upsertAdvisorForUser(client, { userId, email, fullName, advisorId }) {
   await client.query(
     `
       INSERT INTO advisors (advisor_id, user_id, full_name, email)
@@ -74,7 +43,7 @@ async function upsertAdvisorForUser(client, { userId, email, fullName }) {
   )
 }
 
-export async function insertUser({ email, fullName, role }) {
+export async function insertUser({ email, fullName, role, advisorId }) {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
@@ -88,7 +57,7 @@ export async function insertUser({ email, fullName, role }) {
     )
 
     if (role === 'advisor') {
-      await upsertAdvisorForUser(client, result.rows[0])
+      await upsertAdvisorForUser(client, { ...result.rows[0], advisorId })
     }
 
     await client.query('COMMIT')
@@ -101,7 +70,7 @@ export async function insertUser({ email, fullName, role }) {
   }
 }
 
-export async function replaceUser(userId, { email, fullName, role }) {
+export async function replaceUser(userId, { email, fullName, role, advisorId }) {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
@@ -121,7 +90,7 @@ export async function replaceUser(userId, { email, fullName, role }) {
     }
 
     if (role === 'advisor') {
-      await upsertAdvisorForUser(client, result.rows[0])
+      await upsertAdvisorForUser(client, { ...result.rows[0], advisorId })
     }
 
     await client.query('COMMIT')

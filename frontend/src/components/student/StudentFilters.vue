@@ -23,6 +23,13 @@ const props = withDefaults(
     advisorMode?: 'default' | 'all-only'
     buddhistYear?: boolean
     availableStudents?: StudentTableItem[]
+    filterOptions?: {
+      semesters: Array<string | number>
+      years: Array<string | number>
+      degrees: string[]
+      plans: string[]
+      statuses: string[]
+    }
   }>(),
   {
     advisorMode: 'default',
@@ -58,6 +65,7 @@ function planLabel(plan: string) {
 
 function statusLabel(status: string) {
   if (status === 'Graduate') return t('dashboard.graduate')
+  if (status === 'Extended') return t('dashboard.extended')
   if (status === 'Overdue') return t('dashboard.overdue')
   if (status === 'On-track') return t('dashboard.onTrack')
   return status
@@ -66,11 +74,11 @@ function statusLabel(status: string) {
 const planOptions = computed<FilterOption[]>(() => {
   const allPlan = { label: t('student.allPlan'), value: 'all' }
   const planOrder = ['A1', 'A2', 'B', '2.1', '2.2']
-  const plans = props.availableStudents
+  const plans = (props.filterOptions?.plans ?? props.availableStudents
     .filter(
       (student) => props.modelValue.degree === 'all' || student.degree === props.modelValue.degree,
     )
-    .map((student) => student.educationPlan)
+    .map((student) => student.educationPlan))
     .filter((plan) => plan && plan !== '-')
   return [
     allPlan,
@@ -95,7 +103,7 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
     defaultLabel: 'All Program',
     options: [
       { label: t('student.allProgram'), value: 'all' },
-      ...optionsFromValues(props.availableStudents.map((student) => student.degree)).map(
+      ...optionsFromValues(props.filterOptions?.degrees ?? props.availableStudents.map((student) => student.degree)).map(
         (option) => ({
           ...option,
           label: isThai.value
@@ -121,7 +129,7 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
     defaultLabel: 'All Semester',
     options: [
       { label: t('student.allSemester'), value: 'all' },
-      ...optionsFromValues(props.availableStudents.map((student) => student.semester)),
+      ...optionsFromValues(props.filterOptions?.semesters ?? props.availableStudents.map((student) => student.semester)),
     ],
   },
   {
@@ -129,7 +137,7 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
     defaultLabel: 'All Year',
     options: [
       { label: t('student.allYear'), value: 'all' },
-      ...Array.from(new Set(props.availableStudents.map((student) => student.year)))
+      ...Array.from(new Set((props.filterOptions?.years ?? props.availableStudents.map((student) => student.year)).map(String)))
         .sort((left, right) => Number(right) - Number(left) || right.localeCompare(left))
         .map((year) => ({ label: yearLabel(year), value: year })),
     ],
@@ -139,7 +147,7 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
     defaultLabel: 'All Status',
     options: [
       { label: t('student.allStatus'), value: 'all' },
-      ...optionsFromValues(props.availableStudents.map((student) => student.status)).map(
+      ...optionsFromValues(props.filterOptions?.statuses ?? props.availableStudents.map((student) => student.status)).map(
         (option) => ({ ...option, label: statusLabel(option.value) }),
       ),
     ],

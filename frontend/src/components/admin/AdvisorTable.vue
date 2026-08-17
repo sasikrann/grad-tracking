@@ -1,23 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
 import type { Advisor } from '@/types/advisor'
 import { useLanguage } from '@/composables/useLanguage'
 const { t } = useLanguage()
 
-const props = defineProps<{
+defineProps<{
   advisors: Advisor[]
   isLoading: boolean
   error: string
 }>()
 
-const search = ref('')
-const filteredAdvisors = computed(() => {
-  const keyword = search.value.trim().toLocaleLowerCase()
-  if (!keyword) return props.advisors
-  return props.advisors.filter((advisor) =>
-    advisor.fullName.toLocaleLowerCase().includes(keyword),
-  )
-})
+const search = defineModel<string>('search', { required: true })
 
 defineEmits<{
   status: [advisorId: string, status: Advisor['status']]
@@ -41,10 +33,10 @@ function statusLabel(status: Advisor['status']) {
 
 <template>
   <section class="mt-4 rounded-xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
-    <div class="flex flex-wrap items-end justify-between gap-3">
+    <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h2 class="text-lg font-semibold">{{ t('advisor.advisor') }}</h2>
-        <p class="text-xs text-slate-500">{{ t('advisor.showingUsers', { count: filteredAdvisors.length }) }}</p>
+        <p class="text-xs text-slate-500">{{ t('advisor.showingUsers', { count: advisors.length }) }}</p>
       </div>
       <label class="relative block w-full sm:w-80">
         <span class="sr-only">{{ t('advisor.searchPlaceholder') }}</span>
@@ -84,13 +76,16 @@ function statusLabel(status: Advisor['status']) {
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-200">
-          <tr v-for="advisor in filteredAdvisors" :key="advisor.advisorId">
+          <tr v-for="advisor in advisors" :key="advisor.advisorId">
             <td class="w-[38%] py-3 pr-4">
               <div class="flex items-center gap-4">
                 <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f4e7e7] text-xs font-semibold text-[#a33a3a]">
                   {{ initials(advisor.fullName) }}
                 </span>
-                <span class="font-semibold">{{ advisor.fullName }}</span>
+                <div class="leading-tight">
+                  <p class="font-semibold">{{ advisor.fullName }}</p>
+                  <p class="mt-1 text-xs font-normal text-[#858585]">{{ advisor.advisorId }}</p>
+                </div>
               </div>
             </td>
             <td class="w-[37%] px-4 py-3 text-xs text-slate-600">
@@ -124,7 +119,7 @@ function statusLabel(status: Advisor['status']) {
               </div>
             </td>
           </tr>
-          <tr v-if="filteredAdvisors.length === 0">
+          <tr v-if="advisors.length === 0">
             <td colspan="3" class="py-10 text-center text-sm text-slate-500">
               {{ t('advisor.noMatchingAdvisors') }}
             </td>

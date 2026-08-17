@@ -34,6 +34,7 @@ async function ensureAdvisorSchema() {
     END $$;
 
     ALTER TABLE advisors ALTER COLUMN status SET DEFAULT 'active';
+    ALTER TABLE advisors ALTER COLUMN advisor_id DROP DEFAULT;
     ALTER TABLE advisors
       ADD CONSTRAINT advisors_status_check CHECK (status IN ('active', 'inactive'));
   `)
@@ -55,11 +56,6 @@ const unresolvedAdvisorConflictMessage =
 
 function advisorConflictKey({ email }) {
   return String(email ?? '').trim().toLowerCase()
-}
-
-function advisorNumber(advisorId) {
-  const match = String(advisorId ?? '').trim().match(/^ADV0*(\d+)$/i)
-  return match ? Number(match[1]) : null
 }
 
 function normalizeComparableValue(value) {
@@ -186,23 +182,56 @@ function applyAdvisorImportResolutions(records, conflicts, resolutions = {}) {
 
 export async function findAllAdvisors({ activeOnly = false } = {}) {
   await ensureAdvisorSchema()
-  await ensureAdvisorProfilesForAdvisorUsers()
 
   const result = await pool.query(`
     SELECT ${advisorColumns}
     FROM advisors a
     INNER JOIN users u ON u.user_id = a.user_id AND u.role = 'advisor'
     ${activeOnly ? "WHERE a.status = 'active'" : ''}
-    ORDER BY
-      CASE
-        WHEN a.advisor_id ~* '^ADV[0-9]+$'
-          THEN CAST(SUBSTRING(a.advisor_id FROM 4) AS INT)
-        ELSE NULL
-      END NULLS LAST,
-      a.advisor_id
+    ORDER BY a.advisor_id
   `)
 
   return result.rows
+}
+
+export async function findAdvisorsPage({ page = 1, limit = 10, search = '' } = {}) {
+  await ensureAdvisorSchema()
+
+  const normalizedPage = Math.max(1, Number(page) || 1)
+  const normalizedLimit = Math.min(100, Math.max(1, Number(limit) || 10))
+  const keyword = String(search).trim()
+  const values = keyword ? [`%${keyword}%`] : []
+  const where = keyword
+    ? `WHERE LOWER(a.full_name) LIKE LOWER($1) OR LOWER(a.advisor_id) LIKE LOWER($1)`
+    : ''
+  const countResult = await pool.query(
+    `SELECT COUNT(*)::INT AS total
+     FROM advisors a
+     INNER JOIN users u ON u.user_id = a.user_id AND u.role = 'advisor'
+     ${where}`,
+    values,
+  )
+  const totalRecords = Number(countResult.rows[0]?.total ?? 0)
+  values.push(normalizedLimit, (normalizedPage - 1) * normalizedLimit)
+  const result = await pool.query(
+    `SELECT ${advisorColumns}
+     FROM advisors a
+     INNER JOIN users u ON u.user_id = a.user_id AND u.role = 'advisor'
+     ${where}
+     ORDER BY a.advisor_id
+     LIMIT $${values.length - 1} OFFSET $${values.length}`,
+    values,
+  )
+
+  return {
+    advisors: result.rows,
+    pagination: {
+      page: normalizedPage,
+      limit: normalizedLimit,
+      totalRecords,
+      totalPages: Math.ceil(totalRecords / normalizedLimit),
+    },
+  }
 }
 
 export async function findAdvisorById(advisorId) {
@@ -220,64 +249,6 @@ export async function findAdvisorById(advisorId) {
   return result.rows[0] || null
 }
 
-async function generateAdvisorId(client) {
-  await client.query('SELECT pg_advisory_xact_lock(2026062801)')
-  const result = await client.query(`
-    SELECT advisor_id
-    FROM advisors
-    WHERE advisor_id ~* '^ADV[0-9]+$'
-  `)
-  const usedNumbers = new Set(
-    result.rows.map((row) => advisorNumber(row.advisor_id)).filter(Number.isInteger),
-  )
-  let nextAdvisorNumber = 1
-
-  while (usedNumbers.has(nextAdvisorNumber)) {
-    nextAdvisorNumber += 1
-  }
-
-  return `ADV${String(nextAdvisorNumber).padStart(3, '0')}`
-}
-
-async function ensureAdvisorProfilesForAdvisorUsers() {
-  const client = await pool.connect()
-
-  try {
-    await client.query('BEGIN')
-
-    const missingAdvisorUsers = await client.query(`
-      SELECT u.user_id, u.email, u.full_name
-      FROM users u
-      LEFT JOIN advisors a ON a.user_id = u.user_id
-      WHERE u.role = 'advisor'
-        AND a.advisor_id IS NULL
-      ORDER BY u.created_at, u.email
-      FOR UPDATE OF u
-    `)
-
-    for (const user of missingAdvisorUsers.rows) {
-      const advisorId = await generateAdvisorId(client)
-      await client.query(
-        `
-          INSERT INTO advisors (advisor_id, user_id, full_name, email)
-          VALUES ($1, $2, $3, $4)
-          ON CONFLICT (email) DO UPDATE SET
-            user_id = EXCLUDED.user_id,
-            full_name = EXCLUDED.full_name
-        `,
-        [advisorId, user.user_id, user.full_name, user.email],
-      )
-    }
-
-    await client.query('COMMIT')
-  } catch (error) {
-    await client.query('ROLLBACK')
-    throw error
-  } finally {
-    client.release()
-  }
-}
-
 async function upsertAdvisorWithClient(client, input) {
   await ensureAdvisorSchema()
   const requestedAdvisorId = String(input.advisorId ?? '').trim()
@@ -287,7 +258,12 @@ async function upsertAdvisorWithClient(client, input) {
     'SELECT advisor_id, user_id FROM advisors WHERE LOWER(email) = $1',
     [email],
   )
-  const advisorId = requestedAdvisorId || existingAdvisorByEmail.rows[0]?.advisor_id || (await generateAdvisorId(client))
+  if (!requestedAdvisorId) {
+    const error = new Error('advisorId is required')
+    error.statusCode = 400
+    throw error
+  }
+  const advisorId = requestedAdvisorId
 
   const existingAdvisor = await client.query('SELECT user_id FROM advisors WHERE advisor_id = $1', [
     advisorId,
@@ -646,6 +622,7 @@ export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, educa
       )
       SELECT
         COALESCE((SELECT SUM(count) FROM status_counts), 0)::INT AS total,
+        COALESCE((SELECT COUNT(DISTINCT student_id) FROM eligible), 0)::INT AS "totalStudents",
         COALESCE((SELECT count FROM status_counts WHERE status = 'Completed'), 0)::INT AS completed,
         COALESCE((SELECT count FROM status_counts WHERE status = 'In Progress'), 0)::INT AS "inProgress",
         COALESCE((SELECT count FROM status_counts WHERE status = 'Approved'), 0)::INT AS approved,
@@ -699,7 +676,6 @@ export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, educa
 
   const row = result.rows[0]
   const total = row.total
-  const achieved = row.completed + row.approved
 
   return {
     counts: {
@@ -708,8 +684,9 @@ export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, educa
       approved: row.approved,
       missing: row.missing,
       total,
+      totalStudents: row.totalStudents,
     },
-    overallProgress: total ? Math.round((achieved / total) * 100) : 0,
+    overallProgress: total ? Math.round((row.completed / total) * 100) : 0,
     milestones: row.milestones,
     filters: {
       degreeLevels: row.degreeLevels,

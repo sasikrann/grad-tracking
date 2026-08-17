@@ -49,6 +49,21 @@ export async function getAdvisors() {
   return Array.isArray(result) ? result : []
 }
 
+export async function getAdvisorsPage(input: { page: number; limit?: number; search?: string }) {
+  const query = new URLSearchParams({ page: String(input.page), limit: String(input.limit ?? 10) })
+  if (input.search?.trim()) query.set('search', input.search.trim())
+  const response = await authenticatedFetch(apiUrl(`/api/advisors?${query}`), { cache: 'no-store' })
+  const result = await readJson<{
+    data?: Advisor[]
+    pagination?: { page: number; limit: number; totalRecords: number; totalPages: number }
+    message?: string
+  }>(response)
+  if (!response.ok || !result?.pagination) {
+    throw new Error(result?.message ?? `Unable to load advisors (${response.status})`)
+  }
+  return { advisors: result.data ?? [], pagination: result.pagination }
+}
+
 export async function updateAdvisorStatus(advisorId: string, status: Advisor['status']) {
   return apiRequest<Advisor>(`/api/advisors/${encodeURIComponent(advisorId)}/status`, {
     method: 'PATCH',
