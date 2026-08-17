@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import AdvisorTable from '@/components/admin/AdvisorTable.vue'
 import DashboardActionCard from '@/components/admin/DashboardActionCard.vue'
@@ -10,7 +10,7 @@ import {
   deleteAdvisor,
   downloadAdvisorTemplate,
   exportAdvisors,
-  getAdvisors,
+  getAdvisorsPage,
   importAdvisors,
   updateAdvisorStatus,
 } from '@/services/advisors.api'
@@ -22,6 +22,9 @@ import { useAutoRefresh } from '@/composables/useAutoRefresh'
 const { t } = useLanguage()
 
 const advisors = ref<Advisor[]>([])
+const search = ref('')
+const page = ref(1)
+const pagination = ref({ page: 1, limit: 10, totalRecords: 0, totalPages: 0 })
 const isLoading = ref(false)
 const loadError = ref('')
 const message = ref('')
@@ -36,9 +39,17 @@ const importResolutions = ref<Record<string, string>>({})
 const isImporting = ref(false)
 const isExporting = ref(false)
 let messageTimer: ReturnType<typeof setTimeout> | undefined
+let searchTimer: ReturnType<typeof setTimeout> | undefined
 
 const notificationText = computed(() => errorMessage.value || message.value)
-const exportCountLabel = computed(() => `${advisors.value.length} total advisor`)
+const exportCountLabel = computed(() => `${pagination.value.totalRecords} total advisor`)
+const paginationItems = computed<Array<number | 'ellipsis'>>(() => {
+  const total = pagination.value.totalPages
+  if (total <= 5) return Array.from({ length: total }, (_, index) => index + 1)
+  if (page.value <= 3) return [1, 2, 3, 4, 'ellipsis']
+  if (page.value >= total - 2) return ['ellipsis', total - 3, total - 2, total - 1, total]
+  return ['ellipsis', page.value - 1, page.value, page.value + 1, 'ellipsis']
+})
 const hasResolvedImportConflicts = computed(() =>
   importConflicts.value.every((conflict) => Boolean(importResolutions.value[conflict.key])),
 )
@@ -64,12 +75,33 @@ async function loadAdvisors({ silent = false } = {}) {
   if (!silent) isLoading.value = true
   loadError.value = ''
   try {
-    advisors.value = await getAdvisors()
+    const result = await getAdvisorsPage({ page: page.value, limit: 10, search: search.value })
+    advisors.value = result.advisors
+    pagination.value = result.pagination
+    if (page.value > 1 && result.advisors.length === 0) {
+      page.value = 1
+      await loadAdvisors({ silent })
+      return
+    }
   } catch (error) {
     loadError.value = error instanceof Error ? error.message : 'Unable to load advisors'
   } finally {
     if (!silent) isLoading.value = false
   }
+}
+
+watch(search, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    page.value = 1
+    void loadAdvisors()
+  }, 300)
+})
+
+function changePage(nextPage: number) {
+  if (nextPage < 1 || nextPage > pagination.value.totalPages || nextPage === page.value) return
+  page.value = nextPage
+  void loadAdvisors()
 }
 
 function resetImportConflicts() {
@@ -196,7 +228,7 @@ async function handleStatusChange(advisorId: string, status: Advisor['status']) 
 async function handleDelete(advisorId: string) {
   try {
     await deleteAdvisor(advisorId)
-    advisors.value = advisors.value.filter((advisor) => advisor.advisorId !== advisorId)
+    await loadAdvisors()
   } catch (error) {
     showNotification(error instanceof Error ? error.message : 'Unable to delete advisor.', 'error')
   }
@@ -205,6 +237,7 @@ async function handleDelete(advisorId: string) {
 onMounted(loadAdvisors)
 onBeforeUnmount(() => {
   if (messageTimer) clearTimeout(messageTimer)
+  if (searchTimer) clearTimeout(searchTimer)
 })
 
 useAutoRefresh(() => loadAdvisors({ silent: true }), {
@@ -255,12 +288,24 @@ useAutoRefresh(() => loadAdvisors({ silent: true }), {
     </section>
 
     <AdvisorTable
+      v-model:search="search"
       :advisors="advisors"
       :is-loading="isLoading"
       :error="loadError"
       @status="handleStatusChange"
       @delete="handleDelete"
     />
+
+    <nav v-if="pagination.totalPages > 1" class="mt-5 flex justify-end" aria-label="Advisor pages">
+      <div class="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <button type="button" class="flex size-8 items-center justify-center border-r border-slate-200 text-xs text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300" :disabled="page === 1" aria-label="Previous page" @click="changePage(page - 1)">‹</button>
+        <template v-for="(item, index) in paginationItems" :key="`${item}-${index}`">
+          <span v-if="item === 'ellipsis'" class="flex size-8 items-center justify-center border-r border-slate-200 text-xs text-slate-400">…</span>
+          <button v-else type="button" class="flex size-8 items-center justify-center border-r border-slate-200 text-xs font-medium transition-colors" :class="item === page ? 'bg-[#f7c9cf] text-[#a13a34]' : 'text-slate-700 hover:bg-[#fdf1f3]'" :aria-current="item === page ? 'page' : undefined" :aria-label="`Page ${item}`" @click="changePage(item)">{{ item }}</button>
+        </template>
+        <button type="button" class="flex size-8 items-center justify-center text-xs text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300" :disabled="page === pagination.totalPages" aria-label="Next page" @click="changePage(page + 1)">›</button>
+      </div>
+    </nav>
 
     <ImportFileModal
       v-if="isImportModalOpen && !isDuplicateEmailModalOpen"

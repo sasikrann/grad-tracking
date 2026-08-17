@@ -12,14 +12,30 @@ import {
   findStudentById,
   grantStudentStudyExtension,
   findStudentsForExport,
+  findStudentsPage,
   importStudents,
   insertStudent,
   removeStudent,
   replaceStudent,
 } from '../services/students.service.js'
 
-export async function getStudents(_request, response) {
-  response.json({ data: await findAllStudents() })
+export async function getStudents(request, response) {
+  if (!request.query.page) {
+    response.json({ data: await findAllStudents() })
+    return
+  }
+
+  const result = await findStudentsPage({
+    page: request.query.page,
+    limit: request.query.limit,
+    search: String(request.query.search ?? '').trim(),
+    semester: request.query.semester,
+    year: request.query.year,
+    degree: request.query.degree === 'Ph. D.' ? 'Doctoral' : request.query.degree,
+    plan: request.query.plan,
+    status: request.query.status,
+  })
+  response.json({ data: result.students, pagination: result.pagination, statistics: result.statistics, filterOptions: result.filterOptions })
 }
 
 export async function getStudent(request, response) {
