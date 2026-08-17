@@ -13,6 +13,7 @@ test('copies the latest academic-year templates with blank dates', async () => {
       semester: 'all',
       plans: ['A1', 'A2'],
       prerequisite_milestone_ids: [],
+      evidence_code: 'ETHICS',
       title: 'Ethics',
       description: null,
       reference_urls: [],
@@ -42,6 +43,7 @@ test('copies the latest academic-year templates with blank dates', async () => {
   ])
   assert.deepEqual(inserts.map(({ values }) => values[6]), [['A1'], ['A2']])
   assert.equal(inserts[0].values[3], 2026)
+  assert.equal(inserts[0].values[7], 'ETHICS')
   assert.match(inserts[0].sql, /NULL, NULL, NULL, NULL/)
 })
 
@@ -53,6 +55,7 @@ test('keeps prerequisites inside each separate plan', async () => {
       default_template_key: 'master-thesis-first',
       degree_level: 'Master', semester: 'all', plans: ['A1', 'A2'],
       prerequisite_milestone_ids: [], title: 'First', description: null,
+      evidence_code: 'FIRST',
       reference_urls: [], sequence_order: 1, is_enabled: true,
     },
     {
@@ -60,6 +63,7 @@ test('keeps prerequisites inside each separate plan', async () => {
       default_template_key: 'master-thesis-second',
       degree_level: 'Master', semester: 'all', plans: ['A1', 'A2'],
       prerequisite_milestone_ids: ['source-1'], title: 'Second', description: null,
+      evidence_code: 'SECOND',
       reference_urls: [], sequence_order: 2, is_enabled: true,
     },
   ]
@@ -78,7 +82,7 @@ test('keeps prerequisites inside each separate plan', async () => {
   const inserts = calls.filter(({ sql }) => sql.includes('INSERT INTO milestone_templates'))
   const updates = calls.filter(({ sql }) => sql.includes('UPDATE milestone_templates'))
   const firstIdByPlan = new Map(inserts
-    .filter(({ values }) => values[7] === 'First')
+    .filter(({ values }) => values[8] === 'First')
     .map(({ values }) => [values[6][0], values[0]]))
   for (const update of updates.filter(({ values }) => values[1].length)) {
     const secondInsert = inserts.find(({ values }) => values[0] === update.values[0])

@@ -1,4 +1,5 @@
-import { apiRequest, resolveApiUrl } from '@/services/api-client'
+import { apiRequest, apiUrl, readJson } from '@/services/api-client'
+import { authenticatedFetch } from '@/services/auth'
 import type { StudentMilestone } from '@/types/milestone'
 
 const request = <T>(path: string, options?: RequestInit) =>
@@ -27,6 +28,14 @@ export function removeMyMilestoneEvidence(milestoneId: string) {
   })
 }
 
-export function resolveEvidenceUrl(evidenceUrl: string) {
-  return resolveApiUrl(evidenceUrl)
+export async function createEvidencePreviewUrl(evidenceUrl: string) {
+  const response = await authenticatedFetch(
+    apiUrl(`/api/evidence?path=${encodeURIComponent(evidenceUrl)}`),
+    { cache: 'no-store' },
+  )
+  if (!response.ok) {
+    const result = await readJson<{ message?: string }>(response)
+    throw new Error(result?.message ?? `Unable to open evidence (${response.status})`)
+  }
+  return URL.createObjectURL(await response.blob())
 }

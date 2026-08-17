@@ -18,7 +18,7 @@ const studentRows = computed(() => [
     value: formatAcademicYear(props.profile.enrollmentAcademicYear),
     icon: 'calendar',
   },
-  { label: 'Semester', value: props.profile.semester, icon: 'calendar' },
+  { label: 'Enrollment Semester', value: props.profile.semester, icon: 'calendar' },
   {
     label: 'Expected Graduation Year',
     value:

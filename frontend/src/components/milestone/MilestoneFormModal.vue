@@ -37,6 +37,7 @@ const form = reactive<MilestoneInput>({
   firstReminderDate: '',
   secondReminderDate: '',
   prerequisiteMilestoneIds: [],
+  evidenceCode: '',
   isEnabled: true,
 })
 
@@ -136,6 +137,7 @@ watch(
     form.firstReminderDate = milestone?.firstReminderDate?.slice(0, 10) ?? ''
     form.secondReminderDate = milestone?.secondReminderDate?.slice(0, 10) ?? ''
     form.prerequisiteMilestoneIds = [...(milestone?.prerequisiteMilestoneIds ?? [])]
+    form.evidenceCode = milestone?.evidenceCode ?? ''
     form.isEnabled = milestone?.isEnabled ?? true
   },
   { immediate: true },
@@ -211,6 +213,20 @@ onBeforeUnmount(() => {
             :placeholder="t('milestone.descriptionPlaceholder')"
             class="mt-1 w-full rounded-md border border-[#c9827c] px-3 py-2 text-xs outline-none focus:border-[#7D2923]"
           ></textarea>
+        </label>
+
+        <label class="block text-xs font-semibold">
+          {{ t('milestone.evidenceCodeOptional') }}
+          <input
+            v-model="form.evidenceCode"
+            maxlength="24"
+            :placeholder="t('milestone.evidenceCodePlaceholder')"
+            class="mt-1 h-10 w-full rounded-md border border-[#c9827c] px-3 text-xs uppercase outline-none focus:border-[#7D2923]"
+            @input="form.evidenceCode = form.evidenceCode.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 24)"
+          />
+          <span class="mt-1 block font-normal text-slate-500">
+            {{ t('milestone.evidenceCodeHelp') }}
+          </span>
         </label>
 
         <div>

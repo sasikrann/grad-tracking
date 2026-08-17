@@ -113,6 +113,11 @@ export const th = {
     fillDetails: 'กรอกรายละเอียดของขั้นตอนการศึกษา',
     titlePlaceholder: 'เช่น การนำเสนอหัวข้อวิจัย',
     descriptionPlaceholder: 'อธิบายรายละเอียดของขั้นตอนการศึกษา...',
+    evidenceCodeOptional: 'รหัสไฟล์หลักฐาน (ไม่บังคับ)',
+    evidenceCodePlaceholder: 'เช่น ETHICS',
+    evidenceCodeHelp: 'ใช้ตั้งชื่อไฟล์หลักฐาน หากเว้นว่างระบบจะสร้างให้อัตโนมัติ',
+    viewAttachment: 'ดูไฟล์แนบ',
+    openingAttachment: 'กำลังเปิดไฟล์แนบ...',
     referencePlaceholder:
       'เช่น DGC24 – แบบยื่นผลการทดสอบภาษาอังกฤษ หรือ https://postgrads.mfu.ac.th',
     removeReference: 'นำเอกสารอ้างอิงออก',

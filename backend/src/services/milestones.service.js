@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 
 import pool from '../config/database.js'
 import { defaultMilestoneTemplates } from '../data/default-milestone-templates.js'
+import { createEvidenceCode } from './evidence-code.js'
 import { defaultMilestoneTemplateVersion } from './milestone.constants.js'
 import { createMilestoneReminderNotification } from './notifications.service.js'
 
@@ -14,6 +15,7 @@ const milestoneColumns = `
   semester,
   plans,
   prerequisite_milestone_ids AS "prerequisiteMilestoneIds",
+  evidence_code AS "evidenceCode",
   title,
   description,
   reference_urls AS references,
@@ -80,18 +82,19 @@ async function seedDefaultMilestoneTemplates() {
             `
               INSERT INTO milestone_templates (
                 milestone_id, default_template_key, degree_level, semester, plans,
-                prerequisite_milestone_ids, title, description, reference_urls,
+                prerequisite_milestone_ids, evidence_code, title, description, reference_urls,
                 sequence_order, open_date, deadline, first_reminder_date,
                 second_reminder_date, is_enabled, default_template_version
               )
-              VALUES ($1, $2, $3, 'all', $4, ARRAY[]::VARCHAR[], $5, $6,
-                $7, $8, NULL, NULL, NULL, NULL, TRUE, $9)
+              VALUES ($1, $2, $3, 'all', $4, ARRAY[]::VARCHAR[], $5, $6, $7,
+                $8, $9, NULL, NULL, NULL, NULL, TRUE, $10)
             `,
             [
               milestoneId,
               template.key,
               template.degreeLevel,
               template.plans,
+              template.evidenceCode,
               template.title,
               template.description,
               template.references,
@@ -123,7 +126,8 @@ async function seedDefaultMilestoneTemplates() {
               reference_urls = $6,
               sequence_order = $7,
               prerequisite_milestone_ids = $8,
-              default_template_version = $9,
+              evidence_code = $9,
+              default_template_version = $10,
               updated_at = NOW()
           WHERE milestone_id = $1
         `,
@@ -136,6 +140,7 @@ async function seedDefaultMilestoneTemplates() {
           template.references,
           template.sequenceOrder,
           prerequisiteIds,
+          template.evidenceCode,
           defaultMilestoneTemplateVersion,
         ],
       )
@@ -206,12 +211,12 @@ async function splitSharedAcademicYearTemplates() {
             `
               INSERT INTO milestone_templates (
                 milestone_id, default_template_key, default_template_version, academic_year,
-                degree_level, semester, plans, prerequisite_milestone_ids, title, description,
+                degree_level, semester, plans, prerequisite_milestone_ids, evidence_code, title, description,
                 reference_urls, sequence_order, open_date, deadline, first_reminder_date,
                 second_reminder_date, is_enabled, created_at, updated_at
               ) VALUES (
                 $1, $2, $3, $4, $5, $6, ARRAY[$7]::VARCHAR[], ARRAY[]::VARCHAR[],
-                $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW()
+                $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW()
               )
             `,
             [
@@ -222,6 +227,7 @@ async function splitSharedAcademicYearTemplates() {
               template.degree_level,
               template.semester,
               plan,
+              template.evidence_code,
               template.title,
               template.description,
               template.reference_urls,
@@ -331,6 +337,31 @@ async function splitSharedAcademicYearTemplates() {
   }
 }
 
+async function backfillMilestoneEvidenceCodes() {
+  const result = await pool.query(`
+    SELECT milestone_id, default_template_key, title, sequence_order
+    FROM milestone_templates
+    WHERE evidence_code IS NULL OR BTRIM(evidence_code) = ''
+  `)
+
+  for (const milestone of result.rows) {
+    const evidenceCode = createEvidenceCode({
+      title: milestone.title,
+      templateKey: milestone.default_template_key,
+      sequenceOrder: milestone.sequence_order,
+    })
+    await pool.query(
+      'UPDATE milestone_templates SET evidence_code = $2 WHERE milestone_id = $1',
+      [milestone.milestone_id, evidenceCode],
+    )
+  }
+
+  await pool.query(`
+    ALTER TABLE milestone_templates
+    ALTER COLUMN evidence_code SET NOT NULL
+  `)
+}
+
 export async function ensureMilestoneSchema() {
   schemaReady ??= pool.query(`
     ALTER TABLE milestone_templates
@@ -351,6 +382,10 @@ export async function ensureMilestoneSchema() {
     .then(() => pool.query(`
       ALTER TABLE milestone_templates
       ADD COLUMN IF NOT EXISTS reference_urls TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[]
+    `))
+    .then(() => pool.query(`
+      ALTER TABLE milestone_templates
+      ADD COLUMN IF NOT EXISTS evidence_code VARCHAR(24)
     `))
     .then(() => pool.query(`
       ALTER TABLE milestone_templates
@@ -385,6 +420,7 @@ export async function ensureMilestoneSchema() {
       if (!['42710', '42P07'].includes(error.code)) throw error
     }))
     .then(() => seedDefaultMilestoneTemplates())
+    .then(() => backfillMilestoneEvidenceCodes())
     .then(() => splitSharedAcademicYearTemplates())
     .then(() => pool.query(`
       UPDATE milestone_templates
@@ -752,6 +788,25 @@ export async function submitStudentMilestoneEvidence(userId, milestoneId, eviden
   return result.rowCount > 0
 }
 
+export async function findStudentMilestoneEvidenceFileDetails(userId, milestoneId) {
+  await ensureMilestoneSchema()
+  const result = await pool.query(
+    `
+      SELECT s.student_id AS "studentId", mt.evidence_code AS "evidenceCode"
+      FROM students s
+      JOIN milestone_templates mt
+        ON mt.milestone_id = $2
+        AND mt.academic_year = s.enrollment_academic_year
+        AND (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
+        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR s.education_plan IS NULL OR s.education_plan = ANY(mt.plans))
+      WHERE s.user_id = $1
+      LIMIT 1
+    `,
+    [userId, milestoneId],
+  )
+  return result.rows[0] || null
+}
+
 export async function hasReachedRejectedRevisionLimit(userId, milestoneId) {
   await ensureMilestoneSchema()
 
@@ -904,6 +959,34 @@ export async function nextSequenceOrder(degreeLevel, semester = '1', plans = nul
   return result.rows[0].nextOrder
 }
 
+async function assertEvidenceCodeAvailable(
+  database,
+  { evidenceCode, academicYear, degreeLevel, plans, excludeMilestoneId = null },
+) {
+  const result = await database.query(
+    `
+      SELECT 1
+      FROM milestone_templates
+      WHERE evidence_code = $1
+        AND academic_year IS NOT DISTINCT FROM $2
+        AND (degree_level = $3 OR degree_level = 'All' OR $3 = 'All')
+        AND (
+          plans @> ARRAY['All']::VARCHAR[]
+          OR $4::VARCHAR[] @> ARRAY['All']::VARCHAR[]
+          OR plans && $4::VARCHAR[]
+        )
+        AND ($5::UUID IS NULL OR milestone_id <> $5)
+      LIMIT 1
+    `,
+    [evidenceCode, academicYear, degreeLevel, plans, excludeMilestoneId],
+  )
+  if (result.rowCount) {
+    const error = new Error('Evidence Code is already used by another milestone in this plan')
+    error.statusCode = 409
+    throw error
+  }
+}
+
 export async function createMilestone(input) {
   await ensureMilestoneSchema()
 
@@ -911,15 +994,26 @@ export async function createMilestone(input) {
   const sequenceOrder =
     input.sequenceOrder ||
     (await nextSequenceOrder(input.degreeLevel, input.semester, input.plans, input.academicYear))
+  const evidenceCode = createEvidenceCode({
+    value: input.evidenceCode,
+    title: input.title,
+    sequenceOrder,
+  })
+  await assertEvidenceCodeAvailable(pool, {
+    evidenceCode,
+    academicYear: input.academicYear,
+    degreeLevel: input.degreeLevel,
+    plans: input.plans,
+  })
 
   await pool.query(
     `
       INSERT INTO milestone_templates (
         milestone_id, default_template_key, academic_year, degree_level, semester, plans, prerequisite_milestone_ids,
-        title, description, reference_urls, sequence_order, open_date, deadline,
+        evidence_code, title, description, reference_urls, sequence_order, open_date, deadline,
         first_reminder_date, second_reminder_date, is_enabled
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
     `,
     [
       milestoneId,
@@ -929,6 +1023,7 @@ export async function createMilestone(input) {
       input.semester,
       input.plans,
       input.prerequisiteMilestoneIds,
+      evidenceCode,
       input.title,
       input.description,
       input.references,
@@ -994,6 +1089,18 @@ export async function createDueMilestoneReminderNotifications(date = null) {
 
 export async function updateMilestone(milestoneId, input) {
   await ensureMilestoneSchema()
+  const evidenceCode = createEvidenceCode({
+    value: input.evidenceCode,
+    title: input.title,
+    sequenceOrder: input.sequenceOrder,
+  })
+  await assertEvidenceCodeAvailable(pool, {
+    evidenceCode,
+    academicYear: input.academicYear,
+    degreeLevel: input.degreeLevel,
+    plans: input.plans,
+    excludeMilestoneId: milestoneId,
+  })
 
   const result = await pool.query(
     `
@@ -1004,15 +1111,16 @@ export async function updateMilestone(milestoneId, input) {
         semester = $4,
         plans = $5,
         prerequisite_milestone_ids = $6,
-        title = $7,
-        description = $8,
-        reference_urls = $9,
-        sequence_order = $10,
-        open_date = $11,
-        deadline = $12,
-        first_reminder_date = $13,
-        second_reminder_date = $14,
-        is_enabled = $15,
+        evidence_code = $7,
+        title = $8,
+        description = $9,
+        reference_urls = $10,
+        sequence_order = $11,
+        open_date = $12,
+        deadline = $13,
+        first_reminder_date = $14,
+        second_reminder_date = $15,
+        is_enabled = $16,
         updated_at = NOW()
       WHERE milestone_id = $1
     `,
@@ -1023,6 +1131,7 @@ export async function updateMilestone(milestoneId, input) {
       input.semester,
       input.plans,
       input.prerequisiteMilestoneIds,
+      evidenceCode,
       input.title,
       input.description,
       input.references,
@@ -1084,12 +1193,12 @@ export async function updateMilestoneForPlan(milestoneId, scopePlan, input) {
           `
             INSERT INTO milestone_templates (
               milestone_id, default_template_key, default_template_version, academic_year,
-              degree_level, semester, plans, prerequisite_milestone_ids, title, description,
+              degree_level, semester, plans, prerequisite_milestone_ids, evidence_code, title, description,
               reference_urls, sequence_order, open_date, deadline, first_reminder_date,
               second_reminder_date, is_enabled, created_at, updated_at
             ) VALUES (
               $1, $2, $3, $4, $5, $6, ARRAY[$7]::VARCHAR[], $8, $9, $10,
-              $11, $12, $13, $14, $15, $16, $17, NOW(), NOW()
+              $11, $12, $13, $14, $15, $16, $17, $18, NOW(), NOW()
             )
           `,
           [
@@ -1101,6 +1210,7 @@ export async function updateMilestoneForPlan(milestoneId, scopePlan, input) {
             template.semester,
             scopePlan,
             clonedPrerequisites,
+            template.evidence_code,
             template.title,
             template.description,
             template.reference_urls,
@@ -1149,20 +1259,35 @@ export async function updateMilestoneForPlan(milestoneId, scopePlan, input) {
       )
     }
 
+    const evidenceCode = createEvidenceCode({
+      value: input.evidenceCode,
+      title: input.title,
+      sequenceOrder: input.sequenceOrder,
+    })
+    await assertEvidenceCodeAvailable(client, {
+      evidenceCode,
+      academicYear: input.academicYear,
+      degreeLevel: input.degreeLevel,
+      plans: [scopePlan],
+      excludeMilestoneId: targetMilestoneId,
+    })
+
     const updated = await client.query(
       `
         UPDATE milestone_templates
         SET academic_year = $2, degree_level = $3, semester = $4,
             plans = ARRAY[$5]::VARCHAR[], prerequisite_milestone_ids = $6,
-            title = $7, description = $8, reference_urls = $9,
-            sequence_order = $10, open_date = $11, deadline = $12,
-            first_reminder_date = $13, second_reminder_date = $14,
-            is_enabled = $15, updated_at = NOW()
+            evidence_code = $7, title = $8, description = $9, reference_urls = $10,
+            sequence_order = $11, open_date = $12, deadline = $13,
+            first_reminder_date = $14, second_reminder_date = $15,
+            is_enabled = $16, updated_at = NOW()
         WHERE milestone_id = $1
       `,
       [
         targetMilestoneId, input.academicYear, input.degreeLevel, input.semester, scopePlan,
-        targetPrerequisiteIds, input.title, input.description, input.references,
+        targetPrerequisiteIds,
+        evidenceCode,
+        input.title, input.description, input.references,
         input.sequenceOrder, input.openDate, input.deadline, input.firstReminderDate,
         input.secondReminderDate, input.isEnabled,
       ],
@@ -1356,7 +1481,7 @@ export async function copyMilestones({
 
     const source = await client.query(
       `
-        SELECT milestone_id, title, description, reference_urls, sequence_order, open_date, deadline,
+        SELECT milestone_id, evidence_code, title, description, reference_urls, sequence_order, open_date, deadline,
           first_reminder_date, second_reminder_date, is_enabled, prerequisite_milestone_ids
         FROM milestone_templates
         WHERE degree_level = $1
@@ -1405,6 +1530,7 @@ export async function copyMilestones({
         prerequisiteMilestoneIds: row.prerequisite_milestone_ids
           .map((prerequisiteId) => copiedIdBySourceId.get(prerequisiteId))
           .filter(Boolean),
+        evidenceCode: row.evidence_code,
         title: row.title,
         description: row.description,
         references: row.reference_urls,
@@ -1420,10 +1546,10 @@ export async function copyMilestones({
         `
           INSERT INTO milestone_templates (
             milestone_id, default_template_key, degree_level, semester, plans, prerequisite_milestone_ids,
-            title, description, reference_urls, sequence_order, open_date, deadline,
+            evidence_code, title, description, reference_urls, sequence_order, open_date, deadline,
             first_reminder_date, second_reminder_date, is_enabled
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         `,
         [
           copiedMilestone.milestoneId,
@@ -1432,6 +1558,7 @@ export async function copyMilestones({
           copiedMilestone.semester,
           copiedMilestone.plans,
           copiedMilestone.prerequisiteMilestoneIds,
+          copiedMilestone.evidenceCode,
           copiedMilestone.title,
           copiedMilestone.description,
           copiedMilestone.references,

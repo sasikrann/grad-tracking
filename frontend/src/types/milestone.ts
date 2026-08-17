@@ -17,6 +17,7 @@ export interface Milestone {
   firstReminderDate: string | null
   secondReminderDate: string | null
   prerequisiteMilestoneIds: string[]
+  evidenceCode: string
   isEnabled: boolean
   isStandard?: boolean
 }
@@ -35,6 +36,7 @@ export interface MilestoneInput {
   firstReminderDate: string
   secondReminderDate: string
   prerequisiteMilestoneIds: string[]
+  evidenceCode: string
   isEnabled: boolean
 }
 

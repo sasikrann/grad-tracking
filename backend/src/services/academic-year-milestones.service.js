@@ -24,7 +24,7 @@ export async function ensureAcademicYearMilestoneTemplates(client, academicYear)
   const source = await client.query(
     `
       SELECT milestone_id, default_template_key, degree_level, semester, plans,
-        prerequisite_milestone_ids, title, description, reference_urls, sequence_order, is_enabled
+        prerequisite_milestone_ids, evidence_code, title, description, reference_urls, sequence_order, is_enabled
       FROM milestone_templates
       WHERE academic_year ${sourceYear ? '= $1' : 'IS NULL'}
         ${sourceYear ? '' : `AND default_template_version = ${defaultMilestoneTemplateVersion}`}
@@ -60,12 +60,12 @@ export async function ensureAcademicYearMilestoneTemplates(client, academicYear)
       `
         INSERT INTO milestone_templates (
           milestone_id, default_template_key, default_template_version, academic_year,
-          degree_level, semester, plans, prerequisite_milestone_ids, title, description,
+          degree_level, semester, plans, prerequisite_milestone_ids, evidence_code, title, description,
           reference_urls, sequence_order, open_date, deadline, first_reminder_date,
           second_reminder_date, is_enabled
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, ARRAY[]::VARCHAR[], $8, $9, $10, $11,
-          NULL, NULL, NULL, NULL, $12)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, ARRAY[]::VARCHAR[], $8, $9, $10, $11, $12,
+          NULL, NULL, NULL, NULL, $13)
       `,
       [
         milestoneId,
@@ -75,6 +75,7 @@ export async function ensureAcademicYearMilestoneTemplates(client, academicYear)
         template.degree_level,
         template.semester,
         [plan],
+        template.evidence_code,
         template.title,
         template.description,
         template.reference_urls,

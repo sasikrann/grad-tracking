@@ -118,6 +118,11 @@ export const en = {
     fillDetails: 'Fill in detail for the new milestone.',
     titlePlaceholder: 'e.g., Research Proposal',
     descriptionPlaceholder: 'Describe this milestone...',
+    evidenceCodeOptional: 'Evidence Code (Optional)',
+    evidenceCodePlaceholder: 'e.g., ETHICS',
+    evidenceCodeHelp: 'Used to name uploaded evidence. Leave blank to generate it automatically.',
+    viewAttachment: 'View attachment',
+    openingAttachment: 'Opening attachment...',
     referencePlaceholder:
       'e.g., DGC24 – English proficiency test form or https://postgrads.mfu.ac.th',
     removeReference: 'Remove reference',

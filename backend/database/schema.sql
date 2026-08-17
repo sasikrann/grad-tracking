@@ -90,6 +90,7 @@ CREATE TABLE milestone_templates (
   semester VARCHAR NOT NULL DEFAULT '1' CHECK (semester IN ('all', '1', '2')),
   plans VARCHAR[] NOT NULL DEFAULT ARRAY['All']::VARCHAR[],
   prerequisite_milestone_ids VARCHAR[] NOT NULL DEFAULT ARRAY[]::VARCHAR[],
+  evidence_code VARCHAR(24) NOT NULL,
   title VARCHAR NOT NULL,
   description TEXT,
   reference_urls TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],

@@ -3,6 +3,8 @@ import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import multer from 'multer'
 
+import { findStudentMilestoneEvidenceFileDetails } from '../services/milestones.service.js'
+
 import {
   appointMyAdvisors,
   getMyStudentProfile,
@@ -16,25 +18,52 @@ import {
 const router = Router()
 const evidenceDirectory = path.resolve('uploads/evidence')
 const milestoneEvidenceMaxFileSize = 2 * 1024 * 1024
+const evidenceExtensionByMimeType = {
+  'image/png': '.png',
+  'image/jpeg': '.jpg',
+  'application/pdf': '.pdf',
+}
+
+function currentBangkokDate() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+  const value = Object.fromEntries(parts.map(({ type, value: partValue }) => [type, partValue]))
+  return `${value.year}${value.month}${value.day}`
+}
+
 const upload = multer({
   storage: multer.diskStorage({
     destination: (_request, _file, callback) => {
       mkdirSync(evidenceDirectory, { recursive: true })
       callback(null, evidenceDirectory)
     },
-    filename: (_request, file, callback) => {
-      const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')
-      callback(null, `${Date.now()}-${safeName}`)
+    filename: (request, file, callback) => {
+      findStudentMilestoneEvidenceFileDetails(request.user.userId, request.params.milestoneId)
+        .then((details) => {
+          if (!details) {
+            const error = new Error('Milestone not found')
+            error.statusCode = 404
+            callback(error)
+            return
+          }
+          const extension = evidenceExtensionByMimeType[file.mimetype]
+          callback(null, `${details.evidenceCode}-${details.studentId}-${currentBangkokDate()}${extension}`)
+        })
+        .catch(callback)
     },
   }),
   limits: { fileSize: milestoneEvidenceMaxFileSize },
   fileFilter: (_request, file, callback) => {
-    if (/^image\/(png|jpeg)$/.test(file.mimetype)) {
+    if (/^image\/(png|jpeg)$/.test(file.mimetype) || file.mimetype === 'application/pdf') {
       callback(null, true)
       return
     }
 
-    const error = new Error('Evidence must be a PNG or JPG file')
+    const error = new Error('Unsupported evidence file type')
     error.statusCode = 400
     callback(error)
   },

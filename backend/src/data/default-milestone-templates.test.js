@@ -50,6 +50,13 @@ test('uses bilingual titles and excludes Doctoral Plan 1.1', () => {
   }
 })
 
+test('defines a short evidence code for every default milestone', () => {
+  for (const template of defaultMilestoneTemplates) {
+    assert.match(template.evidenceCode, /^[A-Z0-9]+(?:-[A-Z0-9]+)*$/)
+    assert.ok(template.evidenceCode.length <= 24)
+  }
+})
+
 test('uses bilingual descriptions when a description is provided', () => {
   for (const template of defaultMilestoneTemplates) {
     if (template.description !== null) {
