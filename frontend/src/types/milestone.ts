@@ -88,7 +88,6 @@ export interface AdvisorMilestoneSummary {
     approved: number
     missing: number
     total: number
-    totalStudents: number
   }
   overallProgress: number
   milestones: AdvisorMilestoneBreakdown[]
