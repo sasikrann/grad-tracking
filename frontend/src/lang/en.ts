@@ -131,6 +131,7 @@ export const en = {
     referencesOptional: 'References (Optional)',
     addReference: '+ Add Reference',
     prerequisiteOptional: 'Prerequisite Milestone (Optional)',
+    selectAll: 'Select all',
     clearAll: 'Clear all',
     noPrerequisites: 'No earlier milestones are available.',
     prerequisiteHelp:

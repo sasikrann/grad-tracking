@@ -126,6 +126,7 @@ export const th = {
     referencesOptional: 'เอกสารอ้างอิง (ไม่บังคับ)',
     addReference: '+ เพิ่มเอกสารอ้างอิง',
     prerequisiteOptional: 'เงื่อนไขขั้นตอนที่ต้องผ่านก่อน (ไม่บังคับ)',
+    selectAll: 'เลือกทั้งหมด',
     clearAll: 'ล้างทั้งหมด',
     noPrerequisites: 'ไม่มีขั้นตอนก่อนหน้าที่เลือกได้',
     prerequisiteHelp: 'เลือกขั้นตอนที่ต้องทำให้เสร็จก่อน หรือยกเลิกการเลือกเพื่อลบเงื่อนไข',
