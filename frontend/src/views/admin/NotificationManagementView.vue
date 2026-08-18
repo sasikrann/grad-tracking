@@ -66,7 +66,7 @@ function showToast(text: string, type: 'success' | 'error' = 'success') {
 function audienceLabel(value: NotificationTargetAudience) {
   if (value === 'Doctoral Students') return 'Ph.D.'
   if (value === 'Master Students') return 'Master'
-  return 'All Programs'
+  return t('notification.allProgram')
 }
 
 function formatDateTime(value: string | null) {
@@ -106,6 +106,8 @@ function attachmentHref(value: string) {
 
 function plainNotificationMessage(value: string) {
   return value
+    .replace(/&(?:nbsp|#160|#x0*a0);/gi, ' ')
+    .replace(/\u00a0/g, ' ')
     .replace(/<br\s*\/?>/gi, ' ')
     .replace(/<li[^>]*>/gi, ' ')
     .replace(/<\/(p|div)>/gi, ' ')
@@ -127,7 +129,9 @@ function escapeHtml(value: string) {
 }
 
 function formattedNotificationMessage(value: string) {
-  return escapeHtml(value)
+  return escapeHtml(
+    value.replace(/&(?:nbsp|#160|#x0*a0);/gi, ' ').replace(/\u00a0/g, ' '),
+  )
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/&lt;(strong|b)&gt;(.*?)&lt;\/\1&gt;/g, '<strong>$2</strong>')
@@ -186,6 +190,8 @@ function notificationDescription(value: string) {
 
 function sanitizeEditorHtml(html: string) {
   return html
+    .replace(/&(?:nbsp|#160|#x0*a0);/gi, ' ')
+    .replace(/\u00a0/g, ' ')
     .replace(/<(\/?)b(\s[^>]*)?>/gi, '<$1strong>')
     .replace(/<(\/?)i(\s[^>]*)?>/gi, '<$1em>')
     .replace(/<(\/?)(strike|s)(\s[^>]*)?>/gi, '<$1s>')
@@ -296,6 +302,12 @@ function resetForm() {
 
 function chooseAttachment() {
   attachmentInput.value?.click()
+}
+
+function removeAttachment() {
+  attachmentFile.value = null
+  formError.value = ''
+  if (attachmentInput.value) attachmentInput.value.value = ''
 }
 
 function updateAttachment(event: Event) {
@@ -711,17 +723,29 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
                 class="hidden"
                 @change="updateAttachment"
               />
-              <button
-                type="button"
-                class="mt-3 rounded-md bg-[#F4EAEA] px-4 py-2 text-sm font-semibold text-[#8b2a23]"
-                @click="chooseAttachment"
-              >
-                {{ t('notification.uploadFile') }}
-              </button>
-              <p class="mt-3 text-xs text-slate-500">{{ t('notification.maxFileSize') }}</p>
-              <p v-if="attachmentFile" class="mt-2 break-words text-xs text-slate-700">
-                {{ attachmentFile.name }}
-              </p>
+              <div class="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  class="rounded-md bg-[#F4EAEA] px-4 py-2 text-sm font-semibold text-[#8b2a23]"
+                  @click="chooseAttachment"
+                >
+                  {{ t('notification.uploadFile') }}
+                </button>
+                <p class="text-xs text-slate-500">{{ t('notification.maxFileSize') }}</p>
+              </div>
+              <div v-if="attachmentFile" class="mt-2 flex min-w-0 items-center gap-2">
+                <p class="min-w-0 break-all text-xs text-slate-700">
+                  {{ attachmentFile.name }}
+                </p>
+                <button
+                  type="button"
+                  class="flex size-5 shrink-0 items-center justify-center rounded-full border border-slate-300 text-xs font-semibold leading-none text-slate-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                  :aria-label="t('notification.removeAttachment')"
+                  @click="removeAttachment"
+                >
+                  &times;
+                </button>
+              </div>
 
               <label class="mt-4 flex w-fit items-center gap-3 text-sm text-slate-900">
                 <input v-model="sendEmail" type="checkbox" class="size-4 accent-[#8b2a23]" />
@@ -815,20 +839,39 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
             <h2 id="notification-detail-title" class="break-words text-base font-semibold leading-tight text-slate-950">
               {{ selectedNotification.title }}
             </h2>
-            <p class="mt-0.5 inline-flex max-w-full items-center gap-1.5 text-xs text-slate-500">
-              <svg
-                class="size-3.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                aria-hidden="true"
+            <div class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <p class="inline-flex max-w-full items-center gap-1.5 text-xs text-slate-500">
+                <svg
+                  class="size-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  aria-hidden="true"
+                >
+                  <path d="M8 2v4M16 2v4M3 10h18" />
+                  <rect x="3" y="4" width="18" height="18" rx="3" />
+                </svg>
+                {{ formatDateTime(selectedNotification.sentAt ?? selectedNotification.createdAt) }}
+              </p>
+              <p
+                v-if="selectedNotification.sendEmail"
+                class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700"
               >
-                <path d="M8 2v4M16 2v4M3 10h18" />
-                <rect x="3" y="4" width="18" height="18" rx="3" />
-              </svg>
-              {{ formatDateTime(selectedNotification.sentAt ?? selectedNotification.createdAt) }}
-            </p>
+                <svg
+                  class="size-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="5" width="18" height="14" rx="2" />
+                  <path d="m3 7 9 6 9-6" />
+                </svg>
+                {{ t('notification.sentViaEmail') }}
+              </p>
+            </div>
           </div>
         </div>
 
