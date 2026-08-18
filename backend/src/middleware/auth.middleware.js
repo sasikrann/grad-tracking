@@ -5,6 +5,24 @@ import { ApiError } from '../errors/api-error.js'
 
 const tokenIssuer = 'grad-tracking'
 const tokenAudience = 'grad-tracking-web'
+export const authCookieName = 'access_token'
+export const accessTokenMaxAgeMs = 8 * 60 * 60 * 1000
+
+export function getAuthCookieOptions() {
+  const isProduction = process.env.NODE_ENV === 'production'
+  const configuredSameSite = process.env.AUTH_COOKIE_SAME_SITE?.toLowerCase()
+  const sameSite = ['lax', 'strict', 'none'].includes(configuredSameSite)
+    ? configuredSameSite
+    : 'lax'
+
+  return {
+    httpOnly: true,
+    secure: isProduction || sameSite === 'none',
+    sameSite,
+    path: '/',
+    maxAge: accessTokenMaxAgeMs,
+  }
+}
 
 // ดึง JWT_SECRET จาก .env ถ้าไม่มีจะ error เพราะระบบ auth ยังไม่ได้ตั้งค่า
 function getJwtSecret() {
@@ -35,16 +53,21 @@ export function createAccessToken(user) {
 }
 
 export function requireAuth(request, _response, next) {
-  const authorization = request.get('authorization') ?? ''
-  const [scheme, token] = authorization.split(' ')
+  const cookieHeader = request.get('cookie') ?? ''
+  const token = cookieHeader
+    .split(';')
+    .map((cookie) => cookie.trim().split('='))
+    .find(([name]) => name === authCookieName)
+    ?.slice(1)
+    .join('=')
 
-  if (scheme !== 'Bearer' || !token) {
+  if (!token) {
     throw new ApiError(401, 'Authentication is required')
   }
   
 // ตรวจสอบ token ว่าถูกต้อง หมดอายุ หรือถูกแก้ไขไหม
   try {
-    const payload = jwt.verify(token, getJwtSecret(), {
+    const payload = jwt.verify(decodeURIComponent(token), getJwtSecret(), {
       issuer: tokenIssuer,
       audience: tokenAudience,
     })

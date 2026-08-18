@@ -116,6 +116,8 @@ function attachmentHref(value: string) {
 
 function plainNotificationMessage(value: string) {
   return value
+    .replace(/&(?:nbsp|#160|#x0*a0);/gi, ' ')
+    .replace(/\u00a0/g, ' ')
     .replace(/<br\s*\/?>/gi, ' ')
     .replace(/<li[^>]*>/gi, ' ')
     .replace(/<\/(p|div)>/gi, ' ')
@@ -136,7 +138,9 @@ function escapeHtml(value: string) {
 }
 
 function formattedNotificationMessage(value: string) {
-  return escapeHtml(value)
+  return escapeHtml(
+    value.replace(/&(?:nbsp|#160|#x0*a0);/gi, ' ').replace(/\u00a0/g, ' '),
+  )
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/&lt;(strong|b)&gt;(.*?)&lt;\/\1&gt;/g, '<strong>$2</strong>')

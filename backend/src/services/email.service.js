@@ -19,6 +19,28 @@ function normalizeAddress(value) {
   return String(value ?? '').replace(/[<>\r\n]/g, '').trim()
 }
 
+function envelopeAddress(value) {
+  const address = String(value ?? '').match(/<([^<>]+)>/)?.[1] ?? value
+  return normalizeAddress(address)
+}
+
+export function resolveNotificationEmailRecipients(recipients, environment = process.env) {
+  const normalizedRecipients = [...new Set(recipients.map(normalizeAddress).filter(Boolean))]
+  if (!normalizedRecipients.length) {
+    throw new Error('No student email addresses were found for the selected audience')
+  }
+
+  if (String(environment.EMAIL_TEST_MODE ?? '').toLowerCase() !== 'true') {
+    return normalizedRecipients
+  }
+
+  const testRecipient = normalizeAddress(environment.EMAIL_TEST_RECIPIENT)
+  if (!testRecipient) {
+    throw new Error('EMAIL_TEST_RECIPIENT is required when EMAIL_TEST_MODE is enabled')
+  }
+  return [testRecipient]
+}
+
 function base64(value) {
   return Buffer.from(String(value), 'utf8').toString('base64')
 }
@@ -34,6 +56,8 @@ function escapeHtml(value) {
 
 export function stripNotificationHtml(value) {
   return String(value ?? '')
+    .replace(/&(?:nbsp|#160|#x0*a0);/gi, ' ')
+    .replace(/\u00a0/g, ' ')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<li[^>]*>/gi, '\n- ')
     .replace(/<\/(p|div|ul|ol)>/gi, '\n')
@@ -53,7 +77,7 @@ function createEmailHtml({ title, message, attachmentUrl }) {
     '<!doctype html>',
     '<html>',
     '<body style="font-family: Arial, sans-serif; color: #0f172a; line-height: 1.5;">',
-    `<h2 style="margin: 0 0 16px;">${escapeHtml(title)}</h2>`,
+    `<h3 style="margin: 0 0 16px; font-size: 18px; line-height: 1.4; font-weight: 600;">${escapeHtml(title)}</h3>`,
     `<div>${message}</div>`,
     attachmentHtml,
     '</body>',
@@ -105,11 +129,8 @@ function connectSmtp({ host, port, secure }) {
       reject(new Error('SMTP connection timed out'))
     }, smtpTimeoutMs)
 
-    socket.once('connect', () => {
-      clearTimeout(timer)
-      resolve(socket)
-    })
-    socket.once('secureConnect', () => {
+    const readyEvent = secure ? 'secureConnect' : 'connect'
+    socket.once(readyEvent, () => {
       clearTimeout(timer)
       resolve(socket)
     })
@@ -189,10 +210,7 @@ async function authenticate(socket, { user, pass }) {
 }
 
 export async function sendNotificationEmail({ recipients, title, message, attachmentUrl }) {
-  const normalizedRecipients = [...new Set(recipients.map(normalizeAddress).filter(Boolean))]
-  if (!normalizedRecipients.length) {
-    throw new Error('No student email addresses were found for the selected audience')
-  }
+  const normalizedRecipients = resolveNotificationEmailRecipients(recipients)
 
   const host = requiredEnv('SMTP_HOST')
   const port = Number(process.env.SMTP_PORT ?? 587)
@@ -215,7 +233,7 @@ export async function sendNotificationEmail({ recipients, title, message, attach
     }
 
     await authenticate(socket, { user, pass })
-    await smtpCommand(socket, `MAIL FROM:<${normalizeAddress(from)}>`, [250])
+    await smtpCommand(socket, `MAIL FROM:<${envelopeAddress(from)}>`, [250])
 
     for (const recipient of normalizedRecipients) {
       await smtpCommand(socket, `RCPT TO:<${recipient}>`, [250, 251])
