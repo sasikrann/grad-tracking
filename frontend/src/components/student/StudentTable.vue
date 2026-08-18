@@ -35,6 +35,20 @@ function statusLabel(status: StudentTableItem['status']) {
   if (status === 'Overdue') return t('dashboard.overdue')
   return t('dashboard.onTrack')
 }
+
+function planLabel(plan: string) {
+  const keys: Record<
+    string,
+    'common.planA1' | 'common.planA2' | 'common.planB' | 'common.plan21' | 'common.plan22'
+  > = {
+    A1: 'common.planA1',
+    A2: 'common.planA2',
+    B: 'common.planB',
+    '2.1': 'common.plan21',
+    '2.2': 'common.plan22',
+  }
+  return keys[plan] ? t(keys[plan]) : plan
+}
 </script>
 
 <template>
@@ -104,7 +118,7 @@ function statusLabel(status: StudentTableItem['status']) {
           </td>
           <td class="-translate-x-2 text-center">
             <span class="inline-flex min-w-12 justify-center px-3 py-0.5 text-xs leading-none">
-              {{ student.educationPlan || '-' }}
+              {{ student.educationPlan ? planLabel(student.educationPlan) : '-' }}
             </span>
           </td>
           <td class="-translate-x-2 text-center">
