@@ -17,7 +17,9 @@ import usersRouter from './routes/users.routes.js'
 
 const app = express()
 
-app.use(cors())
+const frontendOrigin = process.env.FRONTEND_ORIGIN || 'http://localhost:5173'
+
+app.use(cors({ origin: frontendOrigin, credentials: true }))
 app.use(express.json({ limit: '3mb' }))
 app.use('/uploads/notifications', express.static(path.resolve('uploads/notifications')))
 app.use('/api/auth', authRouter)

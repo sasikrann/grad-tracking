@@ -3,7 +3,11 @@
 import { OAuth2Client } from "google-auth-library";
 
 import { ApiError } from "../errors/api-error.js";
-import { createAccessToken } from "../middleware/auth.middleware.js";
+import {
+  authCookieName,
+  createAccessToken,
+  getAuthCookieOptions,
+} from "../middleware/auth.middleware.js";
 import { findAuthorizedUserByEmail } from "../services/auth.service.js";
 
 const googleClient = new OAuth2Client();
@@ -49,9 +53,9 @@ export async function loginWithGoogle(request, response) {
     throw new ApiError(403, "Your Lamduan Mail account is not registered in this system");
   }
 
+  response.cookie(authCookieName, createAccessToken(user), getAuthCookieOptions());
   response.json({
     data: {
-      token: createAccessToken(user),
       user,
     },
   });
@@ -91,12 +95,18 @@ export async function loginForDevelopment(request, response) {
     throw new ApiError(403, "This email is not registered in the system");
   }
 
+  response.cookie(authCookieName, createAccessToken(user), getAuthCookieOptions());
   response.json({
     data: {
-      token: createAccessToken(user),
       user,
     },
   });
+}
+
+export function logout(_request, response) {
+  const { maxAge: _maxAge, ...cookieOptions } = getAuthCookieOptions();
+  response.clearCookie(authCookieName, cookieOptions);
+  response.status(204).end();
 }
 
 export async function getCurrentUser(request, response) {

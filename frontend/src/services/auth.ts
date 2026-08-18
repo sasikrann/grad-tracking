@@ -3,8 +3,6 @@ import { ref } from 'vue'
 import type { CurrentUser, UserRole } from '@/types/user'
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-const tokenStorageKey = 'accessToken'
-const userStorageKey = 'currentUser'
 const validRoles: UserRole[] = ['admin', 'advisor', 'student']
 
 function isCurrentUser(value: unknown): value is CurrentUser {
@@ -19,38 +17,29 @@ function isCurrentUser(value: unknown): value is CurrentUser {
   )
 }
 
-function loadStoredUser() {
-  const storedUser = sessionStorage.getItem(userStorageKey)
-
-  if (!storedUser) return null
-
-  try {
-    const user: unknown = JSON.parse(storedUser)
-    return isCurrentUser(user) ? user : null
-  } catch {
-    return null
-  }
-}
-
-function storeSession(token: string, user: CurrentUser) {
-  accessToken.value = token
+function storeSession(user: CurrentUser) {
   currentUser.value = user
-  sessionStorage.setItem(tokenStorageKey, token)
-  sessionStorage.setItem(userStorageKey, JSON.stringify(user))
 }
 
-export const accessToken = ref(sessionStorage.getItem(tokenStorageKey))
-export const currentUser = ref<CurrentUser | null>(loadStoredUser())
+export const currentUser = ref<CurrentUser | null>(null)
 
 let hasInitialized = false
 let initializationPromise: Promise<void> | null = null
 
-export function logout() {
-  accessToken.value = null
+function clearSession() {
   currentUser.value = null
   hasInitialized = true
-  sessionStorage.removeItem(tokenStorageKey)
-  sessionStorage.removeItem(userStorageKey)
+}
+
+export async function logout() {
+  try {
+    await fetch(`${apiUrl}/api/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+  } finally {
+    clearSession()
+  }
 }
 
 export function initializeAuth() {
@@ -58,33 +47,27 @@ export function initializeAuth() {
   if (initializationPromise) return initializationPromise
 
   initializationPromise = (async () => {
-    if (!accessToken.value) {
-      logout()
-      return
-    }
-
     try {
       const response = await fetch(`${apiUrl}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${accessToken.value}` },
+        credentials: 'include',
       })
 
       if (!response.ok) {
-        logout()
+        clearSession()
         return
       }
 
       const result = (await response.json()) as { data?: unknown }
 
       if (!isCurrentUser(result.data)) {
-        logout()
+        clearSession()
         return
       }
 
       currentUser.value = result.data
-      sessionStorage.setItem(userStorageKey, JSON.stringify(result.data))
       hasInitialized = true
     } catch {
-      logout()
+      clearSession()
     }
   })().finally(() => {
     initializationPromise = null
@@ -96,19 +79,20 @@ export function initializeAuth() {
 export async function loginWithGoogleCredential(credential: string) {
   const response = await fetch(`${apiUrl}/api/auth/google`, {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ credential }),
   })
   const result = (await response.json()) as {
-    data?: { token?: unknown; user?: unknown }
+    data?: { user?: unknown }
     message?: string
   }
 
-  if (!response.ok || typeof result.data?.token !== 'string' || !isCurrentUser(result.data.user)) {
+  if (!response.ok || !isCurrentUser(result.data?.user)) {
     throw new Error(result.message || 'Unable to sign in')
   }
 
-  storeSession(result.data.token, result.data.user)
+  storeSession(result.data.user)
   hasInitialized = true
 
   return result.data.user
@@ -121,19 +105,20 @@ export async function loginWithGoogleCredential(credential: string) {
 export async function loginForDevelopment(email: string) {
   const response = await fetch(`${apiUrl}/api/auth/dev-login`, {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
   })
   const result = (await response.json()) as {
-    data?: { token?: unknown; user?: unknown }
+    data?: { user?: unknown }
     message?: string
   }
 
-  if (!response.ok || typeof result.data?.token !== 'string' || !isCurrentUser(result.data.user)) {
+  if (!response.ok || !isCurrentUser(result.data?.user)) {
     throw new Error(result.message || 'Unable to sign in for development')
   }
 
-  storeSession(result.data.token, result.data.user)
+  storeSession(result.data.user)
   hasInitialized = true
 
   return result.data.user
@@ -142,16 +127,10 @@ export async function loginForDevelopment(email: string) {
 export async function authenticatedFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   await initializeAuth()
 
-  const headers = new Headers(init.headers)
-
-  if (accessToken.value) {
-    headers.set('Authorization', `Bearer ${accessToken.value}`)
-  }
-
-  const response = await fetch(input, { ...init, headers })
+  const response = await fetch(input, { ...init, credentials: 'include' })
 
   if (response.status === 401) {
-    logout()
+    clearSession()
   }
 
   return response

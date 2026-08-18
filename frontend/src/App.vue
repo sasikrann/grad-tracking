@@ -11,7 +11,7 @@ const showNavbar = computed(() => Boolean(currentUser.value) && !route.meta.hide
 
 async function handleLogout() {
   window.google?.accounts.id.disableAutoSelect()
-  logout()
+  await logout()
   await router.push('/login')
 }
 </script>
