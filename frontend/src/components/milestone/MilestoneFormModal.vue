@@ -72,7 +72,6 @@ const prerequisiteOptions = computed(() =>
     })
     .sort((first, second) => first.sequenceOrder - second.sequenceOrder),
 )
-
 const nextOrderForFormSelection = computed(() => {
   return (
     Math.max(
@@ -110,6 +109,10 @@ function addReference() {
 function removeReference(index: number) {
   form.references.splice(index, 1)
   if (!form.references.length) form.references.push('')
+}
+
+function selectAllPrerequisites() {
+  form.prerequisiteMilestoneIds = prerequisiteOptions.value.map((option) => option.milestoneId)
 }
 
 function closeDropdown() {
@@ -302,14 +305,22 @@ onBeforeUnmount(() => {
         <fieldset class="text-xs">
           <div class="flex items-center justify-between gap-3">
             <legend class="font-semibold">{{ t('milestone.prerequisiteOptional') }}</legend>
-            <button
-              v-if="form.prerequisiteMilestoneIds.length"
-              type="button"
-              class="font-semibold text-[#7D2923] hover:underline"
-              @click="form.prerequisiteMilestoneIds = []"
-            >
-              {{ t('milestone.clearAll') }}
-            </button>
+            <div v-if="prerequisiteOptions.length" class="flex shrink-0 items-center gap-3">
+              <button
+                type="button"
+                class="font-semibold text-[#7D2923] hover:underline"
+                @click="selectAllPrerequisites"
+              >
+                {{ t('milestone.selectAll') }}
+              </button>
+              <button
+                type="button"
+                class="font-semibold text-[#7D2923] hover:underline"
+                @click="form.prerequisiteMilestoneIds = []"
+              >
+                {{ t('milestone.clearAll') }}
+              </button>
+            </div>
           </div>
           <div
             v-if="prerequisiteOptions.length"
