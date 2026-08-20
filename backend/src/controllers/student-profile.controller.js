@@ -13,6 +13,7 @@ import {
 } from '../services/milestones.service.js'
 import {
   appointStudentAdvisorsByUserId,
+  canStudentSubmitMilestones,
   findStudentByUserId,
   submitStudentGraduationByUserId,
   updateStudentAdvisorByUserId,
@@ -51,6 +52,12 @@ function removeUploadedFile(file) {
   return unlink(file.path).catch(() => {})
 }
 
+async function requireMilestoneSubmissionAccess(userId) {
+  if (!(await canStudentSubmitMilestones(userId))) {
+    throw new ApiError(409, 'Your study period is overdue. An administrator must extend it before you can submit milestones')
+  }
+}
+
 export async function getMyStudentProfile(request, response) {
   const student = await findStudentByUserId(request.user.userId)
 
@@ -77,6 +84,7 @@ export async function updateMyAdvisor(request, response) {
 }
 
 export async function appointMyAdvisors(request, response) {
+  await requireMilestoneSubmissionAccess(request.user.userId)
   if (!(await areStudentMilestonePrerequisitesComplete(request.user.userId, request.params.milestoneId))) {
     throw new ApiError(409, 'Please complete all prerequisite milestones first')
   }
@@ -95,6 +103,7 @@ export async function appointMyAdvisors(request, response) {
 }
 
 export async function submitMyGraduation(request, response) {
+  await requireMilestoneSubmissionAccess(request.user.userId)
   if (!(await areStudentMilestonePrerequisitesComplete(request.user.userId, request.params.milestoneId))) {
     throw new ApiError(409, 'Please complete all prerequisite milestones first')
   }
@@ -117,6 +126,11 @@ export async function uploadMyMilestoneEvidence(request, response) {
     ? `/uploads/evidence/${request.file.filename}`
     : requiredText(request.body.evidenceUrl, 'evidenceUrl')
   const student = await findStudentByUserId(request.user.userId)
+
+  if (!(await canStudentSubmitMilestones(request.user.userId))) {
+    await removeUploadedFile(request.file)
+    throw new ApiError(409, 'Your study period is overdue. An administrator must extend it before you can submit milestones')
+  }
 
   if (!(await areStudentMilestonePrerequisitesComplete(request.user.userId, request.params.milestoneId))) {
     await removeUploadedFile(request.file)
@@ -151,6 +165,7 @@ export async function uploadMyMilestoneEvidence(request, response) {
 }
 
 export async function removeMyMilestoneEvidence(request, response) {
+  await requireMilestoneSubmissionAccess(request.user.userId)
   const updated = await clearStudentMilestoneEvidence(
     request.user.userId,
     request.params.milestoneId,

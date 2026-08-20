@@ -51,6 +51,12 @@ const studentDetailColumns = `
   s.graduation_academic_year AS "graduationAcademicYear",
   s.student_status AS "studentStatus",
   s.study_extension_granted AS "studyExtensionGranted",
+  CASE
+    WHEN s.student_status = 'Graduate' THEN 'Graduate'
+    WHEN s.study_extension_granted THEN 'Extended'
+    WHEN EXTRACT(YEAR FROM CURRENT_DATE)::INT > s.enrollment_academic_year + 2 THEN 'Overdue'
+    ELSE 'On-track'
+  END AS "academicStatus",
   s.advisor_id AS "advisorId",
   a.full_name AS "advisorName",
   a.email AS "advisorEmail",
@@ -472,6 +478,25 @@ export async function findStudentByUserId(userId) {
   )
 
   return result.rows[0] || null
+}
+
+export async function canStudentSubmitMilestones(userId) {
+  await ensureStudentSchema()
+  const result = await pool.query(
+    `
+      SELECT (
+        student_status <> 'Graduate'
+        AND (
+          study_extension_granted = TRUE
+          OR EXTRACT(YEAR FROM CURRENT_DATE)::INT <= enrollment_academic_year + 2
+        )
+      ) AS "canSubmit"
+      FROM students
+      WHERE user_id = $1
+    `,
+    [userId],
+  )
+  return result.rows[0]?.canSubmit === true
 }
 
 export async function updateStudentAdvisorByUserId(

@@ -47,10 +47,14 @@ const progressPercentage = computed(() => {
   return Math.round((completedCount.value / milestones.value.length) * 100)
 })
 const hasAdvisor = computed(() => Boolean(profile.value?.advisorId))
+const milestoneSubmissionLocked = computed(() =>
+  ['Overdue', 'Graduate'].includes(profile.value?.academicStatus ?? ''),
+)
 const advisorAppointmentIndex = computed(() =>
   milestones.value.findIndex((milestone) => milestone.templateKey?.endsWith('advisor-appointment')),
 )
 function canUploadMilestone(milestoneId: string) {
+  if (milestoneSubmissionLocked.value) return false
   if (hasAdvisor.value) return true
   const milestoneIndex = milestones.value.findIndex(
     (milestone) => milestone.milestoneId === milestoneId,
@@ -160,6 +164,7 @@ async function appointAdvisor(input: {
   advisorId: string
   coAdvisorIds: string[]
 }) {
+  if (milestoneSubmissionLocked.value) return
   savingAppointmentMilestoneId.value = input.milestoneId
   appointmentError.value = ''
   try {
@@ -179,6 +184,7 @@ async function submitGraduation(input: {
   semester: string
   academicYear: number
 }) {
+  if (milestoneSubmissionLocked.value) return
   savingGraduationMilestoneId.value = input.milestoneId
   graduationError.value = ''
   try {
@@ -229,6 +235,12 @@ async function uploadEvidence(milestoneId: string, file: File) {
   uploadErrorMilestoneId.value = milestoneId
   uploadErrorMessage.value = ''
 
+  if (milestoneSubmissionLocked.value) {
+    uploadErrorMessage.value = 'Your study period is overdue. Please contact an administrator to extend it.'
+    uploadingMilestoneId.value = null
+    return
+  }
+
   if (!canUploadMilestone(milestoneId)) {
     uploadErrorMilestoneId.value = null
     uploadErrorMessage.value = ''
@@ -256,6 +268,7 @@ async function uploadEvidence(milestoneId: string, file: File) {
 }
 
 async function removeEvidence(milestoneId: string) {
+  if (milestoneSubmissionLocked.value) return
   uploadingMilestoneId.value = milestoneId
   uploadErrorMilestoneId.value = milestoneId
   uploadErrorMessage.value = ''
@@ -313,6 +326,13 @@ onBeforeUnmount(() => {
         :percentage="progressPercentage"
       />
 
+      <p
+        v-if="profile?.academicStatus === 'Overdue'"
+        class="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+      >
+        Your study period is overdue. You can view existing information, but an administrator must extend your study period before you can submit milestones.
+      </p>
+
       <div v-if="visibleMilestones.length" class="relative mt-5 space-y-4 pb-10">
         <div
           v-if="visibleMilestones.length > 1"
@@ -337,6 +357,7 @@ onBeforeUnmount(() => {
           :current-graduation-academic-year="profile?.graduationAcademicYear"
           :is-saving-graduation="savingGraduationMilestoneId === milestone.milestoneId"
           :graduation-error="graduationError"
+          :readonly="milestoneSubmissionLocked"
           @appoint-advisor="appointAdvisor"
           @submit-graduation="submitGraduation"
           @upload-blocked="showUploadBlockedMessage"

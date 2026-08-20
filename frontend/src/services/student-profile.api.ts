@@ -14,6 +14,8 @@ export interface StudentProfile {
   expectedGraduationYear: number
   graduationSemester: string | null
   graduationAcademicYear: number | null
+  academicStatus: 'On-track' | 'Overdue' | 'Extended' | 'Graduate'
+  studyExtensionGranted: boolean
   advisorId: string | null
   advisorName: string | null
   advisorEmail: string | null
