@@ -32,6 +32,9 @@ test('parses the six-column production import and derives data from the student 
     enrollmentAcademicYear: 2022,
     semester: '1',
     expectedGraduationYear: 2025,
+    studentStatus: 'Normal',
+    graduationSemester: null,
+    graduationAcademicYear: null,
     advisorId: null,
     advisorEmail: null,
     advisorName: null,
@@ -82,6 +85,31 @@ test('imports only active students when the status column contains other statuse
   )
 
   assert.deepEqual(students.map((student) => student.studentId), ['6551303009'])
+  assert.equal(students[0].studentStatus, 'Normal')
+})
+
+test('imports graduated students with their graduation semester and academic year', async () => {
+  const students = await readStudentImportFile(
+    csvFile(
+      `${productionHeaders}\n6551303009,Graduated Student,School of IT,DTT,A1,สำเร็จการศึกษา (1/2568)`,
+    ),
+  )
+
+  assert.equal(students.length, 1)
+  assert.equal(students[0].studentStatus, 'Graduate')
+  assert.equal(students[0].graduationSemester, '1')
+  assert.equal(students[0].graduationAcademicYear, 2568)
+})
+
+test('skips withdrawn and unregistered student statuses', async () => {
+  const students = await readStudentImportFile(
+    csvFile(
+      `${productionHeaders}\n6551303009,Withdrawn Student,School of IT,DTT,A1,พ้นสถานภาพฯ เพราะไม่ลงทะเบียนเรียนภายใน 2 สัปดาห์\n6551303010,Unregistered Student,School of IT,DTT,A1,ไม่รายงานตัวขึ้นทะเบียนเป็นนักศึกษา\n6551303011,Normal Student,School of IT,DTT,A1,ปกติ`,
+    ),
+  )
+
+  assert.deepEqual(students.map((student) => student.studentId), ['6551303011'])
+  assert.equal(students[0].studentStatus, 'Normal')
 })
 
 test('derives program from the student ID instead of trusting the imported label', async () => {

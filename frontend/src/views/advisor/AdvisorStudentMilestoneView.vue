@@ -18,6 +18,8 @@ const route = useRoute()
 
 const studentId = computed(() => String(route.params.studentId ?? ''))
 const studentName = ref('')
+const graduationSemester = ref<string | null>(null)
+const graduationAcademicYear = ref<number | null>(null)
 const milestones = ref<StudentMilestone[]>([])
 const advisorCanReview = ref(false)
 const isLoading = ref(false)
@@ -42,6 +44,8 @@ async function loadMilestones({ silent = false } = {}) {
   try {
     const result = await getAdvisorStudentMilestones(studentId.value)
     studentName.value = result.student.studentName
+    graduationSemester.value = result.student.graduationSemester
+    graduationAcademicYear.value = result.student.graduationAcademicYear
     milestones.value = result.milestones
     advisorCanReview.value = result.canReview
   } catch (error) {
@@ -173,6 +177,8 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
             :key="milestone.milestoneId"
             :milestone="milestone"
             :index="index + 1"
+            :current-graduation-semester="graduationSemester"
+            :current-graduation-academic-year="graduationAcademicYear"
             readonly
             :can-review="canReview(milestone)"
             :is-reviewing="reviewingMilestoneId === milestone.milestoneId"

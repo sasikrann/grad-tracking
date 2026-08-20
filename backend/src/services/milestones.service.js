@@ -413,6 +413,17 @@ export async function ensureMilestoneSchema() {
       ADD COLUMN IF NOT EXISTS rejection_count INT NOT NULL DEFAULT 0
     `))
     .then(() => pool.query(`
+      ALTER TABLE students
+      ADD COLUMN IF NOT EXISTS student_status VARCHAR NOT NULL DEFAULT 'Normal'
+    `))
+    .then(() => pool.query(`
+      UPDATE students
+      SET student_status = 'Graduate'
+      WHERE graduation_semester IS NOT NULL
+        AND graduation_academic_year IS NOT NULL
+        AND student_status <> 'Graduate'
+    `))
+    .then(() => pool.query(`
       ALTER TABLE student_milestones
       ADD CONSTRAINT student_milestones_student_milestone_unique UNIQUE (student_id, milestone_id)
     `)
@@ -520,13 +531,16 @@ export async function findStudentMilestonesByUserId(userId) {
             WHERE prerequisite_status.student_milestone_id IS NULL
           )
         ) AS "isLocked",
-        COALESCE(
-          sm.status,
-          CASE
-            WHEN mt.deadline < CURRENT_DATE THEN 'Missing'::milestone_status
-            ELSE 'In Progress'::milestone_status
-          END
-        ) AS status,
+        CASE
+          WHEN s.student_status = 'Graduate' THEN 'Approved'::milestone_status
+          ELSE COALESCE(
+            sm.status,
+            CASE
+              WHEN mt.deadline < CURRENT_DATE THEN 'Missing'::milestone_status
+              ELSE 'In Progress'::milestone_status
+            END
+          )
+        END AS status,
         sm.evidence_url AS "evidenceUrl",
         sm.advisor_comment AS "advisorComment",
         COALESCE(sm.rejection_count, 0) AS "rejectionCount",
@@ -610,7 +624,10 @@ export async function findStudentMilestonesByStudentId(studentId) {
       SELECT
         s.student_id AS "studentId",
         s.full_name AS "studentName",
+        s.graduation_semester AS "graduationSemester",
+        s.graduation_academic_year AS "graduationAcademicYear",
         mt.milestone_id AS "milestoneId",
+        mt.default_template_key AS "templateKey",
         mt.degree_level AS "degreeLevel",
         mt.semester,
         mt.plans,
@@ -623,13 +640,16 @@ export async function findStudentMilestonesByStudentId(studentId) {
         mt.deadline,
         mt.first_reminder_date AS "firstReminderDate",
         mt.second_reminder_date AS "secondReminderDate",
-        COALESCE(
-          sm.status,
-          CASE
-            WHEN mt.deadline < CURRENT_DATE THEN 'Missing'::milestone_status
-            ELSE 'In Progress'::milestone_status
-          END
-        ) AS status,
+        CASE
+          WHEN s.student_status = 'Graduate' THEN 'Approved'::milestone_status
+          ELSE COALESCE(
+            sm.status,
+            CASE
+              WHEN mt.deadline < CURRENT_DATE THEN 'Missing'::milestone_status
+              ELSE 'In Progress'::milestone_status
+            END
+          )
+        END AS status,
         sm.evidence_url AS "evidenceUrl",
         sm.advisor_comment AS "advisorComment",
         COALESCE(sm.rejection_count, 0) AS "rejectionCount",
@@ -657,10 +677,18 @@ export async function findStudentMilestonesByStudentId(studentId) {
     student: {
       studentId: result.rows[0].studentId,
       studentName: result.rows[0].studentName,
+      graduationSemester: result.rows[0].graduationSemester,
+      graduationAcademicYear: result.rows[0].graduationAcademicYear,
     },
     milestones: result.rows
       .filter((row) => row.milestoneId)
-      .map(({ studentId: _studentId, studentName: _studentName, ...milestone }) => milestone),
+      .map(({
+        studentId: _studentId,
+        studentName: _studentName,
+        graduationSemester: _graduationSemester,
+        graduationAcademicYear: _graduationAcademicYear,
+        ...milestone
+      }) => milestone),
   }
 }
 
@@ -672,8 +700,11 @@ export async function findAdvisorStudentMilestones(advisorUserId, studentId) {
       SELECT
         s.student_id AS "studentId",
         s.full_name AS "studentName",
+        s.graduation_semester AS "graduationSemester",
+        s.graduation_academic_year AS "graduationAcademicYear",
         (s.advisor_id = a.advisor_id) AS "canReview",
         mt.milestone_id AS "milestoneId",
+        mt.default_template_key AS "templateKey",
         mt.degree_level AS "degreeLevel",
         mt.semester,
         mt.plans,
@@ -686,13 +717,16 @@ export async function findAdvisorStudentMilestones(advisorUserId, studentId) {
         mt.deadline,
         mt.first_reminder_date AS "firstReminderDate",
         mt.second_reminder_date AS "secondReminderDate",
-        COALESCE(
-          sm.status,
-          CASE
-            WHEN mt.deadline < CURRENT_DATE THEN 'Missing'::milestone_status
-            ELSE 'In Progress'::milestone_status
-          END
-        ) AS status,
+        CASE
+          WHEN s.student_status = 'Graduate' THEN 'Approved'::milestone_status
+          ELSE COALESCE(
+            sm.status,
+            CASE
+              WHEN mt.deadline < CURRENT_DATE THEN 'Missing'::milestone_status
+              ELSE 'In Progress'::milestone_status
+            END
+          )
+        END AS status,
         sm.evidence_url AS "evidenceUrl",
         sm.advisor_comment AS "advisorComment",
         COALESCE(sm.rejection_count, 0) AS "rejectionCount",
@@ -732,12 +766,20 @@ export async function findAdvisorStudentMilestones(advisorUserId, studentId) {
     student: {
       studentId: result.rows[0].studentId,
       studentName: result.rows[0].studentName,
+      graduationSemester: result.rows[0].graduationSemester,
+      graduationAcademicYear: result.rows[0].graduationAcademicYear,
     },
     milestones: result.rows
       .filter((row) => row.milestoneId)
       .map(
-        ({ studentId: _studentId, studentName: _studentName, canReview: _canReview, ...milestone }) =>
-          milestone,
+        ({
+          studentId: _studentId,
+          studentName: _studentName,
+          graduationSemester: _graduationSemester,
+          graduationAcademicYear: _graduationAcademicYear,
+          canReview: _canReview,
+          ...milestone
+        }) => milestone,
       ),
   }
 }

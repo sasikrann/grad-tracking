@@ -155,6 +155,8 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
           :key="milestone.milestoneId"
           :milestone="milestone"
           :index="index + 1"
+          :current-graduation-semester="student?.graduationSemester"
+          :current-graduation-academic-year="student?.graduationAcademicYear"
           readonly
         />
       </div>
