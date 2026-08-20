@@ -44,6 +44,7 @@ const emit = defineEmits<{
 }>()
 
 const openFilter = ref<StudentFilterKey | null>(null)
+const areMobileFiltersOpen = ref(false)
 const { isThai, t } = useLanguage()
 
 function yearLabel(year: string) {
@@ -53,7 +54,10 @@ function yearLabel(year: string) {
 }
 
 function planLabel(plan: string) {
-  const keys: Record<string, 'common.planA1' | 'common.planA2' | 'common.planB' | 'common.plan21' | 'common.plan22'> = {
+  const keys: Record<
+    string,
+    'common.planA1' | 'common.planA2' | 'common.planB' | 'common.plan21' | 'common.plan22'
+  > = {
     A1: 'common.planA1',
     A2: 'common.planA2',
     B: 'common.planB',
@@ -74,12 +78,15 @@ function statusLabel(status: string) {
 const planOptions = computed<FilterOption[]>(() => {
   const allPlan = { label: t('student.allPlan'), value: 'all' }
   const planOrder = ['A1', 'A2', 'B', '2.1', '2.2']
-  const plans = (props.filterOptions?.plans ?? props.availableStudents
-    .filter(
-      (student) => props.modelValue.degree === 'all' || student.degree === props.modelValue.degree,
-    )
-    .map((student) => student.educationPlan))
-    .filter((plan) => plan && plan !== '-')
+  const plans = (
+    props.filterOptions?.plans ??
+    props.availableStudents
+      .filter(
+        (student) =>
+          props.modelValue.degree === 'all' || student.degree === props.modelValue.degree,
+      )
+      .map((student) => student.educationPlan)
+  ).filter((plan) => plan && plan !== '-')
   return [
     allPlan,
     ...Array.from(new Set(plans))
@@ -94,7 +101,9 @@ const planOptions = computed<FilterOption[]>(() => {
 })
 
 function optionsFromValues(values: Array<string | number>) {
-  return Array.from(new Set(values.map(String))).sort().map((value) => ({ label: value, value }))
+  return Array.from(new Set(values.map(String)))
+    .sort()
+    .map((value) => ({ label: value, value }))
 }
 
 const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
@@ -103,20 +112,20 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
     defaultLabel: 'All Program',
     options: [
       { label: t('student.allProgram'), value: 'all' },
-      ...optionsFromValues(props.filterOptions?.degrees ?? props.availableStudents.map((student) => student.degree)).map(
-        (option) => ({
-          ...option,
-          label: isThai.value
-            ? option.value === 'Master'
-              ? t('common.master')
-              : ['Doctoral', 'Ph. D.'].includes(option.value)
-                ? t('common.doctoral')
-                : option.label
-            : props.advisorMode === 'all-only' && option.value === 'Ph. D.'
-              ? 'Doctoral'
-              : option.label,
-        }),
-      ),
+      ...optionsFromValues(
+        props.filterOptions?.degrees ?? props.availableStudents.map((student) => student.degree),
+      ).map((option) => ({
+        ...option,
+        label: isThai.value
+          ? option.value === 'Master'
+            ? t('common.master')
+            : ['Doctoral', 'Ph. D.'].includes(option.value)
+              ? t('common.doctoral')
+              : option.label
+          : props.advisorMode === 'all-only' && option.value === 'Ph. D.'
+            ? 'Doctoral'
+            : option.label,
+      })),
     ],
   },
   {
@@ -129,7 +138,10 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
     defaultLabel: 'All Semester',
     options: [
       { label: t('student.allSemester'), value: 'all' },
-      ...optionsFromValues(props.filterOptions?.semesters ?? props.availableStudents.map((student) => student.semester)),
+      ...optionsFromValues(
+        props.filterOptions?.semesters ??
+          props.availableStudents.map((student) => student.semester),
+      ),
     ],
   },
   {
@@ -137,7 +149,13 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
     defaultLabel: 'All Year',
     options: [
       { label: t('student.allYear'), value: 'all' },
-      ...Array.from(new Set((props.filterOptions?.years ?? props.availableStudents.map((student) => student.year)).map(String)))
+      ...Array.from(
+        new Set(
+          (
+            props.filterOptions?.years ?? props.availableStudents.map((student) => student.year)
+          ).map(String),
+        ),
+      )
         .sort((left, right) => Number(right) - Number(left) || right.localeCompare(left))
         .map((year) => ({ label: yearLabel(year), value: year })),
     ],
@@ -147,9 +165,9 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
     defaultLabel: 'All Status',
     options: [
       { label: t('student.allStatus'), value: 'all' },
-      ...optionsFromValues(props.filterOptions?.statuses ?? props.availableStudents.map((student) => student.status)).map(
-        (option) => ({ ...option, label: statusLabel(option.value) }),
-      ),
+      ...optionsFromValues(
+        props.filterOptions?.statuses ?? props.availableStudents.map((student) => student.status),
+      ).map((option) => ({ ...option, label: statusLabel(option.value) })),
     ],
   },
 ])
@@ -211,7 +229,48 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
 
 <template>
   <div class="mt-4 grid grid-cols-1 gap-2 lg:grid-cols-12">
-    <label class="relative" :class="searchGridClass">
+    <div class="flex gap-2 lg:hidden">
+      <label class="relative min-w-0 flex-1">
+        <span class="sr-only">{{ t('student.searchPlaceholder') }}</span>
+        <svg
+          class="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[#888]"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-4-4" />
+        </svg>
+        <input
+          :value="search"
+          type="search"
+          :placeholder="t('student.searchPlaceholder')"
+          class="h-9 w-full rounded-lg border border-[#e7e7e7] bg-white pl-9 pr-3 text-[10px] outline-none focus:border-[#8a2b25]"
+          @input="updateSearch"
+        />
+      </label>
+      <button
+        type="button"
+        class="flex h-9 items-center gap-1.5 rounded-lg border border-[#e7e7e7] bg-white px-3 text-[10px]"
+        :aria-expanded="areMobileFiltersOpen"
+        @click="areMobileFiltersOpen = !areMobileFiltersOpen"
+      >
+        <svg
+          class="size-3.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+        >
+          <path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 5v4M6 15v4" />
+        </svg>
+        Filters
+      </button>
+    </div>
+
+    <label class="relative hidden lg:block" :class="searchGridClass">
       <span class="sr-only">{{ t('student.searchPlaceholder') }}</span>
       <svg
         class="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#cfcfcf]"
@@ -233,7 +292,10 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
       />
     </label>
 
-    <div class="grid grid-cols-1 gap-2" :class="filterGridClass">
+    <div
+      class="grid grid-cols-2 gap-2 lg:grid"
+      :class="[filterGridClass, areMobileFiltersOpen ? '' : 'hidden']"
+    >
       <div v-for="filter in filterDefinitions" :key="filter.key" class="relative" @click.stop>
         <button
           type="button"

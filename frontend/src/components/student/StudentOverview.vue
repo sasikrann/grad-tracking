@@ -41,12 +41,12 @@ const filters = defineModel<StudentFiltersState>('filters', { required: true })
 
 <template>
   <section
-    class="mt-4 rounded-xl border border-[#ececec] bg-white px-7 pt-5 pb-4 shadow-[0_2px_4px_rgba(0,0,0,0.18)]"
+    class="mt-2 rounded-lg border border-[#ececec] bg-white px-2 pt-3 pb-4 shadow-[0_2px_4px_rgba(0,0,0,0.12)] sm:mt-4 sm:rounded-xl sm:px-7 sm:pt-5"
   >
-    <header class="flex flex-wrap items-start justify-between gap-4">
-      <div>
+    <header class="flex items-start justify-between gap-2 sm:flex-wrap sm:gap-4">
+      <div class="min-w-0">
         <h2 class="text-lg font-semibold">{{ t('student.overview') }}</h2>
-        <p class="mt-1 text-sm font-medium text-[#7d7d7d]">
+        <p class="text-xs font-medium text-[#7d7d7d] sm:mt-1 sm:text-sm">
           {{ t('student.overviewDescription') }}
         </p>
       </div>

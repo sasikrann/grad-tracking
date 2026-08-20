@@ -101,7 +101,7 @@ onMounted(async () => {
       size: 'large',
       text: 'continue_with',
       shape: 'rectangular',
-      width: 300,
+      width: 270,
     })
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Unable to load Google Sign-In'
@@ -110,30 +110,32 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-[#fafafa] px-5 py-10">
+  <div class="flex min-h-[100dvh] w-full items-center justify-center bg-[#fafafa] px-4 py-5">
     <section
-      class="w-full max-w-100 rounded-2xl bg-[#872c26] pb-8 pt-5 text-white shadow-[0_10px_22px_rgba(0,0,0,0.34)]"
+      class="w-full max-w-[320px] rounded-2xl bg-[#872c26] px-4 pb-5 pt-3 text-white shadow-[0_8px_18px_rgba(0,0,0,0.3)] sm:max-w-[340px] sm:px-5 sm:pb-6 sm:pt-4"
     >
       <div class="flex flex-col items-center">
         <img
           src="@/assets/logomfu.png"
           alt="Mae Fah Luang University logo"
-          class="h-50 w-auto object-contain"
+          class="h-30 w-auto object-contain sm:h-34"
         />
-        <h1 class="pb-5 text-center text-[21px] font-semibold tracking-tight">ACADEMIC TRACKING</h1>
-        <p class="text-xs text-white/60 pb-1">Sign in to your account</p>
+        <h1 class="pb-2 text-center text-base font-semibold tracking-tight sm:text-lg">
+          ACADEMIC TRACKING
+        </h1>
+        <p class="pb-1 text-[10px] text-white/60">Sign in to your account</p>
       </div>
 
-      <div class="mt-3 flex min-h-11 justify-center">
+      <div class="mt-2 flex min-h-10 justify-center">
         <div ref="googleButton" :class="{ 'pointer-events-none opacity-60': isLoading }"></div>
       </div>
 
       <form
         v-if="devLoginEnabled"
-        class="mx-auto mt-5 w-full max-w-75 border-t border-white/20 pt-5"
+        class="mx-auto mt-3 w-full max-w-[270px] border-t border-white/20 pt-3"
         @submit.prevent="handleDevelopmentLogin"
       >
-        <p class="mb-2 text-center text-xs font-medium text-white/80">Development Login</p>
+        <p class="mb-1.5 text-center text-[11px] font-medium text-white/80">Development Login</p>
         <label class="sr-only" for="dev-email">Registered user email</label>
         <input
           id="dev-email"
@@ -142,19 +144,21 @@ onMounted(async () => {
           required
           autocomplete="email"
           placeholder="Registered user email"
-          class="w-full rounded-md border border-white/30 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-white/60"
+          class="h-9 w-full rounded-md border border-white/30 bg-white px-3 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-white/60"
         />
         <button
           type="submit"
           :disabled="isLoading || !devEmail"
-          class="mt-2 w-full rounded-md bg-[#650009] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#530007] disabled:cursor-not-allowed disabled:opacity-60"
+          class="mt-1.5 h-9 w-full rounded-md bg-[#650009] px-3 text-xs font-medium text-white transition hover:bg-[#530007] disabled:cursor-not-allowed disabled:opacity-60"
         >
           Continue for development
         </button>
-        <p class="mt-2 text-center text-[10px] text-white/60">Available only in local development</p>
+        <p class="mt-1.5 text-center text-[9px] text-white/60">
+          Available only in local development
+        </p>
       </form>
 
-      <div class="mx-auto mt-3 flex min-h-8 w-full max-w-75 flex-col justify-end gap-1.5 px-1">
+      <div class="mx-auto mt-2 flex min-h-7 w-full max-w-[270px] flex-col justify-end gap-1 px-1">
         <div
           v-if="isLoading"
           class="flex items-center justify-center gap-2 text-xs font-normal text-white/70"
@@ -165,7 +169,7 @@ onMounted(async () => {
           ></span>
           <span>Signing in...</span>
         </div>
-        <p class="text-center text-[11px] font-normal leading-5 text-white/55">
+        <p class="text-center text-[9px] font-normal leading-4 text-white/55">
           Use your MFU Lamduan Mail account to sign in
         </p>
         <p

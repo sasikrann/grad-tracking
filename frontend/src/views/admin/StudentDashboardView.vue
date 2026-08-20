@@ -23,7 +23,11 @@ const page = ref(1)
 const pagination = ref({ page: 1, limit: 10, totalRecords: 0, totalPages: 0 })
 const dashboardStatistics = ref({ total: 0, onTrack: 0, overdue: 0, graduate: 0 })
 const filterOptions = ref<StudentPaginationResult['filterOptions']>({
-  semesters: [], years: [], degrees: [], plans: [], statuses: [],
+  semesters: [],
+  years: [],
+  degrees: [],
+  plans: [],
+  statuses: [],
 })
 const paginationItems = computed<Array<number | 'ellipsis'>>(() => {
   const total = pagination.value.totalPages
@@ -33,7 +37,12 @@ const paginationItems = computed<Array<number | 'ellipsis'>>(() => {
   return ['ellipsis', page.value - 1, page.value, page.value + 1, 'ellipsis']
 })
 const filters = ref<StudentFiltersState>({
-  semester: 'all', year: 'all', degree: 'all', plan: 'all', status: 'all', advisor: 'all',
+  semester: 'all',
+  year: 'all',
+  degree: 'all',
+  plan: 'all',
+  status: 'all',
+  advisor: 'all',
 })
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -41,7 +50,12 @@ async function loadStudents({ silent = false } = {}) {
   if (!silent) isLoading.value = true
   loadError.value = ''
   try {
-    const result = await getStudentsPage({ page: page.value, limit: 10, search: search.value, ...filters.value })
+    const result = await getStudentsPage({
+      page: page.value,
+      limit: 10,
+      search: search.value,
+      ...filters.value,
+    })
     students.value = result.students
     pagination.value = result.pagination
     dashboardStatistics.value = result.statistics
@@ -63,10 +77,20 @@ async function loadStudents({ silent = false } = {}) {
   }
 }
 
-watch(filters, () => { page.value = 1; void loadStudents() }, { deep: true })
+watch(
+  filters,
+  () => {
+    page.value = 1
+    void loadStudents()
+  },
+  { deep: true },
+)
 watch(search, () => {
   if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => { page.value = 1; void loadStudents() }, 300)
+  searchTimer = setTimeout(() => {
+    page.value = 1
+    void loadStudents()
+  }, 300)
 })
 
 function changePage(nextPage: number) {
@@ -173,7 +197,9 @@ function showImportResult(result: StudentImportResult) {
   const successText = isThai.value
     ? `นำเข้าสำเร็จ — เพิ่มใหม่ ${createdRecords} คน${updatedRecords ? `, อัปเดต ${updatedRecords} คน` : ''}`
     : englishSuccessText
-  const hasMissingRequiredFields = result.errors?.some((error) => /\b(missing|required)\b/i.test(error))
+  const hasMissingRequiredFields = result.errors?.some((error) =>
+    /\b(missing|required)\b/i.test(error),
+  )
   const partialSuccessText = hasMissingRequiredFields
     ? isThai.value
       ? 'กรุณากรอกข้อมูลให้ครบถ้วน'
@@ -232,7 +258,12 @@ async function handleImport() {
 
 async function handleExport() {
   if (!students.value.length) {
-    showNotification(isThai.value ? 'ไม่มีข้อมูลในตารางสำหรับส่งออก' : 'There are no displayed students to export.', 'error')
+    showNotification(
+      isThai.value
+        ? 'ไม่มีข้อมูลในตารางสำหรับส่งออก'
+        : 'There are no displayed students to export.',
+      'error',
+    )
     return
   }
 
@@ -243,12 +274,18 @@ async function handleExport() {
     const exportStudentsList: Student[] = []
     const exportPageSize = 100
     const firstPage = await getStudentsPage({
-      page: 1, limit: exportPageSize, search: search.value, ...filters.value,
+      page: 1,
+      limit: exportPageSize,
+      search: search.value,
+      ...filters.value,
     })
     exportStudentsList.push(...firstPage.students)
     for (let exportPage = 2; exportPage <= firstPage.pagination.totalPages; exportPage += 1) {
       const result = await getStudentsPage({
-        page: exportPage, limit: exportPageSize, search: search.value, ...filters.value,
+        page: exportPage,
+        limit: exportPageSize,
+        search: search.value,
+        ...filters.value,
       })
       exportStudentsList.push(...result.students)
     }
@@ -279,18 +316,19 @@ useAutoRefresh(() => loadStudents({ silent: true }), {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
+  <div
+    class="min-h-screen w-full bg-[#f7f7f7] px-3 py-3 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8"
+  >
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 class="text-3xl font-bold tracking-tight">{{ t('student.pageTitle') }}</h1>
-        <p class="mt-1 text-sm text-slate-500">
+        <h1 class="text-xl font-bold tracking-tight sm:text-3xl">{{ t('student.pageTitle') }}</h1>
+        <p class="text-xs text-slate-500 sm:mt-1 sm:text-sm">
           {{ t('student.pageDescription') }}
         </p>
       </div>
-
     </header>
 
-    <section class="mt-4" aria-label="Import">
+    <section class="mt-2 sm:mt-4" aria-label="Import">
       <DashboardActionCard
         class="w-full"
         :title="t('dashboard.importExcel')"
@@ -302,11 +340,27 @@ useAutoRefresh(() => loadStudents({ silent: true }), {
       />
     </section>
 
-    <section class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-      <SummaryCard :title="t('dashboard.totalStudents')" :value="dashboardStatistics.total" icon="students" />
-      <SummaryCard :title="t('dashboard.onTrack')" :value="dashboardStatistics.onTrack" icon="on-track" />
-      <SummaryCard :title="t('dashboard.overdue')" :value="dashboardStatistics.overdue" icon="overdue" />
-      <SummaryCard :title="t('dashboard.graduate')" :value="dashboardStatistics.graduate" icon="graduate" />
+    <section class="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:gap-5 xl:grid-cols-4">
+      <SummaryCard
+        :title="t('dashboard.totalStudents')"
+        :value="dashboardStatistics.total"
+        icon="students"
+      />
+      <SummaryCard
+        :title="t('dashboard.onTrack')"
+        :value="dashboardStatistics.onTrack"
+        icon="on-track"
+      />
+      <SummaryCard
+        :title="t('dashboard.overdue')"
+        :value="dashboardStatistics.overdue"
+        icon="overdue"
+      />
+      <SummaryCard
+        :title="t('dashboard.graduate')"
+        :value="dashboardStatistics.graduate"
+        icon="graduate"
+      />
     </section>
 
     <StudentOverview
@@ -324,7 +378,7 @@ useAutoRefresh(() => loadStudents({ silent: true }), {
     >
       <template #action>
         <DashboardActionCard
-          class="-mt-2"
+          class="shrink-0"
           compact
           :title="t('dashboard.exportExcel')"
           :description="t('dashboard.downloadStudents')"
@@ -337,17 +391,45 @@ useAutoRefresh(() => loadStudents({ silent: true }), {
     </StudentOverview>
 
     <nav v-if="pagination.totalPages > 1" class="mt-5 flex justify-end" aria-label="Student pages">
-      <div class="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <button type="button" class="flex size-8 items-center justify-center border-r border-slate-200 text-xs text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300" :disabled="page === 1" aria-label="Previous page" @click="changePage(page - 1)">
+      <div
+        class="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
+      >
+        <button
+          type="button"
+          class="flex size-8 items-center justify-center border-r border-slate-200 text-xs text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+          :disabled="page === 1"
+          aria-label="Previous page"
+          @click="changePage(page - 1)"
+        >
           ‹
         </button>
         <template v-for="(item, index) in paginationItems" :key="`${item}-${index}`">
-          <span v-if="item === 'ellipsis'" class="flex size-8 items-center justify-center border-r border-slate-200 text-xs text-slate-400">…</span>
-          <button v-else type="button" class="flex size-8 items-center justify-center border-r border-slate-200 text-xs font-medium transition-colors" :class="item === page ? 'bg-[#f7c9cf] text-[#a13a34]' : 'text-slate-700 hover:bg-[#fdf1f3]'" :aria-current="item === page ? 'page' : undefined" :aria-label="`Page ${item}`" @click="changePage(item)">
+          <span
+            v-if="item === 'ellipsis'"
+            class="flex size-8 items-center justify-center border-r border-slate-200 text-xs text-slate-400"
+            >…</span
+          >
+          <button
+            v-else
+            type="button"
+            class="flex size-8 items-center justify-center border-r border-slate-200 text-xs font-medium transition-colors"
+            :class="
+              item === page ? 'bg-[#f7c9cf] text-[#a13a34]' : 'text-slate-700 hover:bg-[#fdf1f3]'
+            "
+            :aria-current="item === page ? 'page' : undefined"
+            :aria-label="`Page ${item}`"
+            @click="changePage(item)"
+          >
             {{ item }}
           </button>
         </template>
-        <button type="button" class="flex size-8 items-center justify-center text-xs text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300" :disabled="page === pagination.totalPages" aria-label="Next page" @click="changePage(page + 1)">
+        <button
+          type="button"
+          class="flex size-8 items-center justify-center text-xs text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+          :disabled="page === pagination.totalPages"
+          aria-label="Next page"
+          @click="changePage(page + 1)"
+        >
           ›
         </button>
       </div>
