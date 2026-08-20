@@ -205,6 +205,14 @@ function requiredYear(value, field) {
   return result;
 }
 
+function requiredGraduationAcademicYear(value) {
+  const result = Number(value);
+  if (!Number.isInteger(result) || result < 1900 || result > 3000) {
+    throw new ApiError(400, "graduationAcademicYear must be a valid year");
+  }
+  return result;
+}
+
 function optionalEmail(value) {
   const email = normalizeEmailText(value).trim().toLowerCase();
   if (!email) return null;
@@ -241,6 +249,11 @@ export function normalizeStudent(
       body.expectedGraduationYear ?? body.year,
       "expectedGraduationYear",
     ),
+    studentStatus: body.studentStatus === "Graduate" ? "Graduate" : "Normal",
+    graduationSemester: String(body.graduationSemester ?? "").trim() || null,
+    graduationAcademicYear: body.graduationAcademicYear
+      ? requiredGraduationAcademicYear(body.graduationAcademicYear)
+      : null,
     advisorId: String(body.advisorId ?? "").trim() || null,
     advisorEmail: optionalEmail(body.advisorEmail),
     advisorName: String(body.advisorName ?? "").trim() || null,
@@ -428,12 +441,27 @@ function hasMappedHeader(headerMap, names) {
   return names.some((name) => headerMap.has(normalizeHeader(name)));
 }
 
-function isNormalStudentStatus(value) {
-  const status = normalizeCellText(value)
+export function parseStudentImportStatus(value) {
+  const statusText = normalizeCellText(value).trim();
+  const normalizedStatus = statusText
     .toLowerCase()
     .replace(/[\s_.\-/()]+/g, "");
 
-  return status === "ปกติ" || status === "normal" || status === "active";
+  if (["ปกติ", "normal", "active"].includes(normalizedStatus)) {
+    return { action: "import", studentStatus: "Normal" };
+  }
+
+  const graduationMatch = statusText.match(/^สำเร็จการศึกษา\s*\(\s*([12])\s*\/\s*(\d{4})\s*\)$/i);
+  if (graduationMatch) {
+    return {
+      action: "import",
+      studentStatus: "Graduate",
+      graduationSemester: graduationMatch[1],
+      graduationAcademicYear: Number(graduationMatch[2]),
+    };
+  }
+
+  return { action: "skip" };
 }
 
 function addHeaders(worksheet, columns = studentExportColumns) {
@@ -473,13 +501,10 @@ export async function readStudentImportFile(file) {
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1 || !row.hasValues) return;
     const studentStatus = cellValue(row, headerMap, headerAliases.studentStatus);
-    if (
-      hasStudentStatusColumn &&
-      studentStatus &&
-      !isNormalStudentStatus(studentStatus)
-    ) {
-      return;
-    }
+    const parsedStudentStatus = studentStatus
+      ? parseStudentImportStatus(studentStatus)
+      : null;
+    if (hasStudentStatusColumn && parsedStudentStatus?.action === "skip") return;
     // Skip duplicate student IDs within the same import file silently (keep first occurrence)
     const candidateId = normalizeCellText(cellValue(row, headerMap, headerAliases.studentId));
     if (candidateId) {
@@ -502,7 +527,9 @@ export async function readStudentImportFile(file) {
           advisorId: cellValue(row, headerMap, headerAliases.advisorId),
           advisorEmail: cellValue(row, headerMap, headerAliases.advisorEmail),
           advisorName: cellValue(row, headerMap, headerAliases.advisorName),
-          studentStatus,
+          studentStatus: parsedStudentStatus?.studentStatus ?? studentStatus,
+          graduationSemester: parsedStudentStatus?.graduationSemester,
+          graduationAcademicYear: parsedStudentStatus?.graduationAcademicYear,
         }),
       );
     } catch (error) {

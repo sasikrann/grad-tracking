@@ -21,6 +21,8 @@ export interface AdvisorStudentMilestones {
   student: {
     studentId: string
     studentName: string
+    graduationSemester: string | null
+    graduationAcademicYear: number | null
   }
   milestones: StudentMilestone[]
 }

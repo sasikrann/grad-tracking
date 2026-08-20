@@ -62,6 +62,8 @@ export interface AdminStudentMilestones {
   student: {
     studentId: string
     studentName: string
+    graduationSemester: string | null
+    graduationAcademicYear: number | null
   }
   milestones: StudentMilestone[]
 }

@@ -12,7 +12,15 @@ async function ensureStudentSchema() {
     ALTER TABLE students ADD COLUMN IF NOT EXISTS school_name VARCHAR;
     ALTER TABLE students ADD COLUMN IF NOT EXISTS graduation_semester VARCHAR;
     ALTER TABLE students ADD COLUMN IF NOT EXISTS graduation_academic_year INT;
+    ALTER TABLE students ADD COLUMN IF NOT EXISTS student_status VARCHAR NOT NULL DEFAULT 'Normal';
     ALTER TABLE students ADD COLUMN IF NOT EXISTS study_extension_granted BOOLEAN NOT NULL DEFAULT FALSE;
+    UPDATE students
+    SET student_status = 'Graduate'
+    WHERE graduation_semester IS NOT NULL
+      AND graduation_academic_year IS NOT NULL;
+    ALTER TABLE students DROP CONSTRAINT IF EXISTS students_student_status_check;
+    ALTER TABLE students ADD CONSTRAINT students_student_status_check
+      CHECK (student_status IN ('Normal', 'Graduate'));
     ALTER TABLE students DROP CONSTRAINT IF EXISTS students_graduation_semester_check;
     ALTER TABLE students ADD CONSTRAINT students_graduation_semester_check
       CHECK (graduation_semester IN ('1', '2'));
@@ -41,6 +49,7 @@ const studentDetailColumns = `
   s.expected_graduation_year AS "expectedGraduationYear",
   s.graduation_semester AS "graduationSemester",
   s.graduation_academic_year AS "graduationAcademicYear",
+  s.student_status AS "studentStatus",
   s.study_extension_granted AS "studyExtensionGranted",
   s.advisor_id AS "advisorId",
   a.full_name AS "advisorName",
@@ -77,6 +86,9 @@ function studentRecordsMatch(left, right) {
     'enrollmentAcademicYear',
     'semester',
     'expectedGraduationYear',
+    'studentStatus',
+    'graduationSemester',
+    'graduationAcademicYear',
   ].every((field) => normalizeComparableValue(left[field]) === normalizeComparableValue(right[field]))
 }
 
@@ -158,17 +170,21 @@ async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
           WHERE sca.student_id = s.student_id
             AND sca.advisor_id = ${viewerAdvisorParameter}
         ) AS "isCoAdvised",
-        COALESCE(
-          ROUND(
-            100.0 * COUNT(sm.student_milestone_id)
-              FILTER (WHERE sm.status IN ('Completed', 'Approved'))
-            / NULLIF(COUNT(mt.milestone_id), 0)
-          ),
-          0
-        )::INT AS progress,
         CASE
-          WHEN s.graduation_semester IS NOT NULL
-            AND s.graduation_academic_year IS NOT NULL THEN 'Graduate'
+          WHEN s.student_status = 'Graduate' THEN 100
+          ELSE COALESCE(
+            ROUND(
+              100.0 * COUNT(sm.student_milestone_id)
+                FILTER (WHERE sm.status IN ('Completed', 'Approved'))
+              / NULLIF(COUNT(mt.milestone_id), 0)
+            ),
+            0
+          )::INT
+        END AS progress,
+        CASE
+          WHEN s.student_status = 'Graduate'
+            OR (s.graduation_semester IS NOT NULL
+              AND s.graduation_academic_year IS NOT NULL) THEN 'Graduate'
           WHEN s.study_extension_granted THEN 'Extended'
           WHEN EXTRACT(YEAR FROM CURRENT_DATE)::INT >
             s.enrollment_academic_year + CASE
@@ -201,6 +217,7 @@ async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
         s.expected_graduation_year,
         s.graduation_semester,
         s.graduation_academic_year,
+        s.student_status,
         s.study_extension_granted,
         s.advisor_id,
         a.full_name
@@ -343,9 +360,10 @@ async function upsertStudentWithClient(client, input) {
       `
         INSERT INTO students (
           student_id, user_id, full_name, school_name, program, degree_level,
-          enrollment_academic_year, semester, expected_graduation_year, advisor_id, education_plan
+          enrollment_academic_year, semester, expected_graduation_year, advisor_id, education_plan,
+          student_status, graduation_semester, graduation_academic_year
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         ON CONFLICT (student_id) DO UPDATE SET
           user_id = COALESCE(EXCLUDED.user_id, students.user_id),
           full_name = EXCLUDED.full_name,
@@ -357,6 +375,18 @@ async function upsertStudentWithClient(client, input) {
           expected_graduation_year = EXCLUDED.expected_graduation_year,
           advisor_id = EXCLUDED.advisor_id,
           education_plan = EXCLUDED.education_plan,
+          student_status = CASE
+            WHEN students.student_status = 'Graduate' THEN 'Graduate'
+            ELSE EXCLUDED.student_status
+          END,
+          graduation_semester = CASE
+            WHEN students.student_status = 'Graduate' THEN students.graduation_semester
+            ELSE EXCLUDED.graduation_semester
+          END,
+          graduation_academic_year = CASE
+            WHEN students.student_status = 'Graduate' THEN students.graduation_academic_year
+            ELSE EXCLUDED.graduation_academic_year
+          END,
           updated_at = NOW()
       `,
       [
@@ -371,6 +401,9 @@ async function upsertStudentWithClient(client, input) {
         input.expectedGraduationYear,
         advisorId,
         input.educationPlan,
+        input.studentStatus,
+        input.graduationSemester,
+        input.graduationAcademicYear,
       ],
     )
   } catch (error) {
@@ -387,6 +420,42 @@ async function upsertStudentWithClient(client, input) {
   }
 
   return input.studentId
+}
+
+async function approveAllImportedGraduateMilestones(client, student) {
+  const templates = await client.query(
+    `
+      SELECT mt.milestone_id AS "milestoneId"
+      FROM milestone_templates mt
+      WHERE mt.academic_year = $1
+        AND (mt.degree_level = $2 OR mt.degree_level = 'All')
+        AND (
+          mt.plans @> ARRAY['All']::VARCHAR[]
+          OR ($3::VARCHAR IS NOT NULL AND $3 = ANY(mt.plans))
+        )
+        AND mt.is_enabled = TRUE
+    `,
+    [student.enrollmentAcademicYear, student.degreeLevel, student.educationPlan],
+  )
+
+  for (const template of templates.rows) {
+    await client.query(
+      `
+        INSERT INTO student_milestones (
+          student_milestone_id, student_id, milestone_id, status,
+          submitted_at, reviewed_at, reviewed_by, updated_at
+        )
+        VALUES ($1, $2, $3, 'Approved', NOW(), NOW(), NULL, NOW())
+        ON CONFLICT (student_id, milestone_id) DO UPDATE SET
+          status = 'Approved',
+          submitted_at = COALESCE(student_milestones.submitted_at, NOW()),
+          reviewed_at = NOW(),
+          reviewed_by = NULL,
+          updated_at = NOW()
+      `,
+      [randomUUID(), student.studentId, template.milestoneId],
+    )
+  }
 }
 
 export async function findStudentByUserId(userId) {
@@ -755,6 +824,8 @@ export async function importStudents(records, { fileName, importedBy } = {}) {
   let unchangedRecords = 0
   const errors = []
   const importedAcademicYears = new Set()
+  const unchangedStudentIds = new Set()
+  const successfullyImportedStudentIds = new Set()
 
   try {
     await client.query('BEGIN')
@@ -780,18 +851,31 @@ export async function importStudents(records, { fileName, importedBy } = {}) {
         advisorId: record.advisorId || existing.advisorId,
         advisorName: record.advisorName || existing.advisorName,
         advisorEmail: record.advisorEmail || existing.advisorEmail,
+        studentStatus: existing.studentStatus === 'Graduate' ? 'Graduate' : record.studentStatus,
+        graduationSemester:
+          existing.studentStatus === 'Graduate'
+            ? existing.graduationSemester
+            : record.graduationSemester,
+        graduationAcademicYear:
+          existing.studentStatus === 'Graduate'
+            ? existing.graduationAcademicYear
+            : record.graduationAcademicYear,
       }
     })
     const recordsToImport = mergedRecords.filter((record) => {
       const existing = existingById.get(record.studentId)
       if (!existing || !studentRecordsMatch(existing, record)) return true
       unchangedRecords += 1
+      unchangedStudentIds.add(record.studentId)
       return false
     })
 
     if (!recordsToImport.length) {
       for (const academicYear of new Set(records.map(({ enrollmentAcademicYear }) => enrollmentAcademicYear))) {
         await ensureAcademicYearMilestoneTemplates(client, academicYear)
+      }
+      for (const record of mergedRecords.filter(({ studentStatus }) => studentStatus === 'Graduate')) {
+        await approveAllImportedGraduateMilestones(client, record)
       }
       await client.query('COMMIT')
       return {
@@ -822,6 +906,7 @@ export async function importStudents(records, { fileName, importedBy } = {}) {
         }
         await upsertStudentWithClient(client, record)
         importedAcademicYears.add(record.enrollmentAcademicYear)
+        successfullyImportedStudentIds.add(record.studentId)
         successRecords += 1
         if (existingById.has(record.studentId)) updatedRecords += 1
         await client.query(`RELEASE SAVEPOINT ${savepoint}`)
@@ -831,8 +916,21 @@ export async function importStudents(records, { fileName, importedBy } = {}) {
       }
     }
 
-    for (const academicYear of importedAcademicYears) {
+    const graduateRecordsToApprove = mergedRecords.filter(
+      (record) =>
+        record.studentStatus === 'Graduate' &&
+        (unchangedStudentIds.has(record.studentId) || successfullyImportedStudentIds.has(record.studentId)),
+    )
+    const academicYearsToPrepare = new Set([
+      ...importedAcademicYears,
+      ...graduateRecordsToApprove.map(({ enrollmentAcademicYear }) => enrollmentAcademicYear),
+    ])
+    for (const academicYear of academicYearsToPrepare) {
       await ensureAcademicYearMilestoneTemplates(client, academicYear)
+    }
+
+    for (const record of graduateRecordsToApprove) {
+      await approveAllImportedGraduateMilestones(client, record)
     }
 
     await client.query(

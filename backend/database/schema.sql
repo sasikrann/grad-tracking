@@ -61,6 +61,8 @@ CREATE TABLE students (
   ),
   graduation_semester VARCHAR CHECK (graduation_semester IN ('1', '2')),
   graduation_academic_year INT CHECK (graduation_academic_year BETWEEN 1900 AND 3000),
+  student_status VARCHAR NOT NULL DEFAULT 'Normal'
+    CHECK (student_status IN ('Normal', 'Graduate')),
   study_extension_granted BOOLEAN NOT NULL DEFAULT FALSE,
   advisor_id VARCHAR REFERENCES advisors(advisor_id) ON DELETE SET NULL,
   advisor_evidence_url TEXT,
