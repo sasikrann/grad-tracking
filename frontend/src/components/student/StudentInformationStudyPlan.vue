@@ -63,14 +63,14 @@ const studentRows = computed(() => [
       <h2 class="text-base font-semibold">Study Plan Information</h2>
     </div>
 
-    <div class="flex flex-col items-center pt-2 text-center sm:hidden">
+    <div class="-mt-1 flex flex-col items-center text-center sm:hidden">
       <div
         class="flex size-16 items-center justify-center rounded-full bg-[#65000a] text-lg font-medium text-white"
       >
         {{ studentInitials }}
       </div>
       <p class="mt-2 text-sm font-medium uppercase text-slate-600">{{ profile.fullName }}</p>
-      <p class="mt-1 text-base font-medium text-slate-600">{{ profile.studentId }}</p>
+      <p class="mt-1 text-sm font-medium text-slate-600">{{ profile.studentId }}</p>
     </div>
 
     <div class="mt-4 divide-y divide-slate-200 sm:block">

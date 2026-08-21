@@ -198,8 +198,29 @@ watch(
       <div class="[&>div]:mb-0 [&_[role=group]]:w-14 [&_button]:px-1">
         <LanguageSwitch :enabled="canChangeLanguage" />
       </div>
+      <RouterLink
+        v-if="menuRole === 'student'"
+        to="/notifications"
+        class="relative flex size-8 items-center justify-center rounded-lg hover:bg-[#720008]"
+        aria-label="Open notifications"
+      >
+        <svg
+          class="size-5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.7"
+        >
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+        </svg>
+        <span
+          v-if="shouldShowNotificationBadge"
+          class="absolute right-0.5 top-0.5 size-2 rounded-full border border-[#7D2923] bg-[#f6c35b]"
+          aria-label="Unread notifications"
+        ></span>
+      </RouterLink>
       <span
-        v-if="menuRole !== 'advisor'"
+        v-else-if="menuRole !== 'advisor'"
         class="flex size-8 items-center justify-center"
         aria-hidden="true"
       >

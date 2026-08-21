@@ -21,16 +21,20 @@ defineProps<{ profile: StudentProfile }>()
           <circle cx="12" cy="7" r="4" />
         </svg>
       </div>
-      <h2 class="text-base font-semibold">Advisor Information</h2>
+      <h2 class="text-[14px] font-semibold sm:text-base">Advisor Information</h2>
     </div>
 
     <div class="mt-4 rounded-xl border border-[#eadedd] bg-[#faf7f7] p-3.5 sm:rounded-lg sm:p-4">
-      <p class="text-xs text-slate-500">Current Advisor</p>
+      <p class="text-[11px] text-slate-500 sm:text-xs">Current Advisor</p>
       <template v-if="profile.advisorId">
-        <p class="mt-1 text-sm font-semibold text-slate-900">{{ profile.advisorName }}</p>
-        <p class="mt-1 break-all text-xs leading-5 text-slate-500">{{ profile.advisorEmail }}</p>
+        <p class="mt-1 text-xs font-semibold text-slate-900 sm:text-sm">
+          {{ profile.advisorName }}
+        </p>
+        <p class="mt-1 break-all text-[11px] leading-4 text-slate-500 sm:text-xs sm:leading-5">
+          {{ profile.advisorEmail }}
+        </p>
       </template>
-      <p v-else class="mt-1 text-sm text-slate-500">
+      <p v-else class="mt-1 text-xs leading-5 text-slate-500 sm:text-sm">
         Select an advisor from the Appoint an Advisor milestone.
       </p>
     </div>
