@@ -5,7 +5,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile.dev
     ports:
-      - "127.0.0.1:${BACKEND_PORT:-3000}:3000"
+      - "${BACKEND_PORT:-3000}:3000"
     env_file:
       - ./backend/.env
     environment:

@@ -45,7 +45,7 @@ const filters = defineModel<StudentFiltersState>('filters', { required: true })
   >
     <header class="flex items-start justify-between gap-2 sm:flex-wrap sm:gap-4">
       <div class="min-w-0">
-        <h2 class="text-lg font-semibold">{{ t('student.overview') }}</h2>
+        <h2 class="text-base font-semibold sm:text-lg">{{ t('student.overview') }}</h2>
         <p class="text-xs font-medium text-[#7d7d7d] sm:mt-1 sm:text-sm">
           {{ t('student.overviewDescription') }}
         </p>

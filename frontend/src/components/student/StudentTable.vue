@@ -2,7 +2,7 @@
 import type { StudentTableItem } from '@/types/student'
 import { useLanguage } from '@/composables/useLanguage'
 
-const { t } = useLanguage()
+const { isThai, t } = useLanguage()
 
 withDefaults(
   defineProps<{
@@ -34,6 +34,12 @@ function statusLabel(status: StudentTableItem['status']) {
   if (status === 'Extended') return t('dashboard.extended')
   if (status === 'Overdue') return t('dashboard.overdue')
   return t('dashboard.onTrack')
+}
+
+function degreeLabel(degree: string) {
+  if (degree === 'Ph. D.' || degree === 'Doctoral') return t('common.doctoral')
+  if (degree === 'Master') return t('common.master')
+  return degree
 }
 
 function planLabel(plan: string) {
@@ -81,11 +87,11 @@ function planLabel(plan: string) {
         </div>
         <button
           type="button"
-          class="flex shrink-0 items-center gap-1 py-1 text-[9px] font-semibold text-blue-600"
+          class="flex shrink-0 items-center gap-1 py-1 text-[11px] font-semibold text-blue-600"
           @click="$emit('view', student.studentId)"
         >
           <svg
-            class="size-3"
+            class="size-3.5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -94,56 +100,64 @@ function planLabel(plan: string) {
             <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
             <circle cx="12" cy="12" r="2.5" />
           </svg>
-          View details
+          {{ t('common.viewDetails') }}
         </button>
       </div>
       <div class="mt-2 flex gap-1.5">
-        <span class="rounded-full bg-emerald-500 px-2 py-0.5 text-[9px] font-semibold text-white">{{
-          student.degree
-        }}</span>
-        <span class="rounded-full border border-slate-200 px-2 py-0.5 text-[9px]">{{
+        <span
+          class="rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
+          :class="
+            student.degree === 'Ph. D.' || student.degree === 'Doctoral'
+              ? 'bg-blue-900'
+              : 'bg-teal-500'
+          "
+          >{{ degreeLabel(student.degree) }}</span
+        >
+        <span class="rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-semibold">{{
           student.program
         }}</span>
         <span
-          class="rounded-full px-2 py-0.5 text-[9px] font-semibold"
+          class="rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
           :class="
             student.status === 'Graduate'
-              ? 'bg-emerald-100 text-emerald-700'
-              : student.status === 'Overdue'
-                ? 'bg-red-100 text-red-700'
-                : 'bg-amber-300 text-amber-800'
+              ? 'bg-[#49b866]'
+              : student.status === 'Extended'
+                ? 'bg-orange-500'
+                : student.status === 'Overdue'
+                  ? 'bg-[#d90012]'
+                  : 'bg-[#ffb51b]'
           "
           >{{ statusLabel(student.status) }}</span
         >
       </div>
-      <dl class="mt-3 grid grid-cols-3 gap-2 text-[9px]">
+      <dl class="mt-3 grid grid-cols-[1fr_auto_1fr] gap-x-3 text-[11px]">
         <div>
-          <dt class="text-[#7690a5]">Plan</dt>
+          <dt class="font-medium text-[#7690a5]">{{ t('common.plan') }}</dt>
           <dd class="mt-0.5 font-medium">
             {{ student.educationPlan ? planLabel(student.educationPlan) : '-' }}
           </dd>
         </div>
-        <div>
-          <dt class="text-[#7690a5]">Enrollment Year</dt>
+        <div class="justify-self-center" :class="{ '-translate-x-8.5': !isThai }">
+          <dt class="font-medium text-[#7690a5]">{{ t('common.enrollmentYear') }}</dt>
           <dd class="mt-0.5 font-medium">
             {{ buddhistYear ? displayYear(student.year) : student.year }}
           </dd>
         </div>
-        <div>
-          <dt class="text-[#7690a5]">Enrollment Semester</dt>
+        <div class="justify-self-end">
+          <dt class="font-medium text-[#7690a5]">{{ t('common.semester') }}</dt>
           <dd class="mt-0.5 font-medium">{{ student.semester }}</dd>
         </div>
       </dl>
       <div class="mt-3">
-        <p class="mb-1 text-[9px] text-[#7690a5]">Progress</p>
+        <p class="mb-1 text-[11px] font-medium text-[#7690a5]">{{ t('student.progress') }}</p>
         <div class="flex items-center gap-2">
-          <div class="h-1 flex-1 overflow-hidden rounded-full bg-[#f7c9cf]">
+          <div class="h-2 flex-1 overflow-hidden rounded-full bg-[#f7c9cf]">
             <div
               class="h-full rounded-full bg-[#d50012]"
               :style="{ width: `${student.progress}%` }"
             ></div>
           </div>
-          <span class="text-[9px] font-semibold">{{ student.progress }}%</span>
+          <span class="text-[11px] font-semibold">{{ student.progress }}%</span>
         </div>
       </div>
     </article>

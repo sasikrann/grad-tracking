@@ -14,11 +14,14 @@ const orderedMilestones = computed(() =>
 </script>
 
 <template>
-  <nav class="flex flex-wrap justify-end gap-1.5" aria-label="Milestone status overview">
+  <nav
+    class="flex w-full flex-nowrap justify-start gap-1 overflow-hidden sm:flex-wrap sm:justify-end sm:gap-1.5 sm:overflow-visible"
+    aria-label="Milestone status overview"
+  >
     <span
       v-for="(milestone, index) in orderedMilestones"
       :key="milestone.milestoneId"
-      class="flex size-6 items-center justify-center rounded-full text-xs font-semibold"
+      class="flex aspect-square max-w-7 min-w-0 flex-1 items-center justify-center rounded-full text-[10px] font-semibold shadow-sm sm:size-6 sm:flex-none sm:text-xs sm:shadow-none"
       :class="milestoneStatusColor(milestone.status)"
       :aria-label="`Milestone ${index + 1}: ${milestone.status}`"
     >
