@@ -198,7 +198,11 @@ watch(
       <div class="[&>div]:mb-0 [&_[role=group]]:w-14 [&_button]:px-1">
         <LanguageSwitch :enabled="canChangeLanguage" />
       </div>
-      <span class="flex size-8 items-center justify-center" aria-hidden="true">
+      <span
+        v-if="menuRole !== 'advisor'"
+        class="flex size-8 items-center justify-center"
+        aria-hidden="true"
+      >
         <svg
           class="size-5"
           viewBox="0 0 24 24"
