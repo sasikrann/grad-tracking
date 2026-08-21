@@ -164,7 +164,7 @@ watch(
 
 <template>
   <header
-    class="sticky top-0 z-30 flex h-14 w-full items-center justify-between bg-[#7D2923] px-2 text-white md:hidden"
+    class="sticky top-0 z-30 flex h-18 w-full items-center justify-between bg-[#7D2923] px-3 text-white md:hidden"
   >
     <div class="flex min-w-0 items-center gap-2">
       <button
@@ -189,8 +189,8 @@ watch(
         <img src="@/assets/logomfu.png" alt="MFU Logo" class="size-7 object-contain" />
       </div>
       <div class="min-w-0">
-        <p class="truncate text-base font-semibold leading-tight">ADT GRAD Tracking</p>
-        <p class="text-[9px] text-white/75">Progress System</p>
+        <p class="truncate text-lg font-semibold leading-tight">ADT GRAD Tracking</p>
+        <p class="text-[10px] text-white/75">Progress System</p>
       </div>
     </div>
 
