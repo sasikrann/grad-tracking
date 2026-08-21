@@ -189,7 +189,7 @@ watch(
         <img src="@/assets/logomfu.png" alt="MFU Logo" class="size-7 object-contain" />
       </div>
       <div class="min-w-0">
-        <p class="truncate text-lg font-semibold leading-tight">ADT GRAD Tracking</p>
+        <p class="truncate text-base font-semibold leading-tight">ADT GRAD Tracking</p>
         <p class="text-[10px] text-white/75">Progress System</p>
       </div>
     </div>
