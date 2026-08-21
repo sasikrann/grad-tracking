@@ -201,25 +201,28 @@ useAutoRefresh(() => loadSummary({ silent: true }))
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
+  <div class="min-h-screen bg-[#f7f7f7] px-4 py-5 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8">
     <header>
-      <h1 class="text-3xl font-bold tracking-tight">Milestone Summary</h1>
+      <h1 class="text-xl font-bold tracking-tight sm:text-3xl">Milestone Summary</h1>
       <p class="mt-1 text-sm font-medium text-[#7d7d7d]">
         Manage student data, track progress, and check thesis status.
       </p>
     </header>
 
-    <section class="mt-7 grid grid-cols-4 gap-3">
+    <section class="mt-4 grid grid-cols-2 gap-2.5 sm:mt-7 sm:gap-3 xl:grid-cols-4">
       <article
         v-for="card in summaryCards"
         :key="card.title"
-        class="flex h-24 items-center rounded-xl border border-[#e6e6e6] bg-white px-5 shadow-[0_2px_3px_rgba(0,0,0,0.16)]"
+        class="flex min-h-20 items-center rounded-xl border border-[#ececec] bg-white px-3.5 py-3 shadow-[0_2px_8px_rgba(15,23,42,0.06)] sm:h-24 sm:px-5 sm:py-0"
       >
         <div
-          :class="['flex size-12 shrink-0 items-center justify-center rounded-full', card.accent]"
+          :class="[
+            'flex size-10 shrink-0 items-center justify-center rounded-full sm:size-12',
+            card.accent,
+          ]"
         >
           <svg
-            class="size-7"
+            class="size-6 sm:size-7"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -244,33 +247,49 @@ useAutoRefresh(() => loadSummary({ silent: true }))
             </template>
           </svg>
         </div>
-        <div class="ml-4 leading-tight">
-          <p class="text-sm text-[#7b7b7b]">{{ card.title }}</p>
-          <p class="mt-1 text-lg font-semibold text-black">{{ card.value }}</p>
+        <div class="ml-2.5 min-w-0 leading-tight sm:ml-4">
+          <p class="truncate text-[11px] text-[#7b7b7b] sm:text-sm">{{ card.title }}</p>
+          <p class="mt-0.5 text-base font-semibold text-black sm:mt-1 sm:text-lg">
+            {{ card.value }}
+          </p>
         </div>
       </article>
     </section>
 
     <section
-      class="mt-14 rounded-xl border border-[#ececec] bg-white px-4 pb-5 pt-5 shadow-[0_2px_4px_rgba(0,0,0,0.18)] sm:px-7"
+      class="mt-4 rounded-xl border border-[#ececec] bg-white px-3 pb-5 pt-4 shadow-[0_2px_8px_rgba(15,23,42,0.06)] sm:mt-14 sm:px-7 sm:pt-5"
     >
-      <header class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <h2 class="text-lg font-semibold">Milestone Breakdown</h2>
+      <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-lg font-semibold">Milestone Breakdown</h2>
+          <p class="mt-0.5 text-xs text-slate-500 sm:hidden">
+            Select a group to view milestone status
+          </p>
+        </div>
 
         <div
           v-if="summary.filters.advisorFilters.length"
-          class="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 lg:w-auto lg:min-w-[340px]"
+          class="grid w-full grid-cols-3 gap-2 sm:w-auto sm:gap-2 lg:min-w-[340px]"
         >
           <div v-for="filter in filterDefinitions" :key="filter.key" class="relative" @click.stop>
+            <p class="mb-1 text-[10px] font-medium text-slate-500 sm:hidden">
+              {{
+                filter.key === 'degreeLevel'
+                  ? 'Degree'
+                  : filter.key === 'educationPlan'
+                    ? 'Plan'
+                    : 'Year'
+              }}
+            </p>
             <button
               type="button"
-              class="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-[#eeeeee] bg-white px-3 text-left text-xs shadow-[0_2px_4px_rgba(0,0,0,0.08)] outline-none hover:border-[#dfcccc] focus:border-[#8a2b25]"
+              class="flex h-10 w-full items-center justify-between gap-1 rounded-lg border border-slate-200 bg-white px-3 text-left text-xs font-medium shadow-sm outline-none hover:border-[#dfcccc] focus:border-[#8a2b25] sm:h-9 sm:gap-2"
               :aria-expanded="openFilter === filter.key"
               @click="openFilter = openFilter === filter.key ? null : filter.key"
             >
               <span class="truncate">{{ filter.label }}</span>
               <svg
-                class="size-4 shrink-0 text-[#777]"
+                class="size-3.5 shrink-0 text-[#777] sm:size-4"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -321,38 +340,77 @@ useAutoRefresh(() => loadSummary({ silent: true }))
         No milestone data matches the selected filters.
       </div>
 
-      <div v-else class="mt-3 overflow-x-auto">
-        <table class="w-full min-w-[720px] border-collapse text-left text-sm">
-          <thead>
-            <tr class="border-b border-[#dedede]">
-              <th class="w-1/2 py-3 font-semibold">Milestone</th>
-              <th class="w-1/4 py-3 text-center font-semibold">
-                <span class="inline-flex items-center gap-1.5"
-                  ><span class="size-3 rounded-full bg-[#ffbd38]"></span>In Progress</span
-                >
-              </th>
-              <th class="w-1/4 py-3 text-center font-semibold">
-                <span class="inline-flex items-center gap-1.5"
-                  ><span class="size-3 rounded-full bg-[#49b866]"></span>Completed</span
-                >
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="milestone in summary.milestones"
-              :key="milestone.milestoneId"
-              class="border-b border-[#dedede]"
-            >
-              <td class="py-4 font-semibold">
-                {{ milestone.sequenceOrder }}. {{ milestone.title }}
-              </td>
-              <td class="py-4 text-center">{{ milestone.inProgress + milestone.missing }}</td>
-              <td class="py-4 text-center">{{ milestone.completed + milestone.approved }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <template v-else>
+        <div class="mt-4 space-y-2 sm:hidden">
+          <article
+            v-for="(milestone, index) in summary.milestones"
+            :key="milestone.milestoneId"
+            class="rounded-xl border border-slate-200 bg-slate-50/60 p-3"
+          >
+            <div class="flex items-start gap-2.5">
+              <span
+                class="flex size-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-600 shadow-sm"
+              >
+                {{ index + 1 }}
+              </span>
+              <p class="pt-1 text-xs font-semibold leading-4 text-slate-800">
+                {{ milestone.title }}
+              </p>
+            </div>
+            <div class="mt-3 grid grid-cols-2 gap-2 pl-9">
+              <div class="flex items-center justify-between rounded-lg bg-amber-50 px-2.5 py-2">
+                <span class="flex items-center gap-1.5 text-[10px] font-medium text-amber-700">
+                  <span class="size-2 rounded-full bg-amber-400"></span>In progress
+                </span>
+                <strong class="text-xs text-amber-800">{{
+                  milestone.inProgress + milestone.missing
+                }}</strong>
+              </div>
+              <div class="flex items-center justify-between rounded-lg bg-emerald-50 px-2.5 py-2">
+                <span class="flex items-center gap-1.5 text-[10px] font-medium text-emerald-700">
+                  <span class="size-2 rounded-full bg-emerald-500"></span>Completed
+                </span>
+                <strong class="text-xs text-emerald-800">{{
+                  milestone.completed + milestone.approved
+                }}</strong>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="mt-3 hidden overflow-x-auto sm:block">
+          <table class="w-full min-w-[720px] border-collapse text-left text-sm">
+            <thead>
+              <tr class="border-b border-[#dedede]">
+                <th class="w-1/2 py-3 font-semibold">Milestone</th>
+                <th class="w-1/4 py-3 text-center font-semibold">
+                  <span class="inline-flex items-center gap-1.5"
+                    ><span class="size-3 rounded-full bg-[#ffbd38]"></span>In Progress</span
+                  >
+                </th>
+                <th class="w-1/4 py-3 text-center font-semibold">
+                  <span class="inline-flex items-center gap-1.5"
+                    ><span class="size-3 rounded-full bg-[#49b866]"></span>Completed</span
+                  >
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(milestone, index) in summary.milestones"
+                :key="milestone.milestoneId"
+                class="border-b border-[#dedede]"
+              >
+                <td class="py-4 font-semibold">
+                  {{ index + 1 }}. {{ milestone.title }}
+                </td>
+                <td class="py-4 text-center">{{ milestone.inProgress + milestone.missing }}</td>
+                <td class="py-4 text-center">{{ milestone.completed + milestone.approved }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
     </section>
   </div>
 </template>

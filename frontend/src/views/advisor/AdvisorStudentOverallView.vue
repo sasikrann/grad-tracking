@@ -52,15 +52,15 @@ function viewStudentMilestones(studentId: string) {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
+  <div class="min-h-screen bg-[#f7f7f7] px-4 py-5 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8">
     <header>
-      <h1 class="text-3xl font-bold tracking-tight">Student Overall</h1>
+      <h1 class="text-xl font-bold tracking-tight sm:text-3xl">Student Overall</h1>
       <p class="mt-1 text-sm text-slate-500">
         Monitor advised students, track their progress, and review thesis status
       </p>
     </header>
 
-    <section class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+    <section class="mt-3 grid grid-cols-2 gap-2.5 sm:mt-4 sm:gap-5 xl:grid-cols-4">
       <SummaryCard :title="totalStudentsTitle" :value="statistics.total" icon="students" />
       <SummaryCard title="On-track" :value="statistics.onTrack" icon="on-track" />
       <SummaryCard title="Overdue" :value="statistics.overdue" icon="overdue" />
@@ -68,6 +68,7 @@ function viewStudentMilestones(studentId: string) {
     </section>
 
     <StudentOverview
+      class="min-h-[430px] sm:min-h-0"
       v-model:filters="filters"
       v-model:search="search"
       :students="filteredStudents"
