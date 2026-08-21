@@ -73,12 +73,17 @@ export async function loginForDevelopment(request, response) {
   const isEnabled =
     process.env.NODE_ENV !== "production" && process.env.ENABLE_DEV_LOGIN === "true";
   const remoteAddress = request.socket.remoteAddress ?? "";
+  const normalizedRemoteAddress = remoteAddress.replace(/^::ffff:/, "");
   const isLocalRequest =
     remoteAddress === "::1" ||
-    remoteAddress.startsWith("127.") ||
-    remoteAddress.startsWith("::ffff:127.");
+    normalizedRemoteAddress.startsWith("127.");
+  const isDockerPrivateRequest =
+    process.env.ENABLE_DOCKER_DEV_LOGIN === "true" &&
+    (/^10\./.test(normalizedRemoteAddress) ||
+      /^192\.168\./.test(normalizedRemoteAddress) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(normalizedRemoteAddress));
 
-  if (!isEnabled || !isLocalRequest) {
+  if (!isEnabled || (!isLocalRequest && !isDockerPrivateRequest)) {
     throw new ApiError(404, "Development login is disabled");
   }
 
