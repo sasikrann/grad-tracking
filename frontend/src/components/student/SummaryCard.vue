@@ -8,7 +8,7 @@ defineProps<{
 
 <template>
   <article
-    class="flex h-[76px] w-full items-center rounded-xl border border-[#e6e6e6] bg-white px-5 shadow-[0_2px_3px_rgba(0,0,0,0.16)]"
+    class="flex h-[76px] w-full items-center rounded-lg border border-[#e6e6e6] bg-white px-3 shadow-[0_2px_3px_rgba(0,0,0,0.12)] sm:rounded-xl sm:px-5"
   >
     <div class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#f8ebeb]">
       <svg
@@ -39,8 +39,8 @@ defineProps<{
       </svg>
     </div>
 
-    <div class="ml-4 leading-tight">
-      <p class="text-sm text-[#7b7b7b]">{{ title }}</p>
+    <div class="ml-3 min-w-0 leading-tight sm:ml-4">
+      <p class="truncate text-xs text-[#7b7b7b] sm:text-sm">{{ title }}</p>
       <p class="mt-0.5 text-lg font-semibold">{{ value }}</p>
     </div>
   </article>

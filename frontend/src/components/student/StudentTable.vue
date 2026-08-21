@@ -52,18 +52,136 @@ function planLabel(plan: string) {
 </script>
 
 <template>
-  <div class="mt-6 overflow-x-auto">
+  <div class="mt-3 space-y-2 md:hidden">
+    <article
+      v-for="student in students"
+      :key="student.studentId"
+      class="rounded-lg border border-[#eeeeee] bg-white p-3 shadow-sm"
+    >
+      <div class="flex items-start justify-between gap-2">
+        <div class="flex min-w-0 items-center gap-2">
+          <div
+            class="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#fde7e9] text-[#d64b59]"
+          >
+            <svg
+              class="size-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+            >
+              <path d="m3 9 9-4 9 4-9 4-9-4Z" />
+              <path d="M7 11v4.5c2.7 2 7.3 2 10 0V11M21 9v6" />
+            </svg>
+          </div>
+          <div class="min-w-0 leading-tight">
+            <p class="truncate text-xs font-semibold">{{ student.name }}</p>
+            <p class="mt-1 text-[10px] text-[#7690a5]">{{ student.studentId }}</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="flex shrink-0 items-center gap-1 py-1 text-[9px] font-semibold text-blue-600"
+          @click="$emit('view', student.studentId)"
+        >
+          <svg
+            class="size-3"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+          >
+            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
+            <circle cx="12" cy="12" r="2.5" />
+          </svg>
+          View details
+        </button>
+      </div>
+      <div class="mt-2 flex gap-1.5">
+        <span class="rounded-full bg-emerald-500 px-2 py-0.5 text-[9px] font-semibold text-white">{{
+          student.degree
+        }}</span>
+        <span class="rounded-full border border-slate-200 px-2 py-0.5 text-[9px]">{{
+          student.program
+        }}</span>
+        <span
+          class="rounded-full px-2 py-0.5 text-[9px] font-semibold"
+          :class="
+            student.status === 'Graduate'
+              ? 'bg-emerald-100 text-emerald-700'
+              : student.status === 'Overdue'
+                ? 'bg-red-100 text-red-700'
+                : 'bg-amber-300 text-amber-800'
+          "
+          >{{ statusLabel(student.status) }}</span
+        >
+      </div>
+      <dl class="mt-3 grid grid-cols-3 gap-2 text-[9px]">
+        <div>
+          <dt class="text-[#7690a5]">Plan</dt>
+          <dd class="mt-0.5 font-medium">
+            {{ student.educationPlan ? planLabel(student.educationPlan) : '-' }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[#7690a5]">Enrollment Year</dt>
+          <dd class="mt-0.5 font-medium">
+            {{ buddhistYear ? displayYear(student.year) : student.year }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[#7690a5]">Enrollment Semester</dt>
+          <dd class="mt-0.5 font-medium">{{ student.semester }}</dd>
+        </div>
+      </dl>
+      <div class="mt-3">
+        <p class="mb-1 text-[9px] text-[#7690a5]">Progress</p>
+        <div class="flex items-center gap-2">
+          <div class="h-1 flex-1 overflow-hidden rounded-full bg-[#f7c9cf]">
+            <div
+              class="h-full rounded-full bg-[#d50012]"
+              :style="{ width: `${student.progress}%` }"
+            ></div>
+          </div>
+          <span class="text-[9px] font-semibold">{{ student.progress }}%</span>
+        </div>
+      </div>
+    </article>
+    <p v-if="isLoading" class="py-10 text-center text-xs text-[#777]">{{ t('common.loading') }}</p>
+    <p v-else-if="error" class="py-10 text-center text-xs text-[#b42318]">{{ error }}</p>
+    <p v-else-if="students.length === 0" class="py-10 text-center text-xs text-[#777]">
+      {{ t('student.noStudents') }}
+    </p>
+  </div>
+
+  <div class="mt-6 hidden overflow-x-auto md:block">
     <table class="w-full min-w-225 table-fixed border-collapse text-left">
       <thead>
         <tr class="border-b border-[#dddddd] text-xs">
           <th class="w-[25%] pt-1 pb-3 leading-5 font-semibold">{{ t('student.student') }}</th>
-          <th class="w-[13%] pt-1 pb-3 text-center leading-5 font-semibold">{{ t('common.program') }}</th>
-          <th class="w-[10%] -translate-x-2 pt-1 pb-3 text-center leading-5 font-semibold">{{ t('common.plan') }}</th>
-          <th class="w-[15%] -translate-x-2 whitespace-nowrap pt-1 pb-3 text-center leading-5 font-semibold">{{ t('common.semester') }}</th>
-          <th class="w-[12%] pt-1 pb-3 text-center leading-5 font-semibold">{{ t('common.enrollmentYear') }}</th>
-          <th class="w-[19%] pt-1 pb-3 text-center leading-5 font-semibold">{{ t('student.progress') }}</th>
-          <th class="w-[14%] pt-1 pb-3 text-center leading-5 font-semibold">{{ t('common.status') }}</th>
-          <th class="w-[8%] pt-1 pb-3 text-center leading-5 font-semibold">{{ t('common.actions') }}</th>
+          <th class="w-[13%] pt-1 pb-3 text-center leading-5 font-semibold">
+            {{ t('common.program') }}
+          </th>
+          <th class="w-[10%] -translate-x-2 pt-1 pb-3 text-center leading-5 font-semibold">
+            {{ t('common.plan') }}
+          </th>
+          <th
+            class="w-[15%] -translate-x-2 whitespace-nowrap pt-1 pb-3 text-center leading-5 font-semibold"
+          >
+            {{ t('common.semester') }}
+          </th>
+          <th class="w-[12%] pt-1 pb-3 text-center leading-5 font-semibold">
+            {{ t('common.enrollmentYear') }}
+          </th>
+          <th class="w-[19%] pt-1 pb-3 text-center leading-5 font-semibold">
+            {{ t('student.progress') }}
+          </th>
+          <th class="w-[14%] pt-1 pb-3 text-center leading-5 font-semibold">
+            {{ t('common.status') }}
+          </th>
+          <th class="w-[8%] pt-1 pb-3 text-center leading-5 font-semibold">
+            {{ t('common.actions') }}
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -150,9 +268,9 @@ function planLabel(plan: string) {
                   ? 'bg-[#49b866]'
                   : student.status === 'Extended'
                     ? 'bg-orange-500'
-                  : student.status === 'Overdue'
-                    ? 'bg-[#d90012]'
-                    : 'bg-[#ffb51b]'
+                    : student.status === 'Overdue'
+                      ? 'bg-[#d90012]'
+                      : 'bg-[#ffb51b]'
               "
             >
               {{ statusLabel(student.status) }}

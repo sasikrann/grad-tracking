@@ -19,7 +19,9 @@ defineEmits<{
     :disabled="busy"
     class="flex items-center justify-center rounded-xl border border-slate-200 bg-white text-center shadow-sm transition disabled:cursor-wait disabled:opacity-60"
     :class="[
-      compact ? 'gap-2 px-3 py-2 text-left' : 'flex-col px-6 py-7',
+      compact
+        ? 'gap-1.5 rounded-xl px-2 py-1.5 text-left'
+        : 'flex-col gap-2 px-4 py-4 text-center sm:gap-3 sm:px-6 sm:py-7',
       tone === 'green' ? 'hover:border-emerald-500' : 'hover:border-[#7d2923]',
     ]"
     @click="$emit('click')"
@@ -27,14 +29,12 @@ defineEmits<{
     <span
       class="flex shrink-0 items-center justify-center rounded-full"
       :class="[
-        compact ? 'size-8' : 'size-12',
-        tone === 'green'
-          ? 'bg-emerald-50 text-emerald-600'
-          : 'bg-[#f8e9e9] text-[#a33a3a]',
+        compact ? 'size-6' : 'size-10 sm:size-12',
+        tone === 'green' ? 'bg-emerald-50 text-emerald-600' : 'bg-[#f8e9e9] text-[#a33a3a]',
       ]"
     >
       <svg
-        :class="compact ? 'size-4' : 'size-6'"
+        :class="compact ? 'size-3.5' : 'size-5 sm:size-6'"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -50,11 +50,14 @@ defineEmits<{
         </template>
       </svg>
     </span>
-    <span :class="compact ? '' : 'mt-3'">
-      <span :class="['block font-semibold', compact ? 'text-sm' : '']">
+    <span>
+      <span :class="['block font-semibold', compact ? 'text-xs' : 'text-sm sm:text-base']">
         {{ busy ? (busyLabel ?? title) : title }}
       </span>
-      <span :class="['block text-slate-500', compact ? 'text-[10px]' : 'mt-1 text-xs']">
+      <span
+        v-if="!compact"
+        :class="['block text-slate-500', 'mt-0.5 text-[10px] sm:mt-1 sm:text-xs']"
+      >
         {{ description }}
       </span>
     </span>
