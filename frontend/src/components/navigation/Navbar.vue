@@ -93,7 +93,8 @@ const userInitials = computed(() => {
 
 function isActiveItem(item: MenuItem) {
   return (
-    routePath.value === item.to || item.activePaths?.some((path) => routePath.value.startsWith(path))
+    routePath.value === item.to ||
+    item.activePaths?.some((path) => routePath.value.startsWith(path))
   )
 }
 
@@ -129,7 +130,10 @@ onMounted(() => {
   }, 15_000)
   window.addEventListener('focus', refreshUnreadCountWhenVisible)
   document.addEventListener('visibilitychange', refreshUnreadCountWhenVisible)
-  window.addEventListener('notifications:unread-count-changed', handleNotificationUnreadCountChanged)
+  window.addEventListener(
+    'notifications:unread-count-changed',
+    handleNotificationUnreadCountChanged,
+  )
 })
 
 onBeforeUnmount(() => {
@@ -160,36 +164,52 @@ watch(
 
 <template>
   <header
-    class="flex h-16 w-full items-center justify-between bg-[#7D2923] px-4 text-white md:hidden"
+    class="sticky top-0 z-30 flex h-14 w-full items-center justify-between bg-[#7D2923] px-2 text-white md:hidden"
   >
-    <div class="flex items-center gap-3">
-      <div class="flex size-10 items-center justify-center rounded-lg bg-[#750008]">
-        <img src="@/assets/logomfu.png" alt="MFU Logo" class="size-9 object-contain" />
+    <div class="flex min-w-0 items-center gap-2">
+      <button
+        type="button"
+        class="flex size-9 shrink-0 items-center justify-center rounded-lg hover:bg-[#720008]"
+        aria-label="Open navigation menu"
+        :aria-expanded="isMobileMenuOpen"
+        @click="isMobileMenuOpen = true"
+      >
+        <svg
+          class="size-6"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          aria-hidden="true"
+        >
+          <path d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
+      </button>
+      <div class="flex size-8 shrink-0 items-center justify-center rounded bg-[#750008]">
+        <img src="@/assets/logomfu.png" alt="MFU Logo" class="size-7 object-contain" />
       </div>
-      <div>
-        <p class="text-base font-semibold leading-tight">ADT GRAD Tracking</p>
-        <p class="text-xs text-white/75">Progress System</p>
+      <div class="min-w-0">
+        <p class="truncate text-base font-semibold leading-tight">ADT GRAD Tracking</p>
+        <p class="text-[9px] text-white/75">Progress System</p>
       </div>
     </div>
 
-    <button
-      type="button"
-      class="flex size-10 items-center justify-center rounded-lg hover:bg-[#720008]"
-      aria-label="Open navigation menu"
-      :aria-expanded="isMobileMenuOpen"
-      @click="isMobileMenuOpen = true"
-    >
-      <svg
-        class="size-6"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.8"
-        aria-hidden="true"
-      >
-        <path d="M4 7h16M4 12h16M4 17h16" />
-      </svg>
-    </button>
+    <div class="flex shrink-0 items-center gap-1">
+      <div class="[&>div]:mb-0 [&_[role=group]]:w-14 [&_button]:px-1">
+        <LanguageSwitch :enabled="canChangeLanguage" />
+      </div>
+      <span class="flex size-8 items-center justify-center" aria-hidden="true">
+        <svg
+          class="size-5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.7"
+        >
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+        </svg>
+      </span>
+    </div>
   </header>
 
   <button
@@ -201,26 +221,34 @@ watch(
   ></button>
 
   <aside
-    class="fixed inset-y-0 left-0 z-50 flex h-screen w-72 shrink-0 -translate-x-full flex-col justify-between bg-[#7D2923] px-3 py-3 text-white shadow-xl transition-transform duration-200 md:sticky md:top-0 md:z-auto md:translate-x-0 md:shadow-none"
+    class="fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-[64vw] max-w-[240px] shrink-0 -translate-x-full flex-col justify-between bg-[#7D2923] px-2.5 py-2.5 text-white shadow-xl transition-transform duration-200 md:sticky md:top-0 md:z-auto md:h-screen md:w-72 md:max-w-72 md:translate-x-0 md:px-3 md:py-3 md:shadow-none"
     :class="{ 'translate-x-0': isMobileMenuOpen }"
   >
     <div>
       <!-- ส่วนโลโก้และชื่อระบบ -->
       <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3">
-          <div class="flex size-14 items-center justify-center rounded-xl bg-[#750008]">
-            <img src="@/assets/logomfu.png" alt="MFU Logo" class="size-12 object-contain" />
+        <div class="flex min-w-0 items-center gap-2 md:gap-3">
+          <div
+            class="flex size-11 shrink-0 items-center justify-center rounded-lg bg-[#750008] md:size-14 md:rounded-xl"
+          >
+            <img
+              src="@/assets/logomfu.png"
+              alt="MFU Logo"
+              class="size-9 object-contain md:size-12"
+            />
           </div>
 
-          <div>
-            <h1 class="text-xl font-semibold leading-tight">ADT GRAD Tracking</h1>
-            <p class="mt-0.5 text-sm text-white/80">Progress System</p>
+          <div class="min-w-0">
+            <h1 class="truncate text-base font-semibold leading-tight md:text-xl">
+              ADT GRAD Tracking
+            </h1>
+            <p class="mt-0.5 text-[10px] text-white/80 md:text-sm">Progress System</p>
           </div>
         </div>
 
         <button
           type="button"
-          class="flex size-9 shrink-0 items-center justify-center rounded-lg hover:bg-[#720008] md:hidden"
+          class="flex size-8 shrink-0 items-center justify-center rounded-lg hover:bg-[#720008] md:hidden"
           aria-label="Close navigation menu"
           @click="isMobileMenuOpen = false"
         >
@@ -238,22 +266,24 @@ watch(
       </div>
 
       <!-- ส่วนเมนู: สร้างรายการตาม role ด้วย v-for -->
-      <nav class="mt-3">
-        <p class="mb-1 px-1 py-1 text-sm text-white/60">{{ menuRole === 'admin' ? t('nav.overview') : 'Overview' }}</p>
+      <nav class="mt-2.5 md:mt-3">
+        <p class="mb-1 px-1 py-1 text-xs text-white/60 md:text-sm">
+          {{ menuRole === 'admin' ? t('nav.overview') : 'Overview' }}
+        </p>
 
         <RouterLink
           v-for="item in menuItems"
           :key="item.to"
           :to="item.to"
-          class="flex items-center gap-3 rounded-[5px] px-2 py-3 text-sm transition-colors hover:bg-[#720008]"
+          class="flex items-center gap-2.5 rounded-[5px] px-2 py-2.5 text-xs transition-colors hover:bg-[#720008] md:gap-3 md:py-3 md:text-sm"
           :class="{ 'bg-[#720008]': isActiveItem(item) }"
           exact-active-class="bg-[#720008]"
           @click="isMobileMenuOpen = false"
         >
           <!-- เลือกไอคอนให้ตรงกับประเภทของเมนู -->
-          <span class="relative flex size-4 shrink-0 items-center justify-center">
+          <span class="relative flex size-3.5 shrink-0 items-center justify-center md:size-4">
             <svg
-              class="size-4"
+              class="size-3.5 md:size-4"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -295,7 +325,9 @@ watch(
           </span>
 
           <span class="flex min-w-0 flex-1 items-center gap-2">
-            <span class="-translate-y-0.5 whitespace-nowrap leading-none">{{ menuLabel(item) }}</span>
+            <span class="-translate-y-0.5 whitespace-nowrap leading-none">{{
+              menuLabel(item)
+            }}</span>
           </span>
         </RouterLink>
       </nav>
@@ -303,36 +335,38 @@ watch(
 
     <!-- ส่วนข้อมูลผู้ใช้ที่แสดงด้านล่างสุดของ Navbar -->
     <div>
-      <LanguageSwitch :enabled="canChangeLanguage" />
+      <div class="[&>div]:mb-1 [&_[role=group]]:w-20 md:[&>div]:mb-2 md:[&_[role=group]]:w-24">
+        <LanguageSwitch :enabled="canChangeLanguage" />
+      </div>
       <div class="flex items-center gap-2">
-      <div
-        class="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#720008] text-xs"
-      >
-        {{ userInitials }}
-      </div>
-
-      <div class="flex-1">
-        <p class="text-xs font-medium">{{ user.fullName }}</p>
-        <p class="text-[10px] text-white/70">{{ user.email }}</p>
-      </div>
-
-      <button
-        type="button"
-        :aria-label="menuRole === 'admin' ? t('nav.signOut') : 'Sign out'"
-        class="rounded p-1.5 hover:bg-[#720008]"
-        @click="emit('logout')"
-      >
-        <svg
-          class="size-5"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.7"
+        <div
+          class="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#720008] text-[10px] md:size-8 md:text-xs"
         >
-          <path d="M10 17l5-5-5-5M15 12H3" />
-          <path d="M14 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-        </svg>
-      </button>
+          {{ userInitials }}
+        </div>
+
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-[10px] font-medium md:text-xs">{{ user.fullName }}</p>
+          <p class="truncate text-[8px] text-white/70 md:text-[10px]">{{ user.email }}</p>
+        </div>
+
+        <button
+          type="button"
+          :aria-label="menuRole === 'admin' ? t('nav.signOut') : 'Sign out'"
+          class="rounded p-1.5 hover:bg-[#720008]"
+          @click="emit('logout')"
+        >
+          <svg
+            class="size-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+          >
+            <path d="M10 17l5-5-5-5M15 12H3" />
+            <path d="M14 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+          </svg>
+        </button>
       </div>
     </div>
   </aside>
