@@ -38,7 +38,9 @@ const canExtendStudyPeriod = computed(() => {
 })
 
 const completedCount = computed(
-  () => milestones.value.filter((milestone) => ['Approved', 'Completed'].includes(milestone.status)).length,
+  () =>
+    milestones.value.filter((milestone) => ['Approved', 'Completed'].includes(milestone.status))
+      .length,
 )
 
 const progressPercentage = computed(() => {
@@ -59,7 +61,8 @@ async function loadMilestones({ silent = false } = {}) {
     student.value = studentResult
     milestones.value = result.milestones
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Unable to load student milestones'
+    errorMessage.value =
+      error instanceof Error ? error.message : 'Unable to load student milestones'
   } finally {
     if (!silent) isLoading.value = false
   }
@@ -85,31 +88,56 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
+  <div class="min-h-screen bg-[#f7f7f7] px-3 py-4 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8">
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 class="text-3xl font-bold tracking-tight text-black">{{ t('milestone.milestones') }}</h1>
-        <p class="mt-1 text-sm text-slate-500">
+        <h1 class="text-xl font-bold tracking-tight text-black sm:text-3xl">
+          {{ t('milestone.milestones') }}
+        </h1>
+        <p class="mt-0.5 text-xs text-slate-500 sm:mt-1 sm:text-sm">
           You have permission to view students' milestones only.
         </p>
       </div>
 
-      <div class="flex flex-col items-end gap-2">
-        <div
-          v-if="studentName"
-          class="flex flex-wrap items-center justify-end gap-2"
-        >
+      <div
+        class="flex w-full flex-col gap-3 rounded-xl border border-[#ead7d5] bg-white p-3 shadow-[0_3px_10px_rgba(88,39,35,0.08)] sm:w-auto sm:items-end sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none"
+      >
+        <div v-if="studentName" class="flex w-full items-center justify-between gap-2 sm:w-auto">
           <div
-            class="inline-flex items-center gap-2 rounded-lg border border-[#ead7d5] bg-white px-3 py-2 text-sm shadow-sm"
+            class="flex min-w-0 items-center gap-2.5 sm:rounded-lg sm:border sm:border-[#ead7d5] sm:bg-white sm:px-3 sm:py-2 sm:shadow-sm"
           >
-            <span class="font-medium text-[#3b2f2e]">{{ studentName }}</span>
-            <span class="rounded-md bg-[#f5e6e5] px-2 py-0.5 text-xs font-medium text-[#8a2b25]">
+            <span
+              class="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f7e7e5] text-[#8a2b25] sm:hidden"
+            >
+              <svg
+                class="size-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                aria-hidden="true"
+              >
+                <path d="m3 9 9-4 9 4-9 4-9-4Z" />
+                <path d="M7 11v4.5c2.7 2 7.3 2 10 0V11" />
+              </svg>
+            </span>
+            <span class="min-w-0">
+              <span class="block truncate text-sm font-semibold text-[#3b2f2e]">{{
+                studentName
+              }}</span>
+              <span class="mt-0.5 block text-[11px] font-medium text-[#9a4a44] sm:hidden">{{
+                studentId
+              }}</span>
+            </span>
+            <span
+              class="hidden rounded-md bg-[#f5e6e5] px-2 py-0.5 text-xs font-medium text-[#8a2b25] sm:inline"
+            >
               {{ studentId }}
             </span>
           </div>
           <button
             type="button"
-            class="rounded-lg border border-[#ead7d5] bg-[#8a2b25] px-3 py-2 text-xs font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+            class="shrink-0 rounded-lg border border-[#d9b9b6] bg-[#8a2b25] px-2.5 py-2 text-[11px] font-semibold text-white shadow-sm transition hover:bg-[#76231e] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
             :disabled="!canExtendStudyPeriod || isExtending"
             @click="extendStudyPeriod"
           >
@@ -120,7 +148,16 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
             }}
           </button>
         </div>
-        <MilestoneStatusOverview :milestones="milestones" />
+        <StudentMilestoneProgress
+          embedded
+          class="w-full sm:hidden"
+          :completed-count="completedCount"
+          :total-count="milestones.length"
+          :percentage="progressPercentage"
+        />
+        <div class="w-full border-t border-slate-100 pt-2.5 sm:border-0 sm:pt-0">
+          <MilestoneStatusOverview :milestones="milestones" />
+        </div>
       </div>
     </header>
 
@@ -134,16 +171,13 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
 
     <template v-else>
       <StudentMilestoneProgress
-        class="mt-5"
+        class="mt-5 hidden sm:block"
         :completed-count="completedCount"
         :total-count="milestones.length"
         :percentage="progressPercentage"
       />
 
-      <div
-        v-if="milestones.length"
-        class="relative mt-5 space-y-4 pb-10"
-      >
+      <div v-if="milestones.length" class="relative mt-4 space-y-4 pb-10 sm:mt-5">
         <div
           v-if="milestones.length > 1"
           class="absolute bottom-3 left-3 top-3 w-px bg-slate-200 md:left-4"
@@ -157,6 +191,7 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
           :index="index + 1"
           :current-graduation-semester="student?.graduationSemester"
           :current-graduation-academic-year="student?.graduationAcademicYear"
+          mobile-collapsible
           readonly
         />
       </div>

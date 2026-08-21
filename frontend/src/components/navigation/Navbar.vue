@@ -194,7 +194,7 @@ watch(
       </div>
     </div>
 
-    <div class="flex shrink-0 items-center gap-1">
+    <div class="flex shrink-0 items-center">
       <div class="[&>div]:mb-0 [&_[role=group]]:w-14 [&_button]:px-1">
         <LanguageSwitch :enabled="canChangeLanguage" />
       </div>
