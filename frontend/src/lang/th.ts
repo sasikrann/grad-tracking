@@ -47,6 +47,7 @@ export const th = {
     actions: 'การดำเนินการ',
     optional: 'ไม่บังคับ',
     view: 'ดู',
+    viewDetails: 'ดูรายละเอียด',
     program: 'หลักสูตร',
     plan: 'แผนการศึกษา',
     semester: 'ภาคการศึกษา',

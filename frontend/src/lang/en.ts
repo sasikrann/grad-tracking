@@ -52,6 +52,7 @@ export const en = {
     actions: 'Actions',
     optional: 'Optional',
     view: 'View',
+    viewDetails: 'View details',
     program: 'Program',
     plan: 'Plan',
     semester: 'Enrollment Semester',
