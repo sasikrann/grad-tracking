@@ -43,16 +43,18 @@ function planLabel(plan: EducationPlan) {
     '2.1': 'common.plan21',
     '2.2': 'common.plan22',
   } as const
-  return plan === 'All' || plan === '1.1' ? (plan === 'All' ? t('common.allPlan') : plan) : t(keys[plan])
+  return plan === 'All' || plan === '1.1'
+    ? plan === 'All'
+      ? t('common.allPlan')
+      : plan
+    : t(keys[plan])
 }
 
 const filteredMilestones = computed(() =>
   milestones.value
     .filter((milestone) => {
-      const matchesDegree =
-        milestone.degreeLevel === selectedDegreeLevel.value
-      const matchesPlan =
-        milestone.plans.includes(selectedPlan.value)
+      const matchesDegree = milestone.degreeLevel === selectedDegreeLevel.value
+      const matchesPlan = milestone.plans.includes(selectedPlan.value)
       const matchesYear =
         selectedYear.value === null || milestone.academicYear === selectedYear.value
 
@@ -62,9 +64,7 @@ const filteredMilestones = computed(() =>
 )
 
 const yearOptions = computed(() => {
-  const years = new Set(
-    students.value.map((student) => Number(student.enrollmentAcademicYear)),
-  )
+  const years = new Set(students.value.map((student) => Number(student.enrollmentAcademicYear)))
   return Array.from(years)
     .filter(Number.isInteger)
     .sort((first, second) => second - first)
@@ -113,15 +113,15 @@ function syncStudentFilters() {
     selectedDegreeLevel.value = degreeOptions.value[0] ?? 'Master'
   }
   if (!planOptions.value.includes(selectedPlan.value)) {
-    selectedPlan.value = planOptions.value[0] ?? (selectedDegreeLevel.value === 'Doctoral' ? '2.1' : 'A1')
+    selectedPlan.value =
+      planOptions.value[0] ?? (selectedDegreeLevel.value === 'Doctoral' ? '2.1' : 'A1')
   }
 }
 
 const filterDefinitions = computed(() => [
   {
     key: 'degreeLevel' as const,
-    label:
-      selectedDegreeLevel.value === 'Doctoral' ? t('common.doctoral') : t('common.master'),
+    label: selectedDegreeLevel.value === 'Doctoral' ? t('common.doctoral') : t('common.master'),
     options: [
       ...degreeOptions.value.map((degree) => ({
         label: degree === 'Doctoral' ? t('common.doctoral') : t('common.master'),
@@ -132,9 +132,7 @@ const filterDefinitions = computed(() => [
   {
     key: 'plan' as const,
     label: planLabel(selectedPlan.value),
-    options: [
-      ...planOptions.value.map((plan) => ({ label: planLabel(plan), value: plan })),
-    ],
+    options: [...planOptions.value.map((plan) => ({ label: planLabel(plan), value: plan }))],
   },
   {
     key: 'year' as const,
@@ -203,10 +201,7 @@ async function loadMilestones({ silent = false } = {}) {
   } catch (error) {
     milestones.value = []
     students.value = []
-    showNotification(
-      formatMilestoneError(error, 'Unable to load milestones.'),
-      'error',
-    )
+    showNotification(formatMilestoneError(error, 'Unable to load milestones.'), 'error')
   } finally {
     if (!silent) isLoading.value = false
   }
@@ -264,7 +259,7 @@ async function saveMilestone(input: MilestoneInput) {
     selectedDegreeLevel.value = input.degreeLevel
     selectedPlan.value = normalizedPlans.includes(selectedPlan.value)
       ? selectedPlan.value
-      : normalizedPlans[0] ?? 'A1'
+      : (normalizedPlans[0] ?? 'A1')
     selectedYear.value = normalizedInput.academicYear
     isFormOpen.value = false
   } catch (error) {
@@ -313,6 +308,29 @@ async function moveMilestoneOrder(milestoneId: string, direction: 'up' | 'down')
   }
 }
 
+async function moveMilestoneTo(milestoneId: string, targetMilestoneId: string) {
+  const sourceIndex = filteredMilestones.value.findIndex(
+    (milestone) => milestone.milestoneId === milestoneId,
+  )
+  const targetIndex = filteredMilestones.value.findIndex(
+    (milestone) => milestone.milestoneId === targetMilestoneId,
+  )
+  if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return
+
+  errorMessage.value = ''
+  try {
+    const direction = sourceIndex < targetIndex ? 'down' : 'up'
+    const numberOfMoves = Math.abs(targetIndex - sourceIndex)
+    for (let index = 0; index < numberOfMoves; index += 1) {
+      await moveMilestone(milestoneId, direction)
+    }
+    await loadMilestones()
+    showNotification('Milestone order updated successfully')
+  } catch (error) {
+    showNotification(formatMilestoneError(error, 'Unable to reorder milestone'), 'error')
+  }
+}
+
 function selectedFilterValue(key: MilestoneFilterKey) {
   if (key === 'year') return selectedYear.value === null ? '' : String(selectedYear.value)
   if (key === 'plan') return selectedPlan.value
@@ -353,9 +371,9 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-8">
-    <header class="flex flex-col items-start justify-between gap-4 sm:flex-row">
-      <div>
+  <div class="min-h-screen bg-[#f7f7f7] px-3 py-3 font-sans text-slate-900 sm:px-8 sm:py-6">
+    <header class="flex items-start justify-between gap-2">
+      <div class="min-w-0">
         <h1 class="text-xl font-bold tracking-tight sm:text-3xl">
           {{ t('milestone.pageTitle') }}
         </h1>
@@ -364,10 +382,10 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
         </p>
       </div>
 
-      <div class="flex w-full gap-3 sm:w-auto">
+      <div class="mt-2 flex shrink-0 gap-3 sm:mt-0 sm:w-auto">
         <button
           type="button"
-          class="w-full rounded-lg bg-[#8b2a23] px-4 py-2 text-sm font-medium whitespace-nowrap text-white shadow-sm hover:bg-[#7a211c] sm:w-36"
+          class="rounded-md bg-[#8b2a23] px-3 py-2 text-xs font-medium whitespace-nowrap text-white shadow-sm hover:bg-[#7a211c] sm:w-36 sm:rounded-lg sm:px-4 sm:text-sm"
           @click="openAddModal"
         >
           + {{ t('milestone.add') }}
@@ -376,9 +394,9 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
     </header>
 
     <section
-      class="mt-6 min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-6 shadow-[0_2px_4px_rgba(0,0,0,0.18)] sm:px-6"
+      class="mt-3 min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-3 shadow-[0_2px_4px_rgba(0,0,0,0.18)] sm:mt-6 sm:rounded-xl sm:px-6 sm:py-6"
     >
-      <div class="flex min-w-0 flex-col items-start justify-between gap-4 lg:flex-row">
+      <div class="flex min-w-0 flex-col items-start justify-between gap-3 lg:flex-row lg:gap-4">
         <div class="shrink-0">
           <h2 class="text-lg font-semibold">{{ t('milestone.milestones') }}</h2>
           <p class="mt-2 text-xs text-slate-500">
@@ -386,7 +404,7 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
           </p>
         </div>
 
-        <div class="grid w-full min-w-0 grid-cols-1 gap-3 sm:grid-cols-3 lg:w-auto">
+        <div class="grid w-full min-w-0 grid-cols-3 gap-2 sm:gap-3 lg:w-auto">
           <div
             v-for="filter in filterDefinitions"
             :key="filter.key"
@@ -395,7 +413,7 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
           >
             <button
               type="button"
-              class="flex h-9 w-full items-center justify-between gap-3 rounded-lg border border-slate-100 bg-white px-4 text-left text-xs whitespace-nowrap shadow-sm outline-none hover:border-[#dfcccc] focus:border-[#8a2b25]"
+              class="flex h-8 w-full items-center justify-between gap-1 rounded-lg border border-slate-100 bg-white px-2 text-left text-[10px] whitespace-nowrap shadow-sm outline-none hover:border-[#dfcccc] focus:border-[#8a2b25] sm:h-9 sm:gap-3 sm:px-4 sm:text-xs"
               :class="{ 'border-[#8a2b25]': openFilter === filter.key }"
               :disabled="filter.options.length === 0"
               :aria-expanded="openFilter === filter.key"
@@ -454,6 +472,7 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
         @remove="openDeleteModal"
         @set-enabled="setMilestoneStatus"
         @move="moveMilestoneOrder"
+        @move-to="moveMilestoneTo"
       />
     </section>
 
