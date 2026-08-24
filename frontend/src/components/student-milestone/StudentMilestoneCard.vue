@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { createEvidencePreviewUrl } from '@/services/student-milestones.api'
 import { useLanguage } from '@/composables/useLanguage'
@@ -30,6 +30,8 @@ const props = defineProps<{
   isSavingGraduation?: boolean
   graduationError?: string
   mobileCollapsible?: boolean
+  mobileDescriptionOnly?: boolean
+  mobileDescriptionLineLimit?: number
 }>()
 
 const emit = defineEmits<{
@@ -46,6 +48,9 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const isOpeningEvidence = ref(false)
 const evidenceOpenError = ref('')
 const isMobileExpanded = ref(false)
+const mobileDescriptionMeasure = ref<HTMLElement | null>(null)
+const hasLongMobileDescription = ref(false)
+let descriptionResizeObserver: ResizeObserver | null = null
 const acceptedEvidenceTypes = new Set(['image/png', 'image/jpeg', 'application/pdf'])
 type EvidenceFileHandle = { getFile: () => Promise<File> }
 type EvidenceFilePicker = (options: {
@@ -84,11 +89,40 @@ function toggleMobileDetails(event: MouseEvent) {
   isMobileExpanded.value = !isMobileExpanded.value
 }
 
+function updateMobileDescriptionLength() {
+  const element = mobileDescriptionMeasure.value
+  if (!element || !props.mobileCollapsible || !props.milestone.description) {
+    hasLongMobileDescription.value = false
+    return
+  }
+
+  const lineHeight = Number.parseFloat(window.getComputedStyle(element).lineHeight)
+  const lineLimit = props.mobileDescriptionLineLimit ?? 2
+  hasLongMobileDescription.value = element.scrollHeight > lineHeight * lineLimit + 1
+}
+
+onMounted(() => {
+  void nextTick(() => {
+    updateMobileDescriptionLength()
+    if (mobileDescriptionMeasure.value) {
+      descriptionResizeObserver = new ResizeObserver(updateMobileDescriptionLength)
+      descriptionResizeObserver.observe(mobileDescriptionMeasure.value)
+    }
+  })
+})
+
+onBeforeUnmount(() => descriptionResizeObserver?.disconnect())
+
 watch(
   () => props.milestone.milestoneId,
   () => {
     isMobileExpanded.value = false
+    void nextTick(updateMobileDescriptionLength)
   },
+)
+watch(
+  () => props.milestone.description,
+  () => void nextTick(updateMobileDescriptionLength),
 )
 watch(
   () => [props.currentAdvisorId, ...(props.currentCoAdvisorIds ?? [])],
@@ -343,7 +377,7 @@ function handleFileChange(event: Event) {
       @click="toggleMobileDetails"
     >
       <div class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-        <div class="min-w-0">
+        <div class="relative min-w-0">
           <h3
             class="font-semibold"
             :class="[
@@ -360,6 +394,14 @@ function handleFileChange(event: Event) {
               { 'hidden sm:block': mobileCollapsible && !isMobileExpanded },
               mobileCollapsible ? 'text-xs sm:text-sm' : 'text-sm',
             ]"
+          >
+            {{ milestone.description }}
+          </p>
+          <p
+            v-if="mobileCollapsible && milestone.description"
+            ref="mobileDescriptionMeasure"
+            aria-hidden="true"
+            class="pointer-events-none absolute inset-x-0 top-0 invisible whitespace-pre-line wrap-break-word text-xs sm:hidden"
           >
             {{ milestone.description }}
           </p>
@@ -405,7 +447,7 @@ function handleFileChange(event: Event) {
       </div>
 
       <div
-        v-if="mobileCollapsible && !isMobileExpanded"
+        v-if="mobileCollapsible && !mobileDescriptionOnly && !isMobileExpanded"
         class="mt-2 space-y-1 text-[11px] sm:hidden"
       >
         <span
@@ -448,6 +490,7 @@ function handleFileChange(event: Event) {
             </a>
           </div>
           <button
+            v-if="hasLongMobileDescription"
             type="button"
             class="flex size-6 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-[#8a2b25]"
             :aria-expanded="isMobileExpanded"
@@ -468,7 +511,11 @@ function handleFileChange(event: Event) {
         </div>
       </div>
 
-      <div :class="{ 'hidden sm:block': mobileCollapsible && !isMobileExpanded }">
+      <div
+        :class="{
+          'hidden sm:block': mobileCollapsible && !mobileDescriptionOnly && !isMobileExpanded,
+        }"
+      >
         <div
           class="space-y-1"
           :class="[
@@ -496,7 +543,11 @@ function handleFileChange(event: Event) {
             <span>Deadline : {{ formatDate(milestone.deadline) }}</span>
           </span>
           <div
-            v-if="referenceLinks.length || referenceLabels.length"
+            v-if="
+              referenceLinks.length ||
+              referenceLabels.length ||
+              (mobileDescriptionOnly && hasLongMobileDescription)
+            "
             class="mt-2! flex items-end justify-between gap-2"
             :class="mobileCollapsible ? 'text-[11px] sm:text-xs' : 'text-xs'"
           >
@@ -508,6 +559,7 @@ function handleFileChange(event: Event) {
                 v-for="reference in referenceLinks"
                 :key="reference"
                 class="block break-all text-[#5277ff] underline"
+                :class="mobileDescriptionOnly ? 'max-w-full w-fit sm:w-auto' : ''"
                 :href="reference"
                 target="_blank"
                 rel="noreferrer"
@@ -516,15 +568,32 @@ function handleFileChange(event: Event) {
               </a>
             </div>
             <button
-              v-if="mobileCollapsible && isMobileExpanded"
+              v-if="
+                mobileCollapsible &&
+                hasLongMobileDescription &&
+                (mobileDescriptionOnly || isMobileExpanded)
+              "
               type="button"
               class="flex size-6 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-[#8a2b25] sm:hidden"
               :aria-expanded="isMobileExpanded"
-              :aria-label="isThai ? 'ซ่อนรายละเอียด' : 'Hide details'"
-              @click.stop="isMobileExpanded = false"
+              :aria-label="
+                mobileDescriptionOnly
+                  ? isMobileExpanded
+                    ? isThai
+                      ? 'ซ่อนคำอธิบาย'
+                      : 'Hide description'
+                    : isThai
+                      ? 'ดูคำอธิบายทั้งหมด'
+                      : 'View full description'
+                  : isThai
+                    ? 'ซ่อนรายละเอียด'
+                    : 'Hide details'
+              "
+              @click.stop="isMobileExpanded = !isMobileExpanded"
             >
               <svg
-                class="size-4 rotate-180"
+                class="size-4"
+                :class="{ 'rotate-180': isMobileExpanded }"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -680,10 +749,10 @@ function handleFileChange(event: Event) {
           {{ evidenceOpenError }}
         </p>
 
-        <div v-if="canReview" class="mt-3 flex justify-end gap-3">
+        <div v-if="canReview" class="mt-3 grid w-full grid-cols-2 gap-3 sm:flex sm:justify-end">
           <button
             type="button"
-            class="h-7 min-w-28 rounded bg-[#8a2b25] px-4 text-xs font-semibold text-white shadow-sm hover:bg-[#75201b] disabled:cursor-not-allowed disabled:opacity-60"
+            class="h-7 w-full rounded bg-[#8a2b25] px-4 text-xs font-semibold text-white shadow-sm hover:bg-[#75201b] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-28"
             :disabled="isReviewing"
             @click="emit('approve', milestone)"
           >
@@ -691,7 +760,7 @@ function handleFileChange(event: Event) {
           </button>
           <button
             type="button"
-            class="h-7 min-w-28 rounded border border-slate-300 bg-[#f3f3f3] px-4 text-xs font-semibold text-black shadow-sm hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+            class="h-7 w-full rounded border border-slate-300 bg-[#f3f3f3] px-4 text-xs font-semibold text-black shadow-sm hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-28"
             :disabled="isReviewing"
             @click="emit('reject', milestone)"
           >
