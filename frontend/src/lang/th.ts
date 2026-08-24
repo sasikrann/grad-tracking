@@ -15,7 +15,7 @@ export const th = {
     exporting: 'กำลังส่งออก...',
     uploadStudents: 'อัปโหลดข้อมูลนักศึกษาจากไฟล์ CSV หรือ Excel',
     downloadStudents: 'ดาวน์โหลดข้อมูลนักศึกษาที่แสดงอยู่ในตาราง',
-    uploadAdvisors: 'อัปโหลดข้อมูลอาจารย์ที่ปรึกษาจากไฟล์ CSV หรือ Excel',
+    uploadAdvisors: 'อัปโหลดข้อมูลจากไฟล์ CSV หรือ Excel',
     downloadAdvisors: 'ดาวน์โหลดข้อมูลอาจารย์ที่ปรึกษาทั้งหมด',
     downloadTemplate: 'ดาวน์โหลดเทมเพลต',
     totalStudents: 'นักศึกษาทั้งหมด',

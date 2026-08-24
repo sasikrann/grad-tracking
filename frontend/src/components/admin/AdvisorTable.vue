@@ -32,13 +32,17 @@ function statusLabel(status: Advisor['status']) {
 </script>
 
 <template>
-  <section class="mt-4 rounded-xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
-    <div class="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <h2 class="text-lg font-semibold">{{ t('advisor.advisor') }}</h2>
-        <p class="text-xs text-slate-500">{{ t('advisor.showingUsers', { count: advisors.length }) }}</p>
+  <section
+    class="mt-3 rounded-lg border border-[#ececec] bg-white px-2 pt-3 pb-4 shadow-[0_2px_4px_rgba(0,0,0,0.12)] sm:mt-4 sm:rounded-xl sm:px-5 sm:py-5"
+  >
+    <div class="flex items-start justify-between gap-3">
+      <div class="shrink-0">
+        <h2 class="text-base font-semibold sm:text-lg">{{ t('advisor.advisor') }}</h2>
+        <p class="text-xs font-medium text-[#7d7d7d] sm:font-normal sm:text-slate-500">
+          {{ t('advisor.showingUsers', { count: advisors.length }) }}
+        </p>
       </div>
-      <label class="relative block w-full sm:w-80">
+      <label class="relative block min-w-0 flex-1 sm:w-80 sm:flex-none">
         <span class="sr-only">{{ t('advisor.searchPlaceholder') }}</span>
         <svg
           class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#cfcfcf]"
@@ -60,9 +64,77 @@ function statusLabel(status: Advisor['status']) {
       </label>
     </div>
 
-    <div v-if="isLoading" class="py-10 text-center text-sm text-slate-500">{{ t('common.loading') }}</div>
-    <div v-else-if="error" class="py-10 text-center text-sm text-red-600">{{ error }}</div>
-    <div v-else class="mt-4 overflow-x-auto">
+    <div class="mt-3 space-y-2 md:hidden">
+      <article
+        v-for="advisor in advisors"
+        :key="advisor.advisorId"
+        class="rounded-lg border border-[#eeeeee] bg-white p-3 shadow-sm"
+      >
+        <div class="flex min-h-16 items-center gap-3">
+          <span
+            class="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#fde7e9] text-sm font-semibold text-[#d64b59]"
+          >
+            {{ initials(advisor.fullName) }}
+          </span>
+          <div class="min-w-0 flex-1 leading-tight">
+            <p class="break-words text-sm font-semibold">{{ advisor.fullName }}</p>
+            <p class="mt-1 text-xs text-[#858585]">{{ advisor.advisorId }}</p>
+            <p class="mt-1 truncate text-[11px] text-[#7690a5]">{{ advisor.email }}</p>
+          </div>
+          <div class="flex min-h-16 shrink-0 flex-col items-end justify-between">
+            <button
+              type="button"
+              class="shrink-0 rounded-md border border-red-100 p-1.5 text-red-500 hover:bg-red-50"
+              :aria-label="`${t('common.delete')} ${advisor.fullName}`"
+              @click="$emit('delete', advisor.advisorId)"
+            >
+              <svg
+                class="size-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                aria-hidden="true"
+              >
+                <path d="M3 6h18" />
+                <path d="M8 6V4h8v2" />
+                <path d="M19 6l-1 14H6L5 6" />
+                <path d="M10 11v5M14 11v5" />
+              </svg>
+            </button>
+            <div class="flex gap-1.5">
+              <button
+                v-for="status in ['active', 'inactive'] as const"
+                :key="status"
+                type="button"
+                :disabled="advisor.status === status"
+                :aria-label="`Set ${advisor.fullName} status to ${statusLabel(status)}`"
+                class="min-w-14 rounded-md border px-3 py-1.5 text-[11px] font-medium disabled:cursor-default"
+                :class="
+                  advisor.status === status
+                    ? status === 'active'
+                      ? 'border-green-200 bg-green-100 text-green-700'
+                      : 'border-red-200 bg-red-50 text-red-700'
+                    : 'border-slate-200 text-slate-400 hover:bg-slate-50'
+                "
+                @click="$emit('status', advisor.advisorId, status)"
+              >
+                {{ statusLabel(status) }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </article>
+      <p v-if="isLoading" class="py-10 text-center text-xs text-[#777]">
+        {{ t('common.loading') }}
+      </p>
+      <p v-else-if="error" class="py-10 text-center text-xs text-[#b42318]">{{ error }}</p>
+      <p v-else-if="advisors.length === 0" class="py-10 text-center text-xs text-[#777]">
+        {{ t('advisor.noMatchingAdvisors') }}
+      </p>
+    </div>
+
+    <div class="mt-4 hidden overflow-x-auto md:block">
       <table class="min-w-full table-fixed text-left text-sm">
         <thead class="border-b border-slate-200 text-slate-900">
           <tr class="text-xs">
@@ -79,7 +151,9 @@ function statusLabel(status: Advisor['status']) {
           <tr v-for="advisor in advisors" :key="advisor.advisorId">
             <td class="w-[38%] py-3 pr-4">
               <div class="flex items-center gap-4">
-                <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f4e7e7] text-xs font-semibold text-[#a33a3a]">
+                <span
+                  class="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f4e7e7] text-xs font-semibold text-[#a33a3a]"
+                >
                   {{ initials(advisor.fullName) }}
                 </span>
                 <div class="leading-tight">
@@ -93,7 +167,22 @@ function statusLabel(status: Advisor['status']) {
             </td>
             <td class="w-[25%] py-3 pl-4 text-right">
               <div class="ml-auto flex w-48 items-center justify-end gap-2">
-                <button v-for="status in (['active', 'inactive'] as const)" :key="status" type="button" :disabled="advisor.status === status" :aria-label="`Set ${advisor.fullName} status to ${statusLabel(status)}`" class="rounded-md border px-3 py-1 text-[11px] disabled:cursor-default" :class="advisor.status === status ? (status === 'active' ? 'border-green-200 bg-green-100 text-green-700' : 'border-red-200 bg-red-50 text-red-700') : 'border-slate-200 text-slate-500 hover:bg-slate-50'" @click="$emit('status', advisor.advisorId, status)">
+                <button
+                  v-for="status in ['active', 'inactive'] as const"
+                  :key="status"
+                  type="button"
+                  :disabled="advisor.status === status"
+                  :aria-label="`Set ${advisor.fullName} status to ${statusLabel(status)}`"
+                  class="rounded-md border px-3 py-1 text-[11px] disabled:cursor-default"
+                  :class="
+                    advisor.status === status
+                      ? status === 'active'
+                        ? 'border-green-200 bg-green-100 text-green-700'
+                        : 'border-red-200 bg-red-50 text-red-700'
+                      : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                  "
+                  @click="$emit('status', advisor.advisorId, status)"
+                >
                   {{ statusLabel(status) }}
                 </button>
                 <button
