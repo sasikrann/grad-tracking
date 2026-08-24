@@ -47,6 +47,10 @@ const emit = defineEmits<{
 const fileInput = ref<HTMLInputElement | null>(null)
 const isOpeningEvidence = ref(false)
 const evidenceOpenError = ref('')
+const isEvidencePreviewOpen = ref(false)
+const evidencePreviewUrl = ref('')
+const evidencePreviewType = ref<'image' | 'pdf' | null>(null)
+let bodyOverflowBeforeEvidencePreview = ''
 const isMobileExpanded = ref(false)
 const mobileDescriptionMeasure = ref<HTMLElement | null>(null)
 const hasLongMobileDescription = ref(false)
@@ -111,7 +115,13 @@ onMounted(() => {
   })
 })
 
-onBeforeUnmount(() => descriptionResizeObserver?.disconnect())
+onBeforeUnmount(() => {
+  descriptionResizeObserver?.disconnect()
+  if (evidencePreviewUrl.value) URL.revokeObjectURL(evidencePreviewUrl.value)
+  if (isEvidencePreviewOpen.value) {
+    document.body.style.overflow = bodyOverflowBeforeEvidencePreview
+  }
+})
 
 watch(
   () => props.milestone.milestoneId,
@@ -273,21 +283,38 @@ async function openEvidence() {
   if (!props.milestone.evidenceUrl || isOpeningEvidence.value) return
   evidenceOpenError.value = ''
   isOpeningEvidence.value = true
-  const previewWindow = window.open('about:blank', '_blank')
-  if (previewWindow) previewWindow.opener = null
+  isEvidencePreviewOpen.value = true
+  evidencePreviewType.value = null
 
   try {
-    const previewUrl = await createEvidencePreviewUrl(props.milestone.evidenceUrl)
-    if (previewWindow) previewWindow.location.href = previewUrl
-    else window.open(previewUrl, '_blank', 'noopener,noreferrer')
-    window.setTimeout(() => URL.revokeObjectURL(previewUrl), 60_000)
+    evidencePreviewUrl.value = await createEvidencePreviewUrl(props.milestone.evidenceUrl)
+    evidencePreviewType.value = props.milestone.evidenceUrl.toLowerCase().endsWith('.pdf')
+      ? 'pdf'
+      : 'image'
   } catch (error) {
-    previewWindow?.close()
     evidenceOpenError.value = error instanceof Error ? error.message : 'Unable to open evidence'
   } finally {
     isOpeningEvidence.value = false
   }
 }
+
+function closeEvidencePreview() {
+  if (evidencePreviewUrl.value) URL.revokeObjectURL(evidencePreviewUrl.value)
+  evidencePreviewUrl.value = ''
+  evidencePreviewType.value = null
+  evidenceOpenError.value = ''
+  isEvidencePreviewOpen.value = false
+}
+
+watch(isEvidencePreviewOpen, (isOpen) => {
+  if (isOpen) {
+    bodyOverflowBeforeEvidencePreview = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return
+  }
+
+  document.body.style.overflow = bodyOverflowBeforeEvidencePreview
+})
 
 function formatDate(value: string | null) {
   if (!value) return 'Not specified'
@@ -841,6 +868,65 @@ function handleFileChange(event: Event) {
           <span class="font-semibold">Comment :</span>
           {{ milestone.advisorComment }}
         </div>
+      </div>
+    </div>
+
+    <div
+      v-if="isEvidencePreviewOpen"
+      class="fixed inset-0 z-[60] flex flex-col bg-black/80"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="evidence-preview-title"
+    >
+      <header class="flex items-center justify-between gap-3 bg-white px-4 py-3 shadow-sm">
+        <h2
+          id="evidence-preview-title"
+          class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-950"
+        >
+          {{ t('milestone.viewAttachment') }}
+        </h2>
+        <button
+          type="button"
+          class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+          aria-label="Close evidence preview"
+          @click="closeEvidencePreview"
+        >
+          <svg
+            class="size-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            aria-hidden="true"
+          >
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          Back
+        </button>
+      </header>
+
+      <div class="flex min-h-0 flex-1 items-center justify-center p-3 sm:p-5">
+        <p v-if="isOpeningEvidence" class="text-sm font-medium text-white">
+          {{ t('milestone.openingAttachment') }}
+        </p>
+        <p
+          v-else-if="evidenceOpenError"
+          class="rounded-lg bg-white px-4 py-3 text-sm text-red-600"
+        >
+          {{ evidenceOpenError }}
+        </p>
+        <img
+          v-else-if="evidencePreviewType === 'image'"
+          :src="evidencePreviewUrl"
+          alt="Milestone evidence"
+          class="max-h-full max-w-full rounded-lg bg-white object-contain shadow-xl"
+        />
+        <iframe
+          v-else-if="evidencePreviewType === 'pdf'"
+          :src="evidencePreviewUrl"
+          title="Milestone evidence"
+          class="h-full w-full max-w-5xl rounded-lg bg-white shadow-xl"
+        ></iframe>
       </div>
     </div>
   </article>

@@ -109,15 +109,19 @@ async function findNotificationEmailRecipients(client, targetAudience) {
 
 function absoluteAttachmentUrl(attachmentUrl) {
   if (!attachmentUrl) return null
-  if (/^https?:\/\//i.test(attachmentUrl)) return attachmentUrl
+
+  const protectedPath = attachmentUrl
+    .replace(
+      /^https?:\/\/[^/]+\/uploads\/notifications\//i,
+      '/api/notifications/attachments/',
+    )
+    .replace(/^\/uploads\/notifications\//, '/api/notifications/attachments/')
+
+  if (/^https?:\/\//i.test(protectedPath)) return protectedPath
 
   const baseUrl = process.env.PUBLIC_APP_URL || process.env.PUBLIC_API_URL || process.env.APP_BASE_URL
-  if (!baseUrl) return attachmentUrl
+  if (!baseUrl) return protectedPath
 
-  const protectedPath = attachmentUrl.replace(
-    /^\/uploads\/notifications\//,
-    '/api/notifications/attachments/',
-  )
   return new URL(protectedPath, baseUrl).toString()
 }
 
@@ -125,13 +129,16 @@ export async function findNotificationAttachmentForUser(fileName, user) {
   await ensureNotificationSchema()
 
   const attachmentUrl = `/uploads/notifications/${fileName}`
+  const escapedFileName = fileName.replace(/[\\%_]/g, '\\$&')
+  const legacyAttachmentPattern = `%/uploads/notifications/${escapedFileName}`
   if (user.role === 'admin') {
     const result = await pool.query(
       `SELECT attachment_url AS "attachmentUrl"
        FROM notifications
        WHERE attachment_url = $1
+          OR attachment_url LIKE $2 ESCAPE '\\'
        LIMIT 1`,
-      [attachmentUrl],
+      [attachmentUrl, legacyAttachmentPattern],
     )
     return result.rows[0] || null
   }
@@ -145,10 +152,13 @@ export async function findNotificationAttachmentForUser(fileName, user) {
       JOIN students s ON s.user_id = u.user_id
       JOIN notifications n ON ${audienceFilterForStudent('n')}
       WHERE u.user_id = $1
-        AND n.attachment_url = $2
+        AND (
+          n.attachment_url = $2
+          OR n.attachment_url LIKE $3 ESCAPE '\\'
+        )
       LIMIT 1
     `,
-    [user.userId, attachmentUrl],
+    [user.userId, attachmentUrl, legacyAttachmentPattern],
   )
   return result.rows[0] || null
 }

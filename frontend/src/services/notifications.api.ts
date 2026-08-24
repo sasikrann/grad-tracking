@@ -33,10 +33,12 @@ export function uploadNotificationAttachment(file: File) {
 }
 
 export function resolveNotificationAttachmentUrl(attachmentUrl: string) {
-  const protectedPath = attachmentUrl.replace(
-    /^\/uploads\/notifications\//,
-    '/api/notifications/attachments/',
-  )
+  const protectedPath = attachmentUrl
+    .replace(
+      /^https?:\/\/[^/]+\/uploads\/notifications\//i,
+      '/api/notifications/attachments/',
+    )
+    .replace(/^\/uploads\/notifications\//, '/api/notifications/attachments/')
   return resolveApiUrl(protectedPath)
 }
 
