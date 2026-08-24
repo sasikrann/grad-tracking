@@ -1,6 +1,7 @@
 // Controller สำหรับ Student Profile
 // เอาไว้ให้ student ดูข้อมูลของตัวเอง และเลือก/อัปเดต advisor พร้อมหลักฐาน
 import { unlink } from 'node:fs/promises'
+import path from 'node:path'
 
 import { ApiError } from '../errors/api-error.js'
 import {
@@ -21,6 +22,8 @@ import {
 
 const maxAdvisorEvidenceFileSize = 2 * 1024 * 1024
 const advisorEvidencePattern = /^data:(image\/png|image\/jpeg);base64,([A-Za-z0-9+/]+={0,2})$/
+const evidenceDirectory = path.resolve('uploads/evidence')
+const evidenceUrlPattern = /^\/uploads\/evidence\/([A-Za-z0-9._-]+)$/
 
 function normalizeAdvisorEvidenceUrl(value) {
   if (value === null || value === undefined || value === '') return value
@@ -50,6 +53,15 @@ function requiredText(value, field) {
 function removeUploadedFile(file) {
   if (!file?.path) return Promise.resolve()
   return unlink(file.path).catch(() => {})
+}
+
+function removeEvidenceUrlFile(evidenceUrl) {
+  const match = String(evidenceUrl ?? '').match(evidenceUrlPattern)
+  if (!match) return Promise.resolve()
+
+  const filePath = path.resolve(evidenceDirectory, match[1])
+  if (path.dirname(filePath) !== evidenceDirectory) return Promise.resolve()
+  return unlink(filePath).catch(() => {})
 }
 
 async function requireMilestoneSubmissionAccess(userId) {
@@ -159,6 +171,10 @@ export async function uploadMyMilestoneEvidence(request, response) {
     }
 
     throw new ApiError(404, 'Milestone not found')
+  }
+
+  if (updated.previousEvidenceUrl && updated.previousEvidenceUrl !== evidenceUrl) {
+    await removeEvidenceUrlFile(updated.previousEvidenceUrl)
   }
 
   response.json({ data: await findStudentMilestonesByUserId(request.user.userId) })

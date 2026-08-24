@@ -5,10 +5,10 @@ import { createAccessToken, requireAuth, requireRole } from './auth.middleware.j
 
 process.env.JWT_SECRET = 'test-secret-that-is-only-used-by-unit-tests'
 
-function createRequest(authorization = '') {
+function createRequest(cookie = '') {
   return {
     get(name) {
-      return name === 'authorization' ? authorization : undefined
+      return name === 'cookie' ? cookie : undefined
     },
   }
 }
@@ -19,7 +19,7 @@ test('requireAuth accepts a valid access token', () => {
     email: 'admin@lamduan.mfu.ac.th',
     role: 'admin',
   })
-  const request = createRequest(`Bearer ${token}`)
+  const request = createRequest(`access_token=${encodeURIComponent(token)}`)
   let calledNext = false
 
   requireAuth(request, {}, () => {

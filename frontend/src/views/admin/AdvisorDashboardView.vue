@@ -218,10 +218,15 @@ async function handleExport() {
 async function handleStatusChange(advisorId: string, status: Advisor['status']) {
   try {
     const updated = await updateAdvisorStatus(advisorId, status)
-    advisors.value = advisors.value.map((advisor) => advisor.advisorId === advisorId ? updated : advisor)
+    advisors.value = advisors.value.map((advisor) =>
+      advisor.advisorId === advisorId ? updated : advisor,
+    )
     showNotification(`Advisor status changed to ${advisorStatusLabel(status)}.`)
   } catch (error) {
-    showNotification(error instanceof Error ? error.message : 'Unable to update advisor status.', 'error')
+    showNotification(
+      error instanceof Error ? error.message : 'Unable to update advisor status.',
+      'error',
+    )
   }
 }
 
@@ -251,8 +256,8 @@ useAutoRefresh(() => loadAdvisors({ silent: true }), {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
-    <header class="flex flex-wrap items-start justify-between gap-4">
+  <div class="min-h-screen bg-[#f7f7f7] px-3 py-3 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8">
+    <header class="flex items-start justify-between gap-2 sm:flex-wrap sm:gap-4">
       <div>
         <h1 class="text-xl font-bold tracking-tight sm:text-3xl">
           {{ t('advisor.pageTitle') }}
@@ -264,18 +269,19 @@ useAutoRefresh(() => loadAdvisors({ silent: true }), {
 
       <button
         type="button"
-        class="rounded-lg bg-[#8b2a23] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#7a211c]"
+        class="mt-1.5 shrink-0 rounded-md bg-[#8b2a23] px-4 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-[#7a211c] sm:mt-0 sm:rounded-lg sm:text-sm"
         @click="downloadAdvisorTemplate"
       >
         {{ t('dashboard.downloadTemplate') }}
       </button>
     </header>
 
-    <section class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2" aria-label="Import and export">
+    <section class="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:gap-5" aria-label="Import and export">
       <DashboardActionCard
         :title="t('dashboard.importExcel')"
         :description="t('dashboard.uploadAdvisors')"
         tone="red"
+        mobile-horizontal
         :busy="isImporting"
         :busy-label="t('dashboard.importing')"
         @click="openImportModal"
@@ -285,6 +291,7 @@ useAutoRefresh(() => loadAdvisors({ silent: true }), {
         :title="t('dashboard.exportExcel')"
         :description="t('dashboard.downloadAdvisors')"
         tone="green"
+        mobile-horizontal
         :busy="isExporting"
         :busy-label="t('dashboard.exporting')"
         @click="isExportModalOpen = true"
@@ -301,13 +308,47 @@ useAutoRefresh(() => loadAdvisors({ silent: true }), {
     />
 
     <nav v-if="pagination.totalPages > 1" class="mt-5 flex justify-end" aria-label="Advisor pages">
-      <div class="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <button type="button" class="flex size-8 items-center justify-center border-r border-slate-200 text-xs text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300" :disabled="page === 1" aria-label="Previous page" @click="changePage(page - 1)">‹</button>
+      <div
+        class="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
+      >
+        <button
+          type="button"
+          class="flex size-8 items-center justify-center border-r border-slate-200 text-xs text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+          :disabled="page === 1"
+          aria-label="Previous page"
+          @click="changePage(page - 1)"
+        >
+          ‹
+        </button>
         <template v-for="(item, index) in paginationItems" :key="`${item}-${index}`">
-          <span v-if="item === 'ellipsis'" class="flex size-8 items-center justify-center border-r border-slate-200 text-xs text-slate-400">…</span>
-          <button v-else type="button" class="flex size-8 items-center justify-center border-r border-slate-200 text-xs font-medium transition-colors" :class="item === page ? 'bg-[#f7c9cf] text-[#a13a34]' : 'text-slate-700 hover:bg-[#fdf1f3]'" :aria-current="item === page ? 'page' : undefined" :aria-label="`Page ${item}`" @click="changePage(item)">{{ item }}</button>
+          <span
+            v-if="item === 'ellipsis'"
+            class="flex size-8 items-center justify-center border-r border-slate-200 text-xs text-slate-400"
+            >…</span
+          >
+          <button
+            v-else
+            type="button"
+            class="flex size-8 items-center justify-center border-r border-slate-200 text-xs font-medium transition-colors"
+            :class="
+              item === page ? 'bg-[#f7c9cf] text-[#a13a34]' : 'text-slate-700 hover:bg-[#fdf1f3]'
+            "
+            :aria-current="item === page ? 'page' : undefined"
+            :aria-label="`Page ${item}`"
+            @click="changePage(item)"
+          >
+            {{ item }}
+          </button>
         </template>
-        <button type="button" class="flex size-8 items-center justify-center text-xs text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300" :disabled="page === pagination.totalPages" aria-label="Next page" @click="changePage(page + 1)">›</button>
+        <button
+          type="button"
+          class="flex size-8 items-center justify-center text-xs text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+          :disabled="page === pagination.totalPages"
+          aria-label="Next page"
+          @click="changePage(page + 1)"
+        >
+          ›
+        </button>
       </div>
     </nav>
 

@@ -24,15 +24,21 @@ const evidenceExtensionByMimeType = {
   'application/pdf': '.pdf',
 }
 
-function currentBangkokDate() {
+function currentBangkokTimestamp() {
+  const now = new Date()
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Bangkok',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).formatToParts(new Date())
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(now)
   const value = Object.fromEntries(parts.map(({ type, value: partValue }) => [type, partValue]))
-  return `${value.year}${value.month}${value.day}`
+  const milliseconds = String(now.getMilliseconds()).padStart(3, '0')
+  return `${value.year}${value.month}${value.day}-${value.hour}${value.minute}${value.second}${milliseconds}`
 }
 
 const upload = multer({
@@ -51,7 +57,7 @@ const upload = multer({
             return
           }
           const extension = evidenceExtensionByMimeType[file.mimetype]
-          callback(null, `${details.evidenceCode}-${details.studentId}-${currentBangkokDate()}${extension}`)
+          callback(null, `${details.evidenceCode}-${details.studentId}-${currentBangkokTimestamp()}${extension}`)
         })
         .catch(callback)
     },

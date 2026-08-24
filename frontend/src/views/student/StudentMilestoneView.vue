@@ -302,12 +302,30 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
-    <header class="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 class="text-3xl font-bold tracking-tight text-black">Milestone</h1>
-        <p class="mt-1 text-sm text-slate-500">Track your academic progress and deadline</p>
+    <header>
+      <h1 class="text-xl font-bold tracking-tight text-black sm:text-3xl">Milestone</h1>
+      <div class="mt-0.5 flex items-center justify-between gap-4 sm:mt-1">
+        <p class="shrink-0 text-xs text-slate-500 sm:text-sm">
+          Track your academic progress and deadline
+        </p>
+        <div class="hidden w-full sm:block">
+          <MilestoneStatusOverview :milestones="milestones" />
+        </div>
       </div>
-      <MilestoneStatusOverview :milestones="milestones" />
+      <div
+        class="mt-4 flex w-full flex-col gap-3 rounded-xl border border-[#ead7d5] bg-white p-3 shadow-[0_3px_10px_rgba(88,39,35,0.08)] sm:hidden"
+      >
+        <StudentMilestoneProgress
+          embedded
+          class="w-full !border-t-0 !pt-0"
+          :completed-count="completedCount"
+          :total-count="milestones.length"
+          :percentage="progressPercentage"
+        />
+        <div class="w-full border-t border-slate-100 pt-2.5">
+          <MilestoneStatusOverview :milestones="milestones" />
+        </div>
+      </div>
     </header>
 
     <p v-if="errorMessage" class="mt-4 text-sm text-red-600" role="alert">
@@ -320,7 +338,7 @@ onBeforeUnmount(() => {
 
     <template v-else>
       <StudentMilestoneProgress
-        class="mt-5"
+        class="mt-5 hidden sm:block"
         :completed-count="completedCount"
         :total-count="milestones.length"
         :percentage="progressPercentage"
@@ -358,6 +376,9 @@ onBeforeUnmount(() => {
           :is-saving-graduation="savingGraduationMilestoneId === milestone.milestoneId"
           :graduation-error="graduationError"
           :readonly="milestoneSubmissionLocked"
+          mobile-collapsible
+          mobile-description-only
+          :mobile-description-line-limit="1"
           @appoint-advisor="appointAdvisor"
           @submit-graduation="submitGraduation"
           @upload-blocked="showUploadBlockedMessage"

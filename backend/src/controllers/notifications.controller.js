@@ -1,8 +1,11 @@
 import { ApiError } from '../errors/api-error.js'
+import { access } from 'node:fs/promises'
+import path from 'node:path'
 import {
   countUnreadNotificationsForStudent,
   createNotification,
   findNotificationByIdForUser,
+  findNotificationAttachmentForUser,
   findNotificationsForAdmin,
   findNotificationsForStudent,
   markAllNotificationsAsRead,
@@ -10,6 +13,8 @@ import {
 } from '../services/notifications.service.js'
 
 const targetAudiences = new Set(['All Students', 'Master Students', 'Doctoral Students'])
+const notificationAttachmentDirectory = path.resolve('uploads/notifications')
+const safeAttachmentFileNamePattern = /^[A-Za-z0-9._-]+$/
 
 function requiredText(value, field) {
   const result = String(value ?? '').trim()
@@ -98,6 +103,29 @@ export async function uploadNotificationAttachment(request, response) {
       url: `/uploads/notifications/${request.file.filename}`,
     },
   })
+}
+
+export async function getNotificationAttachment(request, response) {
+  const fileName = String(request.params.fileName ?? '')
+  if (!safeAttachmentFileNamePattern.test(fileName)) {
+    throw new ApiError(404, 'Notification attachment not found')
+  }
+
+  const attachment = await findNotificationAttachmentForUser(fileName, request.user)
+  if (!attachment) throw new ApiError(404, 'Notification attachment not found')
+
+  const filePath = path.resolve(notificationAttachmentDirectory, fileName)
+  if (path.dirname(filePath) !== notificationAttachmentDirectory) {
+    throw new ApiError(404, 'Notification attachment not found')
+  }
+
+  try {
+    await access(filePath)
+  } catch {
+    throw new ApiError(404, 'Notification attachment not found')
+  }
+
+  response.sendFile(filePath)
 }
 
 export async function getUnreadNotificationCount(request, response) {

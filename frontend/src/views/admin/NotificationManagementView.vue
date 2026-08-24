@@ -20,8 +20,16 @@ const isSubmitting = ref(false)
 const isPanelOpen = ref(false)
 const isDetailOpen = ref(false)
 const selectedNotification = ref<Notification | null>(null)
+const isAttachmentPreviewOpen = ref(false)
+const isLoadingAttachmentPreview = ref(false)
+const attachmentPreviewUrl = ref('')
+const attachmentPreviewName = ref('')
+const attachmentPreviewType = ref<'image' | 'pdf' | null>(null)
+const attachmentPreviewError = ref('')
 const selectedFilter = ref<AudienceFilter>('all')
 const isFilterOpen = ref(false)
+const currentPage = ref(1)
+const notificationsPerPage = 10
 const errorMessage = ref('')
 const successMessage = ref('')
 const formError = ref('')
@@ -52,6 +60,22 @@ const selectedFilterLabel = computed(
 
 const messageLength = computed(() => plainNotificationMessage(message.value).length)
 const toastMessage = computed(() => errorMessage.value || successMessage.value)
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(notifications.value.length / notificationsPerPage)),
+)
+const pageNumbers = computed(() =>
+  Array.from({ length: totalPages.value }, (_, index) => index + 1),
+)
+const paginatedNotifications = computed(() => {
+  const startIndex = (currentPage.value - 1) * notificationsPerPage
+  return notifications.value.slice(startIndex, startIndex + notificationsPerPage)
+})
+const currentPageStart = computed(() =>
+  notifications.value.length ? (currentPage.value - 1) * notificationsPerPage + 1 : 0,
+)
+const currentPageEnd = computed(() =>
+  Math.min(currentPage.value * notificationsPerPage, notifications.value.length),
+)
 
 function showToast(text: string, type: 'success' | 'error' = 'success') {
   successMessage.value = type === 'success' ? text : ''
@@ -102,6 +126,55 @@ function canOpenAttachment(value: string | null) {
 function attachmentHref(value: string) {
   if (value.startsWith('data:image/')) return value
   return resolveNotificationAttachmentUrl(value)
+}
+
+function closeAttachmentPreview() {
+  if (attachmentPreviewUrl.value.startsWith('blob:')) {
+    URL.revokeObjectURL(attachmentPreviewUrl.value)
+  }
+  isAttachmentPreviewOpen.value = false
+  isLoadingAttachmentPreview.value = false
+  attachmentPreviewUrl.value = ''
+  attachmentPreviewName.value = ''
+  attachmentPreviewType.value = null
+  attachmentPreviewError.value = ''
+}
+
+async function openAttachmentPreview(value: string) {
+  closeAttachmentPreview()
+  attachmentPreviewName.value = attachmentName(value) || t('notification.attachment')
+  isAttachmentPreviewOpen.value = true
+  isLoadingAttachmentPreview.value = true
+
+  try {
+    if (value.startsWith('data:image/')) {
+      attachmentPreviewUrl.value = value
+      attachmentPreviewType.value = 'image'
+      return
+    }
+
+    const response = await fetch(attachmentHref(value), { credentials: 'include' })
+    if (!response.ok) throw new Error(t('notification.unableOpenAttachment'))
+
+    const blob = await response.blob()
+    const fileName = attachmentPreviewName.value.toLowerCase()
+    const isImage = blob.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(fileName)
+    const isPdf = blob.type === 'application/pdf' || fileName.endsWith('.pdf')
+
+    if (!isImage && !isPdf) {
+      closeAttachmentPreview()
+      await downloadAttachment(value)
+      return
+    }
+
+    attachmentPreviewUrl.value = URL.createObjectURL(blob)
+    attachmentPreviewType.value = isPdf ? 'pdf' : 'image'
+  } catch (error) {
+    attachmentPreviewError.value =
+      error instanceof Error ? error.message : t('notification.unableOpenAttachment')
+  } finally {
+    isLoadingAttachmentPreview.value = false
+  }
 }
 
 function plainNotificationMessage(value: string) {
@@ -236,7 +309,7 @@ async function downloadAttachment(value: string) {
     if (href.startsWith('data:image/')) {
       link.href = href
     } else {
-      const response = await fetch(href)
+      const response = await fetch(href, { credentials: 'include' })
       if (!response.ok) throw new Error('Unable to download attachment')
 
       const blobUrl = URL.createObjectURL(await response.blob())
@@ -254,8 +327,13 @@ async function downloadAttachment(value: string) {
 
 function selectFilter(value: AudienceFilter) {
   selectedFilter.value = value
+  currentPage.value = 1
   isFilterOpen.value = false
   void loadNotifications()
+}
+
+function goToPage(page: number) {
+  currentPage.value = Math.min(Math.max(page, 1), totalPages.value)
 }
 
 function closeDropdown() {
@@ -270,6 +348,7 @@ async function loadNotifications({ silent = false } = {}) {
     notifications.value = await getNotifications(
       selectedFilter.value === 'all' ? undefined : selectedFilter.value,
     )
+    currentPage.value = Math.min(currentPage.value, totalPages.value)
   } catch (error) {
     notifications.value = []
     showToast(error instanceof Error ? error.message : 'Unable to load notifications', 'error')
@@ -384,6 +463,7 @@ function openDetail(notification: Notification) {
 }
 
 function closeDetail() {
+  closeAttachmentPreview()
   isDetailOpen.value = false
   selectedNotification.value = null
 }
@@ -394,6 +474,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  closeAttachmentPreview()
   document.removeEventListener('click', closeDropdown)
   if (toastTimer) window.clearTimeout(toastTimer)
 })
@@ -405,8 +486,8 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
 
 <template>
   <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
-    <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div>
+    <header class="flex items-start justify-between gap-3 sm:gap-4">
+      <div class="min-w-0">
         <h1 class="text-xl font-bold tracking-tight text-black sm:text-3xl">
           {{ t('notification.pageTitle') }}
         </h1>
@@ -417,7 +498,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
 
       <button
         type="button"
-        class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#8b2a23] px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#7a211c]"
+        class="inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#8b2a23] px-3 py-2 text-xs font-medium text-white shadow-sm transition-colors hover:bg-[#7a211c] sm:gap-2 sm:px-4 sm:text-sm"
         @click="openAddPanel"
       >
         <svg
@@ -437,15 +518,15 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
     <section
       class="mt-5 rounded-lg border border-slate-200 bg-white px-5 py-5 shadow-[0_2px_4px_rgba(0,0,0,0.18)]"
     >
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+      <div class="flex items-start justify-between gap-3 sm:gap-4">
+        <div class="min-w-0">
           <h2 class="text-base font-semibold text-slate-950">{{ t('notification.history') }}</h2>
           <p class="mt-2 text-xs text-slate-500">
             {{ t('notification.historyCount', { count: notifications.length }) }}
           </p>
         </div>
 
-        <div class="relative" @click.stop>
+        <div class="relative shrink-0" @click.stop>
           <button
             type="button"
             class="flex h-9 min-w-32 items-center justify-between gap-3 rounded-lg border border-slate-100 bg-white px-4 text-left text-xs shadow-sm outline-none hover:border-[#dfcccc] focus:border-[#8a2b25]"
@@ -496,7 +577,79 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
         </div>
       </div>
 
-      <div class="mt-5 overflow-x-auto">
+      <div class="mt-5 space-y-3 sm:hidden">
+        <p v-if="isLoading" class="py-8 text-center text-sm text-slate-500">
+          Loading notifications...
+        </p>
+
+        <p v-else-if="!notifications.length" class="py-8 text-center text-sm text-slate-500">
+          {{ t('notification.noHistoryFor', { filter: selectedFilterLabel }) }}
+        </p>
+
+        <article
+          v-for="notification in paginatedNotifications"
+          v-else
+          :key="notification.notificationId"
+          class="rounded-xl border border-slate-200 bg-white p-3.5 shadow-[0_2px_6px_rgba(15,23,42,0.06)]"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <h3 class="break-words text-sm font-semibold leading-snug text-slate-950">
+                {{ notification.title }}
+              </h3>
+              <p class="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
+                {{ plainNotificationMessage(notification.message) }}
+              </p>
+            </div>
+
+            <span
+              class="inline-flex shrink-0 items-center justify-center rounded-md bg-slate-100 px-2.5 py-1 text-[10px] font-medium text-slate-700"
+            >
+              {{ audienceLabel(notification.targetAudience) }}
+            </span>
+          </div>
+
+          <div class="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
+            <span class="inline-flex min-w-0 items-center gap-1.5 text-[10px] text-slate-500">
+              <svg
+                class="size-3.5 shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                aria-hidden="true"
+              >
+                <rect x="3" y="5" width="18" height="16" rx="2" />
+                <path d="M16 3v4M8 3v4M3 10h18" />
+              </svg>
+              <span class="truncate">
+                {{ formatDateTime(notification.sentAt ?? notification.createdAt) }}
+              </span>
+            </span>
+
+            <button
+              type="button"
+              class="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-sky-200 px-2.5 py-1.5 text-xs font-semibold text-sky-500 hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-300"
+              @click="openDetail(notification)"
+            >
+              <svg
+                class="size-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                aria-hidden="true"
+              >
+                <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              {{ t('common.view') }}
+            </button>
+          </div>
+        </article>
+      </div>
+
+      <div class="mt-5 hidden overflow-x-auto sm:block">
         <table class="w-full min-w-[700px] text-left text-sm">
           <thead>
             <tr class="border-b border-slate-100 text-xs text-slate-950">
@@ -518,7 +671,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
               </td>
             </tr>
             <tr
-              v-for="notification in notifications"
+              v-for="notification in paginatedNotifications"
               v-else
               :key="notification.notificationId"
               class="border-b border-slate-100 last:border-0"
@@ -560,6 +713,43 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div
+        v-if="!isLoading && notifications.length"
+        class="mt-4 flex flex-col gap-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:text-sm"
+      >
+        <p>
+          {{
+            t('notification.showingCount', {
+              start: currentPageStart,
+              end: currentPageEnd,
+              count: notifications.length,
+            })
+          }}
+        </p>
+
+        <nav
+          v-if="totalPages > 1"
+          class="flex flex-wrap items-center gap-1"
+          :aria-label="t('notification.pagesLabel')"
+        >
+          <button
+            v-for="page in pageNumbers"
+            :key="page"
+            type="button"
+            class="flex size-8 items-center justify-center rounded-lg border text-sm font-semibold transition-colors"
+            :class="
+              page === currentPage
+                ? 'border-[#8b2a23] bg-[#8b2a23] text-white'
+                : 'border-slate-200 bg-white text-slate-600 hover:border-[#d7b2ad] hover:text-[#8b2a23]'
+            "
+            :aria-current="page === currentPage ? 'page' : undefined"
+            @click="goToPage(page)"
+          >
+            {{ page }}
+          </button>
+        </nav>
       </div>
     </section>
 
@@ -899,11 +1089,10 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
                 v-if="canOpenAttachment(selectedNotification.attachmentUrl)"
                 class="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 transition-colors hover:border-[#dfcccc] hover:bg-[#fff8f8]"
               >
-                <a
-                  :href="attachmentHref(selectedNotification.attachmentUrl)"
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
                   class="flex min-w-0 flex-1 items-center gap-3"
+                  @click="openAttachmentPreview(selectedNotification.attachmentUrl)"
                 >
                   <span class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600">
                     <svg
@@ -922,7 +1111,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
                   <span class="min-w-0 flex-1 truncate text-xs font-medium text-slate-950">
                     {{ attachmentName(selectedNotification.attachmentUrl) }}
                   </span>
-                </a>
+                </button>
                 <button
                   type="button"
                   class="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-[#dfcccc] hover:text-[#8b2a23]"
@@ -975,6 +1164,65 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
           </p>
         </div>
       </section>
+    </div>
+
+    <div
+      v-if="isAttachmentPreviewOpen"
+      class="fixed inset-0 z-[60] flex flex-col bg-black/80"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="admin-attachment-preview-title"
+    >
+      <header class="flex items-center justify-between gap-3 bg-white px-4 py-3 shadow-sm">
+        <h2
+          id="admin-attachment-preview-title"
+          class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-950"
+        >
+          {{ attachmentPreviewName }}
+        </h2>
+        <button
+          type="button"
+          class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+          :aria-label="t('notification.back')"
+          @click="closeAttachmentPreview"
+        >
+          <svg
+            class="size-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            aria-hidden="true"
+          >
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          {{ t('notification.back') }}
+        </button>
+      </header>
+
+      <div class="flex min-h-0 flex-1 items-center justify-center p-3 sm:p-5">
+        <p v-if="isLoadingAttachmentPreview" class="text-sm font-medium text-white">
+          {{ t('notification.loadingAttachment') }}
+        </p>
+        <p
+          v-else-if="attachmentPreviewError"
+          class="rounded-lg bg-white px-4 py-3 text-sm text-red-600"
+        >
+          {{ attachmentPreviewError }}
+        </p>
+        <img
+          v-else-if="attachmentPreviewType === 'image'"
+          :src="attachmentPreviewUrl"
+          :alt="attachmentPreviewName"
+          class="max-h-full max-w-full rounded-lg bg-white object-contain shadow-xl"
+        />
+        <iframe
+          v-else-if="attachmentPreviewType === 'pdf'"
+          :src="attachmentPreviewUrl"
+          :title="attachmentPreviewName"
+          class="h-full w-full max-w-5xl rounded-lg bg-white shadow-xl"
+        ></iframe>
+      </div>
     </div>
 
     <div

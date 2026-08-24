@@ -1,7 +1,6 @@
 // Main backend app configuration for middleware, routes, health check, and error handling.
 import cors from 'cors'
 import express from 'express'
-import path from 'node:path'
 
 import pool from './config/database.js'
 import { requireAuth, requireRole } from './middleware/auth.middleware.js'
@@ -21,7 +20,6 @@ const frontendOrigin = process.env.FRONTEND_ORIGIN || 'http://localhost:5173'
 
 app.use(cors({ origin: frontendOrigin, credentials: true }))
 app.use(express.json({ limit: '3mb' }))
-app.use('/uploads/notifications', express.static(path.resolve('uploads/notifications')))
 app.use('/api/auth', authRouter)
 app.use('/api/advisors', requireAuth, requireRole('advisor', 'admin', 'student'), advisorsRouter)
 app.use('/api/evidence', requireAuth, requireRole('student', 'advisor', 'admin'), evidenceRouter)

@@ -122,8 +122,8 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
     <div class="w-full">
       <header class="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 class="text-3xl font-bold tracking-tight text-black">Milestone</h1>
-          <p class="mt-1 text-sm text-slate-500">
+          <h1 class="text-xl font-bold tracking-tight text-black sm:text-3xl">Milestone</h1>
+          <p class="mt-0.5 text-xs text-slate-500 sm:mt-1 sm:text-sm">
             {{
               advisorCanReview
                 ? "You have permission to approve, reject, and view students' progress."
@@ -132,7 +132,7 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
           </p>
         </div>
 
-        <div class="flex flex-col items-end gap-2">
+        <div class="hidden flex-col items-end gap-2 sm:flex">
           <div
             v-if="studentName"
             class="inline-flex flex-wrap items-center gap-2 rounded-lg border border-[#ead7d5] bg-white px-3 py-2 text-sm shadow-sm"
@@ -143,6 +143,46 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
             </span>
           </div>
           <MilestoneStatusOverview :milestones="milestones" />
+        </div>
+
+        <div
+          class="flex w-full flex-col gap-3 rounded-xl border border-[#ead7d5] bg-white p-3 shadow-[0_3px_10px_rgba(88,39,35,0.08)] sm:hidden"
+        >
+          <div v-if="studentName" class="flex w-full items-center gap-2.5">
+            <span
+              class="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f7e7e5] text-[#8a2b25]"
+            >
+              <svg
+                class="size-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                aria-hidden="true"
+              >
+                <path d="m3 9 9-4 9 4-9 4-9-4Z" />
+                <path d="M7 11v4.5c2.7 2 7.3 2 10 0V11" />
+              </svg>
+            </span>
+            <span class="min-w-0">
+              <span class="block truncate text-sm font-semibold text-[#3b2f2e]">
+                {{ studentName }}
+              </span>
+              <span class="mt-0.5 block text-[11px] font-medium text-[#9a4a44]">
+                {{ studentId }}
+              </span>
+            </span>
+          </div>
+          <StudentMilestoneProgress
+            embedded
+            class="w-full"
+            :completed-count="completedCount"
+            :total-count="milestones.length"
+            :percentage="progressPercentage"
+          />
+          <div class="w-full border-t border-slate-100 pt-2.5">
+            <MilestoneStatusOverview :milestones="milestones" />
+          </div>
         </div>
       </header>
 
@@ -156,7 +196,7 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
 
       <template v-else>
         <StudentMilestoneProgress
-          class="mt-5"
+          class="mt-5 hidden sm:block"
           :completed-count="completedCount"
           :total-count="milestones.length"
           :percentage="progressPercentage"
@@ -180,6 +220,9 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
             :current-graduation-semester="graduationSemester"
             :current-graduation-academic-year="graduationAcademicYear"
             readonly
+            mobile-collapsible
+            mobile-description-only
+            :mobile-description-line-limit="1"
             :can-review="canReview(milestone)"
             :is-reviewing="reviewingMilestoneId === milestone.milestoneId"
             @approve="approveMilestone"
