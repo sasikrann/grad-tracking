@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef, onBeforeUnmount, onMounted } from 'vue'
+import { computed, ref, useTemplateRef, onBeforeUnmount, onMounted, watch } from 'vue'
 
 import {
   createNotification,
@@ -39,6 +39,7 @@ const targetAudience = ref<NotificationTargetAudience>('All Students')
 const sendEmail = ref(false)
 const attachmentFile = ref<File | null>(null)
 const attachmentInput = useTemplateRef<HTMLInputElement>('attachmentInput')
+let bodyOverflowBeforePanelOpen = ''
 const messageEditor = useTemplateRef<HTMLDivElement>('messageEditor')
 let toastTimer: ReturnType<typeof window.setTimeout> | undefined
 
@@ -474,9 +475,20 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  if (isPanelOpen.value) document.body.style.overflow = bodyOverflowBeforePanelOpen
   closeAttachmentPreview()
   document.removeEventListener('click', closeDropdown)
   if (toastTimer) window.clearTimeout(toastTimer)
+})
+
+watch(isPanelOpen, (isOpen) => {
+  if (isOpen) {
+    bodyOverflowBeforePanelOpen = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return
+  }
+
+  document.body.style.overflow = bodyOverflowBeforePanelOpen
 })
 
 useAutoRefresh(() => loadNotifications({ silent: true }), {
@@ -755,20 +767,20 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
 
     <div
       v-if="isPanelOpen"
-      class="fixed inset-0 z-40 bg-black/15"
+      class="fixed inset-0 z-40 bg-black/35 sm:bg-black/15"
       aria-hidden="true"
       @click="closeAddPanel"
     ></div>
 
     <aside
       v-if="isPanelOpen"
-      class="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white px-6 py-7 shadow-2xl"
+      class="fixed inset-4 z-50 flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-[18px] bg-white px-6 py-7 shadow-2xl sm:inset-y-0 sm:left-auto sm:right-0 sm:max-h-none sm:w-full sm:max-w-md sm:rounded-none"
       role="dialog"
       aria-modal="true"
       aria-labelledby="send-notification-title"
     >
       <div class="min-h-0 flex-1 overflow-y-auto pr-1">
-        <h2 id="send-notification-title" class="text-lg font-semibold text-slate-950">
+        <h2 id="send-notification-title" class="text-base font-semibold text-slate-950 sm:text-lg">
           {{ t('notification.send') }}
         </h2>
         <p class="mt-2 text-sm text-slate-500">{{ t('notification.createDescription') }}</p>
@@ -776,7 +788,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
         <form class="mt-5" @submit.prevent="submitNotification">
           <fieldset :disabled="isSubmitting" class="space-y-5">
             <section>
-              <h3 class="text-lg font-semibold text-slate-950">{{ t('notification.basicInformation') }}</h3>
+              <h3 class="text-base font-semibold text-slate-950 sm:text-lg">{{ t('notification.basicInformation') }}</h3>
 
               <label class="mt-2 block text-sm font-medium text-slate-900" for="notification-title">
                 {{ t('common.title') }} <span class="text-[#8b2a23]">*</span>
@@ -889,7 +901,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
             </section>
 
             <section class="border-t border-slate-200 pt-5">
-              <h3 class="text-lg font-semibold text-slate-950">{{ t('notification.targetAudience') }}</h3>
+              <h3 class="text-base font-semibold text-slate-950 sm:text-lg">{{ t('notification.targetAudience') }}</h3>
               <div class="mt-3 space-y-2">
                 <label
                   v-for="option in audienceOptions"
@@ -908,7 +920,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
             </section>
 
             <section class="border-t border-slate-200 pt-5">
-              <h3 class="text-lg font-semibold text-slate-950">{{ t('notification.attachmentOptional') }}</h3>
+              <h3 class="text-base font-semibold text-slate-950 sm:text-lg">{{ t('notification.attachmentOptional') }}</h3>
               <input
                 ref="attachmentInput"
                 type="file"
