@@ -1,5 +1,9 @@
 <script setup lang="ts">
+import { useLanguage } from '@/composables/useLanguage'
+
 defineOptions({ name: 'StudentMilestoneProgress' })
+
+const { t } = useLanguage()
 
 withDefaults(
   defineProps<{
@@ -23,10 +27,15 @@ withDefaults(
     <div class="flex items-end justify-between gap-4">
       <div>
         <h2 :class="embedded ? 'text-sm' : 'text-base'" class="font-semibold text-black">
-          Overall Progress
+          {{ t('milestone.overallProgress') }}
         </h2>
         <p :class="embedded ? 'text-xs' : 'text-sm'" class="mt-0.5 text-slate-500">
-          {{ completedCount }} of {{ totalCount }} milestones completed
+          {{
+            t('milestone.completedProgress', {
+              completed: completedCount,
+              total: totalCount,
+            })
+          }}
         </p>
       </div>
       <p class="font-semibold text-[#8a2b25]" :class="embedded ? 'text-sm' : 'text-base'">

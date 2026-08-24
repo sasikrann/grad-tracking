@@ -95,7 +95,7 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
           {{ t('milestone.milestones') }}
         </h1>
         <p class="mt-0.5 text-xs text-slate-500 sm:mt-1 sm:text-sm">
-          You have permission to view students' milestones only.
+          {{ t('milestone.studentViewOnly') }}
         </p>
       </div>
 

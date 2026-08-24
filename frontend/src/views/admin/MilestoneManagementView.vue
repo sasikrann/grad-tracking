@@ -356,8 +356,10 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
   <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-8">
     <header class="flex flex-col items-start justify-between gap-4 sm:flex-row">
       <div>
-        <h1 class="text-3xl font-bold tracking-tight">{{ t('milestone.pageTitle') }}</h1>
-        <p class="mt-1 text-sm text-slate-500">
+        <h1 class="text-xl font-bold tracking-tight sm:text-3xl">
+          {{ t('milestone.pageTitle') }}
+        </h1>
+        <p class="text-xs text-slate-500 sm:mt-1 sm:text-sm">
           {{ t('milestone.pageDescription') }}
         </p>
       </div>

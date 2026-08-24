@@ -105,9 +105,11 @@ const statusStyles: Record<StudentMilestoneStatus, string> = {
   'In Progress': 'bg-[#ffbb2a] text-white',
 }
 const displayStatus = computed(() => {
-  if (props.milestone.status === 'Approved') return 'Completed'
-  if (props.milestone.status === 'Missing') return 'Late'
-  return props.milestone.status
+  if (['Approved', 'Completed'].includes(props.milestone.status)) {
+    return t('milestone.statusCompleted')
+  }
+  if (props.milestone.status === 'Missing') return t('milestone.statusLate')
+  return t('milestone.statusInProgress')
 })
 const isAdvisorApproved = computed(() => props.milestone.status === 'Approved')
 const hasAdvisorComment = computed(() => Boolean(props.milestone.advisorComment?.trim()))
@@ -395,8 +397,8 @@ function handleFileChange(event: Event) {
             :class="[
               statusStyles[milestone.status],
               mobileCollapsible
-                ? 'min-w-17 px-2 py-1 text-[10px] sm:min-w-20 sm:px-3 sm:py-1.5 sm:text-xs'
-                : 'min-w-20 px-3 py-1.5 text-xs',
+                ? 'w-24 px-2 py-1 text-[10px] sm:px-2.5 sm:text-xs'
+                : 'w-24 px-2.5 py-1 text-xs',
             ]"
           >
             {{ displayStatus }}

@@ -29,6 +29,7 @@ const { setLanguage, t } = useLanguage()
 const isMobileMenuOpen = ref(false)
 const notificationUnreadCount = ref(0)
 let unreadCountTimer: number | undefined
+let bodyOverflowBeforeMenuOpen = ''
 const emit = defineEmits<{
   logout: []
 }>()
@@ -137,6 +138,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  document.body.style.overflow = bodyOverflowBeforeMenuOpen
   if (unreadCountTimer) window.clearInterval(unreadCountTimer)
   window.removeEventListener('focus', refreshUnreadCountWhenVisible)
   document.removeEventListener('visibilitychange', refreshUnreadCountWhenVisible)
@@ -144,6 +146,16 @@ onBeforeUnmount(() => {
     'notifications:unread-count-changed',
     handleNotificationUnreadCountChanged,
   )
+})
+
+watch(isMobileMenuOpen, (isOpen) => {
+  if (isOpen) {
+    bodyOverflowBeforeMenuOpen = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return
+  }
+
+  document.body.style.overflow = bodyOverflowBeforeMenuOpen
 })
 
 watch(
@@ -164,7 +176,7 @@ watch(
 
 <template>
   <header
-    class="sticky top-0 z-30 flex h-18 w-full items-center justify-between bg-[#7D2923] px-3 text-white md:hidden"
+    class="sticky top-0 z-30 flex h-17 w-full items-center justify-between bg-[#7D2923] px-3 text-white md:hidden"
   >
     <div class="flex min-w-0 items-center gap-2">
       <button
@@ -172,7 +184,7 @@ watch(
         class="flex size-9 shrink-0 items-center justify-center rounded-lg hover:bg-[#720008]"
         aria-label="Open navigation menu"
         :aria-expanded="isMobileMenuOpen"
-        @click="isMobileMenuOpen = true"
+        @click="isMobileMenuOpen = !isMobileMenuOpen"
       >
         <svg
           class="size-6"
@@ -219,40 +231,25 @@ watch(
           aria-label="Unread notifications"
         ></span>
       </RouterLink>
-      <span
-        v-else-if="menuRole !== 'advisor'"
-        class="flex size-8 items-center justify-center"
-        aria-hidden="true"
-      >
-        <svg
-          class="size-5"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.7"
-        >
-          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
-        </svg>
-      </span>
     </div>
   </header>
 
   <button
     v-if="isMobileMenuOpen"
     type="button"
-    class="fixed inset-0 z-40 bg-black/40 md:hidden"
+    class="fixed inset-x-0 bottom-0 top-17 z-40 bg-black/40 md:hidden"
     aria-label="Close navigation menu"
     @click="isMobileMenuOpen = false"
   ></button>
 
   <aside
-    class="fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-[64vw] max-w-[240px] shrink-0 -translate-x-full flex-col justify-between bg-[#7D2923] px-2.5 py-2.5 text-white shadow-xl transition-transform duration-200 md:sticky md:top-0 md:z-auto md:h-screen md:w-72 md:max-w-72 md:translate-x-0 md:px-3 md:py-3 md:shadow-none"
+    class="fixed bottom-0 left-0 top-17 z-50 flex w-[70vw] max-w-[280px] shrink-0 -translate-x-full flex-col justify-between bg-[#7D2923] px-3 py-2.5 text-white shadow-xl transition-transform duration-200 md:sticky md:top-0 md:z-auto md:h-screen md:w-72 md:max-w-72 md:translate-x-0 md:px-3 md:py-3 md:shadow-none"
     :class="{ 'translate-x-0': isMobileMenuOpen }"
   >
     <div>
       <!-- ส่วนโลโก้และชื่อระบบ -->
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex min-w-0 items-center gap-2 md:gap-3">
+      <div class="hidden items-center justify-between gap-3 md:flex">
+        <div class="flex min-w-0 items-center gap-3">
           <div
             class="flex size-11 shrink-0 items-center justify-center rounded-lg bg-[#750008] md:size-14 md:rounded-xl"
           >
@@ -270,29 +267,11 @@ watch(
             <p class="mt-0.5 text-[10px] text-white/80 md:text-sm">Progress System</p>
           </div>
         </div>
-
-        <button
-          type="button"
-          class="flex size-8 shrink-0 items-center justify-center rounded-lg hover:bg-[#720008] md:hidden"
-          aria-label="Close navigation menu"
-          @click="isMobileMenuOpen = false"
-        >
-          <svg
-            class="size-5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            aria-hidden="true"
-          >
-            <path d="m6 6 12 12M18 6 6 18" />
-          </svg>
-        </button>
       </div>
 
       <!-- ส่วนเมนู: สร้างรายการตาม role ด้วย v-for -->
-      <nav class="mt-2.5 md:mt-3">
-        <p class="mb-1 px-1 py-1 text-xs text-white/60 md:text-sm">
+      <nav class="-mt-4 md:mt-3">
+        <p class="mb-1 px-1 py-1 text-sm text-white/60">
           {{ menuRole === 'admin' ? t('nav.overview') : 'Overview' }}
         </p>
 
@@ -300,15 +279,15 @@ watch(
           v-for="item in menuItems"
           :key="item.to"
           :to="item.to"
-          class="flex items-center gap-2.5 rounded-[5px] px-2 py-2.5 text-xs transition-colors hover:bg-[#720008] md:gap-3 md:py-3 md:text-sm"
+          class="flex items-center gap-3 rounded-[5px] px-2 py-3 text-sm transition-colors hover:bg-[#720008]"
           :class="{ 'bg-[#720008]': isActiveItem(item) }"
           exact-active-class="bg-[#720008]"
           @click="isMobileMenuOpen = false"
         >
           <!-- เลือกไอคอนให้ตรงกับประเภทของเมนู -->
-          <span class="relative flex size-3.5 shrink-0 items-center justify-center md:size-4">
+          <span class="relative flex size-4 shrink-0 items-center justify-center">
             <svg
-              class="size-3.5 md:size-4"
+              class="size-4"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -360,7 +339,7 @@ watch(
 
     <!-- ส่วนข้อมูลผู้ใช้ที่แสดงด้านล่างสุดของ Navbar -->
     <div>
-      <div class="[&>div]:mb-1 [&_[role=group]]:w-20 md:[&>div]:mb-2 md:[&_[role=group]]:w-24">
+      <div class="hidden md:block md:[&>div]:mb-2 md:[&_[role=group]]:w-24">
         <LanguageSwitch :enabled="canChangeLanguage" />
       </div>
       <div class="flex items-center gap-2">
@@ -371,8 +350,8 @@ watch(
         </div>
 
         <div class="min-w-0 flex-1">
-          <p class="truncate text-[10px] font-medium md:text-xs">{{ user.fullName }}</p>
-          <p class="truncate text-[8px] text-white/70 md:text-[10px]">{{ user.email }}</p>
+          <p class="truncate text-xs font-medium">{{ user.fullName }}</p>
+          <p class="truncate text-[10px] text-white/70">{{ user.email }}</p>
         </div>
 
         <button

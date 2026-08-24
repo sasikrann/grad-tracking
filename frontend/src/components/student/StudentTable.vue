@@ -239,7 +239,13 @@ function planLabel(plan: string) {
                     : ''
                 "
               >
-                {{ useDoctoralLabel && student.degree === 'Ph. D.' ? 'Doctoral' : student.degree }}
+                {{
+                  isThai
+                    ? degreeLabel(student.degree)
+                    : useDoctoralLabel && student.degree === 'Ph. D.'
+                      ? 'Doctoral'
+                      : student.degree
+                }}
               </span>
               <span
                 class="min-w-12 rounded-md border border-[#dedede] px-2 py-0.5 text-center text-xs font-semibold leading-none"
