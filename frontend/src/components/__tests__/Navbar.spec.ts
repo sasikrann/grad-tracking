@@ -2,12 +2,13 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { mount, RouterLinkStub } from '@vue/test-utils'
 import Navbar from '../navigation/Navbar.vue'
 import { useLanguage } from '@/composables/useLanguage'
+import { th } from '@/lang/th'
 
 describe('Navbar', () => {
   beforeEach(() => useLanguage().setLanguage('en'))
 
   it.each([
-    ['admin', 'Advisor Management'],
+    ['admin', th.nav.advisorManagement],
     ['advisor', 'Milestone Summary'],
     ['student', 'Student Information'],
   ] as const)('renders the correct menu for %s', (role, expectedMenu) => {
@@ -38,7 +39,7 @@ describe('Navbar', () => {
     const adminThaiButton = admin.findAll('button').find((button) => button.text() === 'TH')
     expect(adminThaiButton?.attributes('disabled')).toBeUndefined()
     await adminThaiButton?.trigger('click')
-    expect(admin.text()).toContain('จัดการนักศึกษา')
+    expect(admin.text()).toContain(th.nav.studentManagement)
 
     useLanguage().setLanguage('en')
     const student = mount(Navbar, {

@@ -3,8 +3,10 @@ import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import multer from 'multer'
 
+import { requireRole } from '../middleware/auth.middleware.js'
 import {
   addNotification,
+  getNotificationAttachment,
   getNotification,
   getNotifications,
   getUnreadNotificationCount,
@@ -42,7 +44,8 @@ function uploadNotificationFile(request, response, next) {
 router.get('/', getNotifications)
 router.get('/unread-count', getUnreadNotificationCount)
 router.patch('/read-all', readAllNotifications)
-router.post('/attachments', uploadNotificationFile, uploadNotificationAttachment)
+router.post('/attachments', requireRole('admin'), uploadNotificationFile, uploadNotificationAttachment)
+router.get('/attachments/:fileName', getNotificationAttachment)
 router.post('/', addNotification)
 router.get('/:notificationId', getNotification)
 router.patch('/:notificationId/read', readNotification)

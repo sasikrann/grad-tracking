@@ -114,7 +114,43 @@ function absoluteAttachmentUrl(attachmentUrl) {
   const baseUrl = process.env.PUBLIC_APP_URL || process.env.PUBLIC_API_URL || process.env.APP_BASE_URL
   if (!baseUrl) return attachmentUrl
 
-  return new URL(attachmentUrl, baseUrl).toString()
+  const protectedPath = attachmentUrl.replace(
+    /^\/uploads\/notifications\//,
+    '/api/notifications/attachments/',
+  )
+  return new URL(protectedPath, baseUrl).toString()
+}
+
+export async function findNotificationAttachmentForUser(fileName, user) {
+  await ensureNotificationSchema()
+
+  const attachmentUrl = `/uploads/notifications/${fileName}`
+  if (user.role === 'admin') {
+    const result = await pool.query(
+      `SELECT attachment_url AS "attachmentUrl"
+       FROM notifications
+       WHERE attachment_url = $1
+       LIMIT 1`,
+      [attachmentUrl],
+    )
+    return result.rows[0] || null
+  }
+
+  if (user.role !== 'student') return null
+
+  const result = await pool.query(
+    `
+      SELECT n.attachment_url AS "attachmentUrl"
+      FROM users u
+      JOIN students s ON s.user_id = u.user_id
+      JOIN notifications n ON ${audienceFilterForStudent('n')}
+      WHERE u.user_id = $1
+        AND n.attachment_url = $2
+      LIMIT 1
+    `,
+    [user.userId, attachmentUrl],
+  )
+  return result.rows[0] || null
 }
 
 export async function findNotificationsForStudent(userId) {
