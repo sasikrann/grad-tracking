@@ -16,6 +16,12 @@ const markingNotificationId = ref<string | null>(null)
 const isMarkingAll = ref(false)
 const isDetailOpen = ref(false)
 const selectedNotification = ref<StudentNotification | null>(null)
+const isAttachmentPreviewOpen = ref(false)
+const isLoadingAttachmentPreview = ref(false)
+const attachmentPreviewUrl = ref('')
+const attachmentPreviewName = ref('')
+const attachmentPreviewType = ref<'image' | 'pdf' | null>(null)
+const attachmentPreviewError = ref('')
 const currentPage = ref(1)
 const notificationsPerPage = 10
 let notificationRefreshTimer: number | undefined
@@ -114,6 +120,55 @@ function attachmentHref(value: string) {
   return resolveNotificationAttachmentUrl(value)
 }
 
+function closeAttachmentPreview() {
+  if (attachmentPreviewUrl.value.startsWith('blob:')) {
+    URL.revokeObjectURL(attachmentPreviewUrl.value)
+  }
+  isAttachmentPreviewOpen.value = false
+  isLoadingAttachmentPreview.value = false
+  attachmentPreviewUrl.value = ''
+  attachmentPreviewName.value = ''
+  attachmentPreviewType.value = null
+  attachmentPreviewError.value = ''
+}
+
+async function openAttachmentPreview(value: string) {
+  closeAttachmentPreview()
+  attachmentPreviewName.value = attachmentName(value) || 'Attachment'
+  isAttachmentPreviewOpen.value = true
+  isLoadingAttachmentPreview.value = true
+
+  try {
+    if (value.startsWith('data:image/')) {
+      attachmentPreviewUrl.value = value
+      attachmentPreviewType.value = 'image'
+      return
+    }
+
+    const response = await fetch(attachmentHref(value), { credentials: 'include' })
+    if (!response.ok) throw new Error('Unable to open attachment')
+
+    const blob = await response.blob()
+    const fileName = attachmentPreviewName.value.toLowerCase()
+    const isImage = blob.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(fileName)
+    const isPdf = blob.type === 'application/pdf' || fileName.endsWith('.pdf')
+
+    if (!isImage && !isPdf) {
+      closeAttachmentPreview()
+      await downloadAttachment(value)
+      return
+    }
+
+    attachmentPreviewUrl.value = URL.createObjectURL(blob)
+    attachmentPreviewType.value = isPdf ? 'pdf' : 'image'
+  } catch (error) {
+    attachmentPreviewError.value =
+      error instanceof Error ? error.message : 'Unable to open attachment'
+  } finally {
+    isLoadingAttachmentPreview.value = false
+  }
+}
+
 function plainNotificationMessage(value: string) {
   return value
     .replace(/&(?:nbsp|#160|#x0*a0);/gi, ' ')
@@ -208,7 +263,7 @@ async function downloadAttachment(value: string) {
     if (href.startsWith('data:image/')) {
       link.href = href
     } else {
-      const response = await fetch(href)
+      const response = await fetch(href, { credentials: 'include' })
       if (!response.ok) throw new Error('Unable to download attachment')
 
       const blobUrl = URL.createObjectURL(await response.blob())
@@ -339,6 +394,7 @@ function openDetail(notification: StudentNotification) {
 }
 
 function closeDetail() {
+  closeAttachmentPreview()
   isDetailOpen.value = false
   selectedNotification.value = null
 }
@@ -359,6 +415,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  closeAttachmentPreview()
   if (notificationRefreshTimer) window.clearInterval(notificationRefreshTimer)
   window.removeEventListener('focus', refreshNotificationsSilently)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
@@ -406,7 +463,7 @@ watch(totalPages, (nextTotalPages) => {
     </p>
 
     <section
-      class="mt-5 rounded-lg border border-slate-200 bg-white px-4 py-4 shadow-[0_2px_4px_rgba(0,0,0,0.12)] sm:px-5 sm:py-5"
+      class="mt-5 bg-transparent sm:rounded-lg sm:border sm:border-slate-200 sm:bg-white sm:px-5 sm:py-5 sm:shadow-[0_2px_4px_rgba(0,0,0,0.12)]"
     >
       <div v-if="isLoading" class="py-8 text-center text-sm text-slate-500">
         Loading notifications...
@@ -423,7 +480,7 @@ watch(totalPages, (nextTotalPages) => {
         <article
           v-for="notification in paginatedNotifications"
           :key="notification.notificationId"
-          class="cursor-pointer border-b border-slate-200 py-4 last:border-b-0 hover:bg-slate-50"
+          class="relative mb-3 cursor-pointer rounded-xl border border-slate-200 bg-white p-3.5 shadow-[0_2px_6px_rgba(15,23,42,0.06)] last:mb-0 hover:bg-slate-50 sm:mb-0 sm:rounded-none sm:border-x-0 sm:border-t-0 sm:border-b sm:bg-transparent sm:px-0 sm:py-4 sm:shadow-none sm:last:border-b-0"
           role="button"
           tabindex="0"
           @click="openDetail(notification)"
@@ -432,7 +489,7 @@ watch(totalPages, (nextTotalPages) => {
         >
           <div class="flex min-w-0 items-start gap-3">
             <span
-              class="mt-4 size-1.5 shrink-0 rounded-full"
+              class="absolute right-3 top-3 size-2 shrink-0 rounded-full sm:static sm:mt-4 sm:size-1.5"
               :class="notification.isRead ? 'bg-transparent' : 'bg-[#8b2a23]'"
               aria-hidden="true"
             ></span>
@@ -480,18 +537,22 @@ watch(totalPages, (nextTotalPages) => {
               </svg>
             </span>
 
-            <div class="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3">
+            <div
+              class="grid min-w-0 flex-1 grid-cols-1 items-start gap-y-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-3 sm:gap-y-0"
+            >
               <div class="min-w-0">
-                <h2 class="truncate text-sm font-medium leading-snug text-slate-950">
+                <h2 class="line-clamp-2 pr-3 text-sm font-semibold leading-snug text-slate-950 sm:truncate sm:pr-0 sm:font-medium">
                   {{ notification.title }}
                 </h2>
 
-                <p class="mt-1 truncate text-xs leading-snug text-slate-500">
+                <p class="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500 sm:truncate sm:leading-snug">
                   {{ plainNotificationMessage(notification.message) }}
                 </p>
               </div>
 
-              <div class="flex w-[12.5rem] shrink-0 items-center justify-end gap-3">
+              <div
+                class="flex w-full shrink-0 items-center justify-between gap-3 border-t border-slate-100 pt-3 sm:w-[12.5rem] sm:justify-end sm:border-0 sm:pt-0"
+              >
                 <time class="whitespace-nowrap text-xs text-slate-700">
                   {{ formatNotificationTime(notification.sentAt ?? notification.createdAt) }}
                 </time>
@@ -511,7 +572,7 @@ watch(totalPages, (nextTotalPages) => {
         </article>
 
         <div
-          class="flex flex-col gap-3 pt-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"
+          class="flex flex-col gap-3 px-1 pt-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-0 sm:pt-4 sm:text-sm"
         >
           <p>
             Showing {{ currentPageStart }}-{{ currentPageEnd }} of
@@ -630,11 +691,10 @@ watch(totalPages, (nextTotalPages) => {
                 v-if="canOpenAttachment(selectedNotification.attachmentUrl)"
                 class="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 transition-colors hover:border-[#dfcccc] hover:bg-[#fff8f8]"
               >
-                <a
-                  :href="attachmentHref(selectedNotification.attachmentUrl)"
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
                   class="flex min-w-0 flex-1 items-center gap-3"
+                  @click="openAttachmentPreview(selectedNotification.attachmentUrl)"
                 >
                   <span class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600">
                     <svg
@@ -653,7 +713,7 @@ watch(totalPages, (nextTotalPages) => {
                   <span class="min-w-0 flex-1 truncate text-xs font-medium text-slate-950">
                     {{ attachmentName(selectedNotification.attachmentUrl) }}
                   </span>
-                </a>
+                </button>
                 <button
                   type="button"
                   class="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-[#dfcccc] hover:text-[#8b2a23]"
@@ -706,6 +766,65 @@ watch(totalPages, (nextTotalPages) => {
           </p>
         </div>
       </section>
+    </div>
+
+    <div
+      v-if="isAttachmentPreviewOpen"
+      class="fixed inset-0 z-[60] flex flex-col bg-black/80"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="attachment-preview-title"
+    >
+      <header class="flex items-center justify-between gap-3 bg-white px-4 py-3 shadow-sm">
+        <h2
+          id="attachment-preview-title"
+          class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-950"
+        >
+          {{ attachmentPreviewName }}
+        </h2>
+        <button
+          type="button"
+          class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+          aria-label="Close attachment preview"
+          @click="closeAttachmentPreview"
+        >
+          <svg
+            class="size-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            aria-hidden="true"
+          >
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          Back
+        </button>
+      </header>
+
+      <div class="flex min-h-0 flex-1 items-center justify-center p-3 sm:p-5">
+        <p v-if="isLoadingAttachmentPreview" class="text-sm font-medium text-white">
+          Loading attachment...
+        </p>
+        <p
+          v-else-if="attachmentPreviewError"
+          class="rounded-lg bg-white px-4 py-3 text-sm text-red-600"
+        >
+          {{ attachmentPreviewError }}
+        </p>
+        <img
+          v-else-if="attachmentPreviewType === 'image'"
+          :src="attachmentPreviewUrl"
+          :alt="attachmentPreviewName"
+          class="max-h-full max-w-full rounded-lg bg-white object-contain shadow-xl"
+        />
+        <iframe
+          v-else-if="attachmentPreviewType === 'pdf'"
+          :src="attachmentPreviewUrl"
+          :title="attachmentPreviewName"
+          class="h-full w-full max-w-5xl rounded-lg bg-white shadow-xl"
+        ></iframe>
+      </div>
     </div>
   </div>
 </template>

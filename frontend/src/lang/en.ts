@@ -162,6 +162,8 @@ export const en = {
     add: 'Add Notification',
     history: 'Notification History',
     historyCount: '{count} Notification History',
+    showingCount: 'Showing {start}-{end} of {count} notifications',
+    pagesLabel: 'Notification pages',
     send: 'Send Notification',
     createDescription: 'Create a new notification to send to students',
     basicInformation: 'Basic Information',
@@ -180,5 +182,8 @@ export const en = {
     enterDescription: 'Type your description here...',
     uploadFile: 'Upload File',
     removeAttachment: 'Remove attachment',
+    back: 'Back',
+    loadingAttachment: 'Loading attachment...',
+    unableOpenAttachment: 'Unable to open attachment',
   },
 } as const

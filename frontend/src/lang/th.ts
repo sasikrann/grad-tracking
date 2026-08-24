@@ -156,6 +156,8 @@ export const th = {
     add: 'เพิ่มการแจ้งเตือน',
     history: 'ประวัติการแจ้งเตือน',
     historyCount: 'ประวัติการแจ้งเตือน {count} รายการ',
+    showingCount: 'แสดง {start}-{end} จากทั้งหมด {count} การแจ้งเตือน',
+    pagesLabel: 'หน้ารายการแจ้งเตือน',
     send: 'สร้างการแจ้งเตือน',
     createDescription: 'สร้างการแจ้งเตือนใหม่เพื่อส่งให้นักศึกษา',
     basicInformation: 'ข้อมูลพื้นฐาน',
@@ -174,5 +176,8 @@ export const th = {
     enterDescription: 'พิมพ์รายละเอียดที่นี่...',
     uploadFile: 'อัปโหลดไฟล์',
     removeAttachment: 'นำไฟล์แนบออก',
+    back: 'กลับ',
+    loadingAttachment: 'กำลังโหลดไฟล์แนบ...',
+    unableOpenAttachment: 'ไม่สามารถเปิดไฟล์แนบได้',
   },
 } as const
