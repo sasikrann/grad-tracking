@@ -29,7 +29,7 @@ const dropdownOptions = computed(() =>
 
 <template>
   <div class="relative block text-xs font-semibold leading-normal" @click.stop>
-    <span class="inline-block py-0.5">{{ label }}</span>
+    <span>{{ label }}</span>
     <button
       type="button"
       class="mt-1 flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-[#c9827c] bg-white px-3 text-left text-xs font-semibold leading-normal shadow-[0_2px_4px_rgba(0,0,0,0.08)] outline-none hover:border-[#dfcccc] focus:border-[#7D2923]"
