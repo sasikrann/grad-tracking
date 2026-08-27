@@ -1,9 +1,12 @@
 import { randomUUID } from 'node:crypto'
+import path from 'node:path'
 
 import pool from '../config/database.js'
 import { sendNotificationEmail } from './email.service.js'
 
 let notificationSchemaReady
+const notificationAttachmentDirectory = path.resolve('uploads/notifications')
+const safeAttachmentFileNamePattern = /^[a-zA-Z0-9._-]+$/
 
 const notificationColumns = `
   n.notification_id AS "notificationId",
@@ -107,22 +110,26 @@ async function findNotificationEmailRecipients(client, targetAudience) {
   return result.rows.map((row) => row.email)
 }
 
-function absoluteAttachmentUrl(attachmentUrl) {
+function notificationEmailAttachment(attachmentUrl) {
   if (!attachmentUrl) return null
 
-  const protectedPath = attachmentUrl
-    .replace(
-      /^https?:\/\/[^/]+\/uploads\/notifications\//i,
-      '/api/notifications/attachments/',
-    )
-    .replace(/^\/uploads\/notifications\//, '/api/notifications/attachments/')
+  const pathname = new URL(String(attachmentUrl), 'http://localhost').pathname
+  const encodedFileName = pathname.match(
+    /\/(?:uploads\/notifications|api\/notifications\/attachments)\/([^/]+)$/i,
+  )?.[1]
+  if (!encodedFileName) throw new Error('Notification attachment URL is invalid')
 
-  if (/^https?:\/\//i.test(protectedPath)) return protectedPath
+  const fileName = decodeURIComponent(encodedFileName)
+  if (!safeAttachmentFileNamePattern.test(fileName)) {
+    throw new Error('Notification attachment file name is invalid')
+  }
 
-  const baseUrl = process.env.PUBLIC_APP_URL || process.env.PUBLIC_API_URL || process.env.APP_BASE_URL
-  if (!baseUrl) return protectedPath
+  const filePath = path.resolve(notificationAttachmentDirectory, fileName)
+  if (path.dirname(filePath) !== notificationAttachmentDirectory) {
+    throw new Error('Notification attachment path is invalid')
+  }
 
-  return new URL(protectedPath, baseUrl).toString()
+  return { fileName, filePath }
 }
 
 export async function findNotificationAttachmentForUser(fileName, user) {
@@ -291,7 +298,7 @@ export async function createNotification(input, createdBy) {
         recipients,
         title: input.title,
         message: input.message,
-        attachmentUrl: absoluteAttachmentUrl(input.attachmentUrl),
+        attachment: notificationEmailAttachment(input.attachmentUrl),
       })
 
       result = await client.query(

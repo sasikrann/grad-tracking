@@ -1,5 +1,7 @@
 import net from 'node:net'
 import tls from 'node:tls'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 
 const smtpTimeoutMs = Number(process.env.SMTP_TIMEOUT_MS ?? 15000)
 
@@ -68,9 +70,9 @@ export function stripNotificationHtml(value) {
     .trim()
 }
 
-function createEmailHtml({ title, message, attachmentUrl }) {
-  const attachmentHtml = attachmentUrl
-    ? `<p><strong>Attachment:</strong> <a href="${escapeHtml(attachmentUrl)}">${escapeHtml(attachmentUrl)}</a></p>`
+function createEmailHtml({ title, message, attachmentName }) {
+  const attachmentHtml = attachmentName
+    ? `<p><strong>Attachment:</strong> ${escapeHtml(attachmentName)}</p>`
     : ''
 
   return [
@@ -85,35 +87,87 @@ function createEmailHtml({ title, message, attachmentUrl }) {
   ].join('')
 }
 
-function createEmailText({ title, message, attachmentUrl }) {
+function createEmailText({ title, message, attachmentName }) {
   const lines = [title, '', stripNotificationHtml(message)]
-  if (attachmentUrl) lines.push('', `Attachment: ${attachmentUrl}`)
+  if (attachmentName) lines.push('', `Attachment: ${attachmentName}`)
   return lines.join('\n')
 }
 
-function createMimeMessage({ from, subject, html, text }) {
-  const boundary = `notification-${Date.now()}-${Math.random().toString(16).slice(2)}`
+function attachmentContentType(fileName) {
+  switch (path.extname(fileName).toLowerCase()) {
+    case '.png': return 'image/png'
+    case '.jpg':
+    case '.jpeg': return 'image/jpeg'
+    case '.gif': return 'image/gif'
+    case '.pdf': return 'application/pdf'
+    case '.csv': return 'text/csv'
+    case '.txt': return 'text/plain'
+    case '.xlsx': return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    case '.xls': return 'application/vnd.ms-excel'
+    case '.docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    case '.doc': return 'application/msword'
+    default: return 'application/octet-stream'
+  }
+}
+
+function foldedBase64(buffer) {
+  return buffer.toString('base64').match(/.{1,76}/g)?.join('\r\n') ?? ''
+}
+
+export function createMimeMessage({ from, subject, html, text, attachment = null }) {
+  const alternativeBoundary = `notification-alternative-${Date.now()}-${Math.random().toString(16).slice(2)}`
+  const alternativeBody = [
+    `--${alternativeBoundary}`,
+    'Content-Type: text/plain; charset=UTF-8',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    text,
+    '',
+    `--${alternativeBoundary}`,
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    html,
+    '',
+    `--${alternativeBoundary}--`,
+  ]
+
+  if (attachment) {
+    const mixedBoundary = `notification-mixed-${Date.now()}-${Math.random().toString(16).slice(2)}`
+    const safeFileName = encodeHeader(attachment.fileName).replace(/["\\]/g, '_')
+
+    return [
+      `From: ${from}`,
+      'To: undisclosed-recipients:;',
+      `Subject: ${encodeHeader(subject)}`,
+      'MIME-Version: 1.0',
+      `Content-Type: multipart/mixed; boundary="${mixedBoundary}"`,
+      '',
+      `--${mixedBoundary}`,
+      `Content-Type: multipart/alternative; boundary="${alternativeBoundary}"`,
+      '',
+      ...alternativeBody,
+      '',
+      `--${mixedBoundary}`,
+      `Content-Type: ${attachment.contentType}; name="${safeFileName}"`,
+      'Content-Transfer-Encoding: base64',
+      `Content-Disposition: attachment; filename="${safeFileName}"`,
+      '',
+      foldedBase64(attachment.content),
+      '',
+      `--${mixedBoundary}--`,
+      '',
+    ].join('\r\n')
+  }
 
   return [
     `From: ${from}`,
     'To: undisclosed-recipients:;',
     `Subject: ${encodeHeader(subject)}`,
     'MIME-Version: 1.0',
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    `Content-Type: multipart/alternative; boundary="${alternativeBoundary}"`,
     '',
-    `--${boundary}`,
-    'Content-Type: text/plain; charset=UTF-8',
-    'Content-Transfer-Encoding: 8bit',
-    '',
-    text,
-    '',
-    `--${boundary}`,
-    'Content-Type: text/html; charset=UTF-8',
-    'Content-Transfer-Encoding: 8bit',
-    '',
-    html,
-    '',
-    `--${boundary}--`,
+    ...alternativeBody,
     '',
   ].join('\r\n')
 }
@@ -209,8 +263,19 @@ async function authenticate(socket, { user, pass }) {
   await smtpCommand(socket, base64(pass), [235])
 }
 
-export async function sendNotificationEmail({ recipients, title, message, attachmentUrl }) {
+export async function sendNotificationEmail({ recipients, title, message, attachment = null }) {
   const normalizedRecipients = resolveNotificationEmailRecipients(recipients)
+  const emailAttachment = attachment
+    ? {
+        fileName: attachment.fileName,
+        contentType: attachmentContentType(attachment.fileName),
+        content: await readFile(attachment.filePath),
+      }
+    : null
+
+  if (emailAttachment?.content.length > 10 * 1024 * 1024) {
+    throw new Error('Notification email attachment must not exceed 10 MB')
+  }
 
   const host = requiredEnv('SMTP_HOST')
   const port = Number(process.env.SMTP_PORT ?? 587)
@@ -244,8 +309,9 @@ export async function sendNotificationEmail({ recipients, title, message, attach
       `${createMimeMessage({
         from,
         subject: title,
-        html: createEmailHtml({ title, message, attachmentUrl }),
-        text: createEmailText({ title, message, attachmentUrl }),
+        html: createEmailHtml({ title, message, attachmentName: emailAttachment?.fileName }),
+        text: createEmailText({ title, message, attachmentName: emailAttachment?.fileName }),
+        attachment: emailAttachment,
       }).replace(/^\./gm, '..')}\r\n.\r\n`,
     )
     await expectSmtpResponse(socket, [250])
