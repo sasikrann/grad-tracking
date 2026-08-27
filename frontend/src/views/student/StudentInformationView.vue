@@ -6,6 +6,9 @@ import StudentInformationCoAdvisor from '@/components/student/StudentInformation
 import StudentInformationStudyPlan from '@/components/student/StudentInformationStudyPlan.vue'
 import { getMyStudentProfile, type StudentProfile } from '@/services/student-profile.api'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useLanguage } from '@/composables/useLanguage'
+
+const { t } = useLanguage()
 
 const profile = ref<StudentProfile | null>(null)
 const isLoading = ref(true)
@@ -33,14 +36,14 @@ useAutoRefresh(() => loadPage({ silent: true }))
     class="min-h-screen bg-[#f7f7f7] px-4 py-5 pb-8 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8"
   >
     <header>
-      <h1 class="text-xl font-bold tracking-tight sm:text-3xl">Student Information</h1>
+      <h1 class="text-xl font-bold tracking-tight sm:text-3xl">{{ t('studentPortal.informationTitle') }}</h1>
       <p class="mt-1 max-w-md text-sm leading-5 text-slate-500">
-        View student information and manage your advisory team
+        {{ t('studentPortal.informationDescription') }}
       </p>
     </header>
 
     <p v-if="isLoading" class="mt-6 text-sm text-slate-500" role="status">
-      Loading student information...
+      {{ t('studentPortal.loadingInformation') }}
     </p>
 
     <p

@@ -13,7 +13,7 @@ import { getAdvisorStudentOverview } from '@/services/students.api'
 defineOptions({ name: 'AdvisorStudentOverallView' })
 
 const router = useRouter()
-const { isThai } = useLanguage()
+const { isThai, t } = useLanguage()
 
 async function loadAdvisorStudentOverview() {
   const advisorId = currentUser.value?.advisorId
@@ -40,9 +40,9 @@ const {
 useAutoRefresh(() => loadStudents({ silent: true }))
 
 const totalStudentsTitle = computed(() => {
-  if (filters.value.advisor === 'all') return 'Total Students'
-  if (filters.value.advisor === 'co-advisor') return 'Co-advised Students'
-  return 'Advised Students'
+  if (filters.value.advisor === 'all') return t('advisorPortal.totalStudents')
+  if (filters.value.advisor === 'co-advisor') return t('advisorPortal.coAdvisedStudents')
+  return t('advisorPortal.advisedStudents')
 })
 
 function viewStudentMilestones(studentId: string) {
@@ -54,17 +54,19 @@ function viewStudentMilestones(studentId: string) {
 <template>
   <div class="min-h-screen bg-[#f7f7f7] px-4 py-5 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8">
     <header>
-      <h1 class="text-xl font-bold tracking-tight sm:text-3xl">Student Overall</h1>
+      <h1 class="text-xl font-bold tracking-tight sm:text-3xl">
+        {{ t('advisorPortal.studentOverall') }}
+      </h1>
       <p class="mt-1 text-sm text-slate-500">
-        Monitor advised students, track their progress, and review thesis status
+        {{ t('advisorPortal.studentOverallDescription') }}
       </p>
     </header>
 
     <section class="mt-3 grid grid-cols-2 gap-2.5 sm:mt-4 sm:gap-5 xl:grid-cols-4">
       <SummaryCard :title="totalStudentsTitle" :value="statistics.total" icon="students" />
-      <SummaryCard title="On-track" :value="statistics.onTrack" icon="on-track" />
-      <SummaryCard title="Overdue" :value="statistics.overdue" icon="overdue" />
-      <SummaryCard title="Graduate" :value="statistics.graduate" icon="graduate" />
+      <SummaryCard :title="t('advisorPortal.onTrack')" :value="statistics.onTrack" icon="on-track" />
+      <SummaryCard :title="t('advisorPortal.overdue')" :value="statistics.overdue" icon="overdue" />
+      <SummaryCard :title="t('advisorPortal.graduate')" :value="statistics.graduate" icon="graduate" />
     </section>
 
     <StudentOverview

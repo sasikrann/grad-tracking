@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { formatAcademicYear, useLanguage } from '@/composables/useLanguage'
 import { getAdvisorMilestoneSummary } from '@/services/advisor-milestone-summary.api'
 import { currentUser } from '@/services/auth'
 import type { AdvisorMilestoneSummary, DegreeLevel } from '@/types/milestone'
@@ -24,6 +25,7 @@ const selectedYear = ref('')
 const isLoading = ref(true)
 const loadError = ref('')
 const openFilter = ref<SummaryFilterKey | null>(null)
+const { t } = useLanguage()
 
 const completedCount = computed(
   () => summary.value.counts.completed + summary.value.counts.approved,
@@ -34,25 +36,25 @@ const inProgressCount = computed(
 
 const summaryCards = computed(() => [
   {
-    title: 'Total Student',
+    title: t('advisorPortal.totalStudent'),
     value: summary.value.counts.totalStudents.toString(),
     icon: 'students',
     accent: 'bg-blue-100 text-blue-500',
   },
   {
-    title: 'In Progress',
+    title: t('advisorPortal.inProgress'),
     value: inProgressCount.value.toString(),
     icon: 'progress',
     accent: 'bg-amber-100 text-amber-500',
   },
   {
-    title: 'Completed',
+    title: t('advisorPortal.completed'),
     value: completedCount.value.toString(),
     icon: 'completed',
     accent: 'bg-emerald-100 text-emerald-600',
   },
   {
-    title: 'Overall Completed',
+    title: t('advisorPortal.overallCompleted'),
     value: `${summary.value.overallProgress}%`,
     icon: 'overall',
     accent: 'bg-violet-100 text-violet-500',
@@ -89,25 +91,45 @@ const educationPlanOptions = computed(() =>
   ),
 )
 
+function educationPlanLabel(plan: string) {
+  const translationKeys = {
+    A1: 'common.planA1',
+    A2: 'common.planA2',
+    B: 'common.planB',
+    '2.1': 'common.plan21',
+    '2.2': 'common.plan22',
+  } as const
+  const key = translationKeys[plan as keyof typeof translationKeys]
+  return key ? t(key) : plan
+}
+
 const filterDefinitions = computed(() => [
   {
     key: 'degreeLevel' as const,
-    label: selectedDegreeLevel.value === 'Doctoral' ? 'Ph.D' : selectedDegreeLevel.value,
+    label:
+      selectedDegreeLevel.value === 'Doctoral'
+        ? t('common.doctoral')
+        : selectedDegreeLevel.value
+          ? t('common.master')
+          : '',
     options: degreeLevelOptions.value.map((level) => ({
-      label: level === 'Doctoral' ? 'Ph.D' : level,
+      label: level === 'Doctoral' ? t('common.doctoral') : t('common.master'),
       value: level,
     })),
   },
   {
     key: 'educationPlan' as const,
-    label: selectedEducationPlan.value,
-    options: educationPlanOptions.value.map((plan) => ({ label: plan, value: plan })),
+    label: educationPlanLabel(selectedEducationPlan.value),
+    options: educationPlanOptions.value.map((plan) => ({
+      label: educationPlanLabel(plan),
+      value: plan,
+    })),
   },
   {
     key: 'year' as const,
     label: selectedYear.value,
     options: yearOptions.value.map((year) => ({
-      label: year.toString(),
+      label: formatAcademicYear(year),
       value: year.toString(),
     })),
   },
@@ -203,26 +225,28 @@ useAutoRefresh(() => loadSummary({ silent: true }))
 <template>
   <div class="min-h-screen bg-[#f7f7f7] px-4 py-5 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8">
     <header>
-      <h1 class="text-xl font-bold tracking-tight sm:text-3xl">Milestone Summary</h1>
-      <p class="mt-1 text-sm font-medium text-[#7d7d7d]">
-        Manage student data, track progress, and check thesis status.
+      <h1 class="text-xl font-bold tracking-tight sm:text-3xl">
+        {{ t('advisorPortal.milestoneSummary') }}
+      </h1>
+      <p class="mt-1 text-sm text-slate-500">
+        {{ t('advisorPortal.summaryDescription') }}
       </p>
     </header>
 
-    <section class="mt-4 grid grid-cols-2 gap-2.5 sm:mt-7 sm:gap-3 xl:grid-cols-4">
+    <section class="mt-3 grid grid-cols-2 gap-2.5 sm:mt-4 sm:gap-5 xl:grid-cols-4">
       <article
         v-for="card in summaryCards"
         :key="card.title"
-        class="flex min-h-20 items-center rounded-xl border border-[#ececec] bg-white px-3.5 py-3 shadow-[0_2px_8px_rgba(15,23,42,0.06)] sm:h-24 sm:px-5 sm:py-0"
+        class="flex h-[76px] w-full items-center rounded-lg border border-[#e6e6e6] bg-white px-3 shadow-[0_2px_3px_rgba(0,0,0,0.12)] sm:rounded-xl sm:px-5"
       >
         <div
           :class="[
-            'flex size-10 shrink-0 items-center justify-center rounded-full sm:size-12',
+            'flex size-10 shrink-0 items-center justify-center rounded-xl',
             card.accent,
           ]"
         >
           <svg
-            class="size-6 sm:size-7"
+            class="size-6"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -247,9 +271,9 @@ useAutoRefresh(() => loadSummary({ silent: true }))
             </template>
           </svg>
         </div>
-        <div class="ml-2.5 min-w-0 leading-tight sm:ml-4">
-          <p class="truncate text-[11px] text-[#7b7b7b] sm:text-sm">{{ card.title }}</p>
-          <p class="mt-0.5 text-base font-semibold text-black sm:mt-1 sm:text-lg">
+        <div class="ml-3 min-w-0 sm:ml-4">
+          <p class="truncate py-0.5 text-xs leading-normal text-[#7b7b7b] sm:text-sm">{{ card.title }}</p>
+          <p class="mt-0.5 text-lg font-semibold text-black">
             {{ card.value }}
           </p>
         </div>
@@ -257,13 +281,13 @@ useAutoRefresh(() => loadSummary({ silent: true }))
     </section>
 
     <section
-      class="mt-4 rounded-xl border border-[#ececec] bg-white px-3 pb-5 pt-4 shadow-[0_2px_8px_rgba(15,23,42,0.06)] sm:mt-14 sm:px-7 sm:pt-5"
+      class="mt-2 rounded-lg border border-[#ececec] bg-white px-2 pb-5 pt-3 shadow-[0_2px_4px_rgba(0,0,0,0.12)] sm:mt-4 sm:rounded-xl sm:px-7 sm:pt-5"
     >
       <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 class="text-lg font-semibold">Milestone Breakdown</h2>
+          <h2 class="text-lg font-semibold">{{ t('advisorPortal.milestoneBreakdown') }}</h2>
           <p class="mt-0.5 text-xs text-slate-500 sm:hidden">
-            Select a group to view milestone status
+            {{ t('advisorPortal.selectGroup') }}
           </p>
         </div>
 
@@ -275,10 +299,10 @@ useAutoRefresh(() => loadSummary({ silent: true }))
             <p class="mb-1 text-[10px] font-medium text-slate-500 sm:hidden">
               {{
                 filter.key === 'degreeLevel'
-                  ? 'Degree'
+                  ? t('advisorPortal.degree')
                   : filter.key === 'educationPlan'
-                    ? 'Plan'
-                    : 'Year'
+                    ? t('advisorPortal.plan')
+                    : t('advisorPortal.year')
               }}
             </p>
             <button
@@ -321,7 +345,7 @@ useAutoRefresh(() => loadSummary({ silent: true }))
       </header>
 
       <div v-if="isLoading" class="py-14 text-center text-sm text-slate-500">
-        Loading milestone summary...
+        {{ t('advisorPortal.loadingSummary') }}
       </div>
       <div v-else-if="loadError" class="py-14 text-center">
         <p class="text-sm font-semibold text-red-600">{{ loadError }}</p>
@@ -330,14 +354,14 @@ useAutoRefresh(() => loadSummary({ silent: true }))
           class="mt-4 rounded-lg bg-[#8a2b25] px-4 py-2 text-sm font-semibold text-white"
           @click="loadSummary()"
         >
-          Retry
+          {{ t('advisorPortal.retry') }}
         </button>
       </div>
       <div
         v-else-if="summary.milestones.length === 0"
         class="py-14 text-center text-sm text-slate-500"
       >
-        No milestone data matches the selected filters.
+        {{ t('advisorPortal.noSummaryData') }}
       </div>
 
       <template v-else>
@@ -360,7 +384,7 @@ useAutoRefresh(() => loadSummary({ silent: true }))
             <div class="mt-3 grid grid-cols-2 gap-2 pl-9">
               <div class="flex items-center justify-between rounded-lg bg-amber-50 px-2.5 py-2">
                 <span class="flex items-center gap-1.5 text-[10px] font-medium text-amber-700">
-                  <span class="size-2 rounded-full bg-amber-400"></span>In progress
+                  <span class="size-2 rounded-full bg-amber-400"></span>{{ t('advisorPortal.inProgress') }}
                 </span>
                 <strong class="text-xs text-amber-800">{{
                   milestone.inProgress + milestone.missing
@@ -368,7 +392,7 @@ useAutoRefresh(() => loadSummary({ silent: true }))
               </div>
               <div class="flex items-center justify-between rounded-lg bg-emerald-50 px-2.5 py-2">
                 <span class="flex items-center gap-1.5 text-[10px] font-medium text-emerald-700">
-                  <span class="size-2 rounded-full bg-emerald-500"></span>Completed
+                  <span class="size-2 rounded-full bg-emerald-500"></span>{{ t('advisorPortal.completed') }}
                 </span>
                 <strong class="text-xs text-emerald-800">{{
                   milestone.completed + milestone.approved
@@ -382,15 +406,15 @@ useAutoRefresh(() => loadSummary({ silent: true }))
           <table class="w-full min-w-[720px] border-collapse text-left text-sm">
             <thead>
               <tr class="border-b border-[#dedede]">
-                <th class="w-1/2 py-3 font-semibold">Milestone</th>
+                <th class="w-1/2 py-3 font-semibold">{{ t('advisorPortal.milestone') }}</th>
                 <th class="w-1/4 py-3 text-center font-semibold">
                   <span class="inline-flex items-center gap-1.5"
-                    ><span class="size-3 rounded-full bg-[#ffbd38]"></span>In Progress</span
+                    ><span class="size-3 rounded-full bg-[#ffbd38]"></span>{{ t('advisorPortal.inProgress') }}</span
                   >
                 </th>
                 <th class="w-1/4 py-3 text-center font-semibold">
                   <span class="inline-flex items-center gap-1.5"
-                    ><span class="size-3 rounded-full bg-[#49b866]"></span>Completed</span
+                    ><span class="size-3 rounded-full bg-[#49b866]"></span>{{ t('advisorPortal.completed') }}</span
                   >
                 </th>
               </tr>

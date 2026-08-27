@@ -49,17 +49,17 @@ const menus: Record<MenuRole, MenuItem[]> = {
   ],
   advisor: [
     {
-      label: 'Student Overall',
+      label: 'nav.studentOverall',
       to: '/advisor/student-overall',
       icon: 'dashboard',
       activePaths: ['/advisor/students/'],
     },
-    { label: 'Milestone Summary', to: '/advisor/summary', icon: 'milestone' },
+    { label: 'nav.milestoneSummary', to: '/advisor/summary', icon: 'milestone' },
   ],
   student: [
-    { label: 'Student Information', to: '/student/information', icon: 'student' },
-    { label: 'Milestone', to: '/student/milestones', icon: 'milestone' },
-    { label: 'Notification', to: '/notifications', icon: 'notification' },
+    { label: 'nav.studentInformation', to: '/student/information', icon: 'student' },
+    { label: 'nav.studentMilestones', to: '/student/milestones', icon: 'milestone' },
+    { label: 'nav.studentNotifications', to: '/notifications', icon: 'notification' },
   ],
 }
 
@@ -71,10 +71,10 @@ const routePath = computed(() => route?.path ?? '')
 const shouldShowNotificationBadge = computed(
   () => menuRole.value === 'student' && notificationUnreadCount.value > 0,
 )
-const canChangeLanguage = computed(() => props.user.role === 'admin')
+const canChangeLanguage = computed(() => ['admin', 'advisor', 'student'].includes(props.user.role))
 
 function menuLabel(item: MenuItem) {
-  return menuRole.value === 'admin' ? t(item.label as Parameters<typeof t>[0]) : item.label
+  return t(item.label as Parameters<typeof t>[0])
 }
 
 const userInitials = computed(() => {
@@ -180,7 +180,7 @@ watch(
 
 <template>
   <header
-    class="sticky top-0 z-30 flex h-17 w-full items-center justify-between bg-[#7D2923] px-3 text-white md:hidden"
+    class="sticky top-0 z-30 flex h-17 w-full items-center justify-between bg-[#7D2923] px-3 text-white min-[1200px]:hidden"
   >
     <div class="flex min-w-0 items-center gap-2">
       <button
@@ -241,42 +241,42 @@ watch(
   <button
     v-if="isMobileMenuOpen"
     type="button"
-    class="fixed inset-x-0 bottom-0 top-17 z-40 bg-black/40 md:hidden"
+    class="fixed inset-x-0 bottom-0 top-17 z-40 bg-black/40 min-[1200px]:hidden"
     aria-label="Close navigation menu"
     @click="isMobileMenuOpen = false"
   ></button>
 
   <aside
-    class="fixed bottom-0 left-0 top-17 z-50 flex w-[70vw] max-w-[280px] shrink-0 -translate-x-full flex-col justify-between bg-[#7D2923] px-3 py-2.5 text-white shadow-xl transition-transform duration-200 md:sticky md:top-0 md:z-auto md:h-screen md:w-72 md:max-w-72 md:translate-x-0 md:px-3 md:py-3 md:shadow-none"
+    class="fixed bottom-0 left-0 top-17 z-50 flex w-[70vw] max-w-[280px] shrink-0 -translate-x-full flex-col justify-between bg-[#7D2923] px-3 py-2.5 text-white shadow-xl transition-transform duration-200 min-[1200px]:sticky min-[1200px]:top-0 min-[1200px]:z-auto min-[1200px]:h-screen min-[1200px]:w-72 min-[1200px]:max-w-72 min-[1200px]:translate-x-0 min-[1200px]:px-3 min-[1200px]:py-3 min-[1200px]:shadow-none"
     :class="{ 'translate-x-0': isMobileMenuOpen }"
   >
     <div>
       <!-- ส่วนโลโก้และชื่อระบบ -->
-      <div class="hidden items-center justify-between gap-3 md:flex">
+      <div class="hidden items-center justify-between gap-3 min-[1200px]:flex">
         <div class="flex min-w-0 items-center gap-3">
           <div
-            class="flex size-11 shrink-0 items-center justify-center rounded-lg bg-[#750008] md:size-14 md:rounded-xl"
+            class="flex size-11 shrink-0 items-center justify-center rounded-lg bg-[#750008] min-[1200px]:size-14 min-[1200px]:rounded-xl"
           >
             <img
               src="@/assets/logomfu.png"
               alt="MFU Logo"
-              class="size-9 object-contain md:size-12"
+              class="size-9 object-contain min-[1200px]:size-12"
             />
           </div>
 
           <div class="min-w-0">
-            <h1 class="truncate text-base font-semibold leading-tight md:text-xl">
+            <h1 class="truncate text-base font-semibold leading-tight min-[1200px]:text-xl">
               ADT GRAD Tracking
             </h1>
-            <p class="mt-0.5 text-[10px] text-white/80 md:text-sm">Progress System</p>
+            <p class="mt-0.5 text-[10px] text-white/80 min-[1200px]:text-sm">Progress System</p>
           </div>
         </div>
       </div>
 
       <!-- ส่วนเมนู: สร้างรายการตาม role ด้วย v-for -->
-      <nav class="-mt-4 md:mt-3">
+      <nav class="-mt-4 min-[1200px]:mt-3">
         <p class="mb-1 px-1 py-1 text-sm text-white/60">
-          {{ menuRole === 'admin' ? t('nav.overview') : 'Overview' }}
+          {{ t('nav.overview') }}
         </p>
 
         <RouterLink
@@ -343,12 +343,14 @@ watch(
 
     <!-- ส่วนข้อมูลผู้ใช้ที่แสดงด้านล่างสุดของ Navbar -->
     <div>
-      <div class="hidden md:block md:[&>div]:mb-2 md:[&_[role=group]]:w-24">
+      <div
+        class="hidden min-[1200px]:block min-[1200px]:[&>div]:mb-2 min-[1200px]:[&_[role=group]]:w-24"
+      >
         <LanguageSwitch :enabled="canChangeLanguage" />
       </div>
       <div class="flex items-center gap-2">
         <div
-          class="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#720008] text-[10px] md:size-8 md:text-xs"
+          class="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#720008] text-[10px] min-[1200px]:size-8 min-[1200px]:text-xs"
         >
           {{ userInitials }}
         </div>
@@ -360,7 +362,7 @@ watch(
 
         <button
           type="button"
-          :aria-label="menuRole === 'admin' ? t('nav.signOut') : 'Sign out'"
+          :aria-label="t('nav.signOut')"
           class="rounded p-1.5 hover:bg-[#720008]"
           @click="emit('logout')"
         >

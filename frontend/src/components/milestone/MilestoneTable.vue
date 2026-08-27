@@ -23,6 +23,20 @@ const emit = defineEmits<{
 const draggingMilestoneId = ref<string | null>(null)
 const touchStartY = ref(0)
 const touchOffsetY = ref(0)
+const touchTargetIndex = ref<number | null>(null)
+const AUTO_SCROLL_EDGE_SIZE = 96
+const AUTO_SCROLL_MAX_SPEED = 14
+
+let activePointerId: number | null = null
+let activePointerTarget: HTMLElement | null = null
+let activeReorderScope: HTMLElement | null = null
+let lastPointerY = 0
+let reorderScrollContainer: HTMLElement | Window | null = null
+let accumulatedAutoScroll = 0
+let autoScrollFrame: number | null = null
+let touchSourceIndex = -1
+let draggedCardHeight = 0
+let initialCardCenters: Array<{ milestoneId: string; centerY: number }> = []
 
 function closeActionMenus() {
   document
@@ -48,27 +62,188 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleOutsideMenuClick)
   window.removeEventListener('scroll', closeActionMenus, true)
+  stopAutoScroll()
 })
 
 function startTouchReorder(event: PointerEvent, milestoneId: string) {
+  event.preventDefault()
   draggingMilestoneId.value = milestoneId
   touchStartY.value = event.clientY
+  lastPointerY = event.clientY
   touchOffsetY.value = 0
+  activePointerId = event.pointerId
+  activePointerTarget = event.currentTarget as HTMLElement
+  activePointerTarget.setPointerCapture(event.pointerId)
+  activeReorderScope = activePointerTarget.closest<HTMLElement>('[data-reorder-scope]')
+  reorderScrollContainer = findScrollContainer(activePointerTarget)
+  accumulatedAutoScroll = 0
+  const cards = reorderItems()
+  touchSourceIndex = cards.findIndex((card) => card.dataset.reorderMilestoneId === milestoneId)
+  touchTargetIndex.value = touchSourceIndex
+  draggedCardHeight = cards[touchSourceIndex]?.getBoundingClientRect().height ?? 0
+  initialCardCenters = cards.map((card) => ({
+    milestoneId: card.dataset.reorderMilestoneId ?? '',
+    centerY: card.getBoundingClientRect().top + card.getBoundingClientRect().height / 2,
+  }))
+  autoScrollFrame = requestAnimationFrame(runAutoScroll)
 }
 
 function moveTouchReorder(event: PointerEvent) {
-  if (!draggingMilestoneId.value) return
-  touchOffsetY.value = event.clientY - touchStartY.value
+  if (!draggingMilestoneId.value || event.pointerId !== activePointerId) return
+  lastPointerY = event.clientY
+  updateTouchOffset()
+  updateTouchTarget()
 }
 
-function startReorder(event: DragEvent, milestoneId: string) {
-  draggingMilestoneId.value = milestoneId
-  event.dataTransfer?.setData('text/plain', milestoneId)
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move'
-    const preview = (event.currentTarget as HTMLElement).closest<HTMLElement>('tr, article')
-    if (preview) event.dataTransfer.setDragImage(preview, 24, 20)
+function reorderItems() {
+  return Array.from(
+    activeReorderScope?.querySelectorAll<HTMLElement>('[data-reorder-milestone-id]') ?? [],
+  )
+}
+
+function findScrollContainer(element: HTMLElement): HTMLElement | Window {
+  let parent = element.parentElement
+
+  while (parent) {
+    const { overflowY } = window.getComputedStyle(parent)
+    if (/(auto|scroll)/.test(overflowY) && parent.scrollHeight > parent.clientHeight) return parent
+    parent = parent.parentElement
   }
+
+  return window
+}
+
+function updateTouchOffset() {
+  touchOffsetY.value = lastPointerY - touchStartY.value + accumulatedAutoScroll
+}
+
+function updateTouchTarget() {
+  const sourceMilestoneId = draggingMilestoneId.value
+  if (!sourceMilestoneId || touchSourceIndex < 0) return
+
+  const pointerPositionInInitialViewport = lastPointerY + accumulatedAutoScroll
+  const targetIndex = initialCardCenters
+    .filter((card) => card.milestoneId !== sourceMilestoneId)
+    .reduce((index, card) => index + (pointerPositionInInitialViewport > card.centerY ? 1 : 0), 0)
+  touchTargetIndex.value = Math.max(0, Math.min(initialCardCenters.length - 1, targetIndex))
+}
+
+function reorderItemStyle(milestoneId: string) {
+  if (draggingMilestoneId.value === milestoneId) {
+    return { transform: `translateY(${touchOffsetY.value}px) scale(1.02)` }
+  }
+  if (touchTargetIndex.value === null || touchSourceIndex < 0) return undefined
+
+  const cardIndex = initialCardCenters.findIndex((card) => card.milestoneId === milestoneId)
+  const itemGap = activeReorderScope?.classList.contains('space-y-2') ? 8 : 0
+  const shiftDistance = draggedCardHeight + itemGap
+  if (touchSourceIndex < touchTargetIndex.value) {
+    if (cardIndex > touchSourceIndex && cardIndex <= touchTargetIndex.value) {
+      return { transform: `translateY(-${shiftDistance}px)` }
+    }
+  } else if (touchSourceIndex > touchTargetIndex.value) {
+    if (cardIndex >= touchTargetIndex.value && cardIndex < touchSourceIndex) {
+      return { transform: `translateY(${shiftDistance}px)` }
+    }
+  }
+  return undefined
+}
+
+function reorderDisplayOrder(milestoneId: string, fallbackOrder: number) {
+  if (!draggingMilestoneId.value || touchTargetIndex.value === null) return fallbackOrder
+  const cardIndex = initialCardCenters.findIndex((card) => card.milestoneId === milestoneId)
+  if (cardIndex < 0) return fallbackOrder
+  if (milestoneId === draggingMilestoneId.value) return touchTargetIndex.value + 1
+  if (touchSourceIndex < touchTargetIndex.value && cardIndex > touchSourceIndex) {
+    return cardIndex <= touchTargetIndex.value ? cardIndex : fallbackOrder
+  }
+  if (touchSourceIndex > touchTargetIndex.value && cardIndex < touchSourceIndex) {
+    return cardIndex >= touchTargetIndex.value ? cardIndex + 2 : fallbackOrder
+  }
+  return fallbackOrder
+}
+
+function autoScrollSpeed(pointerY: number, top: number, bottom: number) {
+  if (pointerY < top + AUTO_SCROLL_EDGE_SIZE) {
+    const strength = Math.min(1, (top + AUTO_SCROLL_EDGE_SIZE - pointerY) / AUTO_SCROLL_EDGE_SIZE)
+    return -AUTO_SCROLL_MAX_SPEED * strength
+  }
+  if (pointerY > bottom - AUTO_SCROLL_EDGE_SIZE) {
+    const strength = Math.min(
+      1,
+      (pointerY - (bottom - AUTO_SCROLL_EDGE_SIZE)) / AUTO_SCROLL_EDGE_SIZE,
+    )
+    return AUTO_SCROLL_MAX_SPEED * strength
+  }
+  return 0
+}
+
+function runAutoScroll() {
+  if (!draggingMilestoneId.value || !reorderScrollContainer) {
+    autoScrollFrame = null
+    return
+  }
+
+  const containerBounds =
+    reorderScrollContainer instanceof HTMLElement
+      ? reorderScrollContainer.getBoundingClientRect()
+      : { top: 0, bottom: window.innerHeight }
+  const bounds = {
+    top: Math.max(0, containerBounds.top),
+    bottom: Math.min(window.innerHeight, containerBounds.bottom),
+  }
+  const speed = autoScrollSpeed(lastPointerY, bounds.top, bounds.bottom)
+
+  if (speed !== 0) {
+    accumulatedAutoScroll += scrollReorderContainer(speed)
+    updateTouchOffset()
+    updateTouchTarget()
+  }
+
+  autoScrollFrame = requestAnimationFrame(runAutoScroll)
+}
+
+function scrollWindowBy(amount: number) {
+  const previousScrollY = window.scrollY
+  window.scrollBy(0, amount)
+  return window.scrollY - previousScrollY
+}
+
+function scrollReorderContainer(amount: number) {
+  if (!(reorderScrollContainer instanceof HTMLElement)) return scrollWindowBy(amount)
+
+  const previousScrollTop = reorderScrollContainer.scrollTop
+  reorderScrollContainer.scrollTop += amount
+  const containerScroll = reorderScrollContainer.scrollTop - previousScrollTop
+  const remainingScroll = amount - containerScroll
+
+  return containerScroll + (Math.abs(remainingScroll) > 0.1 ? scrollWindowBy(remainingScroll) : 0)
+}
+
+function stopAutoScroll() {
+  if (autoScrollFrame !== null) cancelAnimationFrame(autoScrollFrame)
+  autoScrollFrame = null
+}
+
+function resetTouchReorder() {
+  stopAutoScroll()
+  if (
+    activePointerTarget &&
+    activePointerId !== null &&
+    activePointerTarget.hasPointerCapture(activePointerId)
+  ) {
+    activePointerTarget.releasePointerCapture(activePointerId)
+  }
+  activePointerId = null
+  activePointerTarget = null
+  activeReorderScope = null
+  reorderScrollContainer = null
+  accumulatedAutoScroll = 0
+  touchSourceIndex = -1
+  touchTargetIndex.value = null
+  draggedCardHeight = 0
+  initialCardCenters = []
+  touchOffsetY.value = 0
 }
 
 function finishReorder(targetMilestoneId: string) {
@@ -79,27 +254,26 @@ function finishReorder(targetMilestoneId: string) {
 }
 
 function finishTouchReorder(event: PointerEvent) {
+  if (event.pointerId !== activePointerId) return
+
   if (Math.abs(touchOffsetY.value) < 12) {
-    touchOffsetY.value = 0
+    resetTouchReorder()
     draggingMilestoneId.value = null
     return
   }
-  const sourceMilestoneId = draggingMilestoneId.value
-  const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-milestone-id]')).filter(
-    (card) => card.dataset.milestoneId !== sourceMilestoneId,
-  )
-  const target = cards.reduce<HTMLElement | null>((closest, card) => {
-    const box = card.getBoundingClientRect()
-    const distance = Math.abs(event.clientY - (box.top + box.height / 2))
-    if (!closest) return card
-    const closestBox = closest.getBoundingClientRect()
-    const closestDistance = Math.abs(event.clientY - (closestBox.top + closestBox.height / 2))
-    return distance < closestDistance ? card : closest
-  }, null)
+  const targetIndex = touchTargetIndex.value
+  const targetMilestoneId =
+    targetIndex === null ? null : initialCardCenters[targetIndex]?.milestoneId
 
-  touchOffsetY.value = 0
-  if (target?.dataset.milestoneId) finishReorder(target.dataset.milestoneId)
+  resetTouchReorder()
+  if (targetMilestoneId) finishReorder(targetMilestoneId)
   else draggingMilestoneId.value = null
+}
+
+function cancelTouchReorder(event: PointerEvent) {
+  if (event.pointerId !== activePointerId) return
+  resetTouchReorder()
+  draggingMilestoneId.value = null
 }
 
 function formatDate(value: string | null) {
@@ -177,30 +351,27 @@ const tableRows = computed(() => {
 </script>
 
 <template>
-  <div class="mt-4 space-y-2 md:hidden">
+  <div data-reorder-scope class="mt-4 space-y-2 md:hidden">
     <article
       v-for="row in tableRows.filter((item) => item.type === 'milestone')"
       :key="row.key"
       :data-milestone-id="row.milestone.milestoneId"
+      :data-reorder-milestone-id="row.milestone.milestoneId"
       class="rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
       :class="{
         'relative z-30 border-[#9b2525]/60 bg-white shadow-[0_14px_30px_rgba(0,0,0,0.24)]':
           draggingMilestoneId === row.milestone.milestoneId,
+        'transition-transform duration-200 ease-out':
+          draggingMilestoneId !== row.milestone.milestoneId,
       }"
-      :style="
-        draggingMilestoneId === row.milestone.milestoneId
-          ? { transform: `translateY(${touchOffsetY}px) scale(1.02)` }
-          : undefined
-      "
-      @dragover.prevent
-      @drop.prevent="finishReorder(row.milestone.milestoneId)"
+      :style="reorderItemStyle(row.milestone.milestoneId)"
     >
       <div class="flex items-start gap-2">
         <div class="flex shrink-0 items-center">
           <span
             class="flex size-7 items-center justify-center rounded-full bg-[#9b2525] text-xs font-semibold text-white"
           >
-            {{ row.displayOrder }}
+            {{ reorderDisplayOrder(row.milestone.milestoneId, row.displayOrder) }}
           </span>
         </div>
 
@@ -294,15 +465,12 @@ const tableRows = computed(() => {
       <div class="mt-2 flex flex-wrap items-center gap-3 pl-9 text-[9px] text-[#607995]">
         <button
           type="button"
-          draggable="true"
           class="flex cursor-grab touch-none items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-medium text-[#607995] hover:bg-slate-50 active:cursor-grabbing active:border-[#9b2525]"
           :aria-label="isThai ? 'กดค้างแล้วลากเพื่อเปลี่ยนลำดับ' : 'Press and drag to reorder'"
-          @dragstart="startReorder($event, row.milestone.milestoneId)"
-          @dragend="draggingMilestoneId = null"
           @pointerdown="startTouchReorder($event, row.milestone.milestoneId)"
           @pointermove="moveTouchReorder"
           @pointerup="finishTouchReorder"
-          @pointercancel="draggingMilestoneId = null"
+          @pointercancel="cancelTouchReorder"
         >
           ⇅ {{ isThai ? 'กดค้างแล้วลาก' : 'Press and drag' }}
         </button>
@@ -343,7 +511,7 @@ const tableRows = computed(() => {
     </p>
   </div>
 
-  <div class="mt-5 hidden overflow-x-auto md:block">
+  <div data-reorder-scope class="mt-5 hidden overflow-x-auto md:block">
     <table class="w-full min-w-[1120px] table-fixed border-collapse text-left">
       <thead>
         <tr class="border-b border-slate-200 text-xs whitespace-nowrap">
@@ -383,25 +551,30 @@ const tableRows = computed(() => {
 
             <tr
               v-else
+              :data-reorder-milestone-id="row.milestone.milestoneId"
               class="border-b border-slate-200 text-xs transition-colors"
               :class="{
                 'bg-red-50/70 shadow-[0_8px_20px_rgba(0,0,0,0.12)]':
                   draggingMilestoneId === row.milestone.milestoneId,
+                'transition-transform duration-200 ease-out':
+                  draggingMilestoneId !== row.milestone.milestoneId,
               }"
-              @dragover.prevent
-              @drop.prevent="finishReorder(row.milestone.milestoneId)"
+              :style="reorderItemStyle(row.milestone.milestoneId)"
             >
               <td class="py-4 align-top">
                 <button
                   type="button"
-                  draggable="true"
-                  class="inline-flex cursor-grab items-center gap-2 rounded-md px-1.5 py-1 text-slate-500 hover:bg-slate-100 hover:text-[#7D2923] active:cursor-grabbing"
+                  class="inline-flex cursor-grab touch-none items-center gap-2 rounded-md px-1.5 py-1 text-slate-500 hover:bg-slate-100 hover:text-[#7D2923] active:cursor-grabbing"
                   aria-label="Drag to reorder milestone"
-                  @dragstart="startReorder($event, row.milestone.milestoneId)"
-                  @dragend="draggingMilestoneId = null"
+                  @pointerdown="startTouchReorder($event, row.milestone.milestoneId)"
+                  @pointermove="moveTouchReorder"
+                  @pointerup="finishTouchReorder"
+                  @pointercancel="cancelTouchReorder"
                 >
                   <span class="text-sm tracking-tighter text-slate-400" aria-hidden="true">⠿</span>
-                  <span class="min-w-5 text-center font-semibold">{{ row.displayOrder }}</span>
+                  <span class="min-w-5 text-center font-semibold">{{
+                    reorderDisplayOrder(row.milestone.milestoneId, row.displayOrder)
+                  }}</span>
                 </button>
               </td>
 

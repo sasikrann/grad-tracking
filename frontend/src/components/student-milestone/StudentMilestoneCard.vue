@@ -178,11 +178,11 @@ const showGraduationForm = computed(
     !props.readonly &&
     ['Missing', 'In Progress'].includes(props.milestone.status),
 )
-const graduationSemesterOptions = [
-  { value: '', label: 'Select semester' },
-  { value: '1', label: 'Semester 1' },
-  { value: '2', label: 'Semester 2' },
-]
+const graduationSemesterOptions = computed(() => [
+  { value: '', label: t('studentPortal.selectSemester') },
+  { value: '1', label: t('studentPortal.semesterOption', { semester: 1 }) },
+  { value: '2', label: t('studentPortal.semesterOption', { semester: 2 }) },
+])
 function selectGraduationSemester(value: string) {
   graduationSemester.value = value
   graduationSemesterDropdownOpen.value = false
@@ -317,8 +317,8 @@ watch(isEvidencePreviewOpen, (isOpen) => {
 })
 
 function formatDate(value: string | null) {
-  if (!value) return 'Not specified'
-  return new Intl.DateTimeFormat('en-US', {
+  if (!value) return t('milestone.notSpecified')
+  return new Intl.DateTimeFormat(isThai.value ? 'th-TH' : 'en-US', {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
@@ -496,7 +496,7 @@ function handleFileChange(event: Event) {
             <rect x="3" y="5" width="18" height="16" rx="2" />
             <path d="M16 3v4M8 3v4M3 11h18" />
           </svg>
-          <span>Deadline : {{ formatDate(milestone.deadline) }}</span>
+          <span>{{ t('common.deadline') }} : {{ formatDate(milestone.deadline) }}</span>
         </span>
         <p
           v-for="reference in collapsedReferenceLabels"
@@ -515,7 +515,7 @@ function handleFileChange(event: Event) {
               target="_blank"
               rel="noreferrer"
             >
-              Reference : {{ reference }}
+              {{ t('common.reference') }} : {{ reference }}
             </a>
           </div>
           <button
@@ -569,7 +569,7 @@ function handleFileChange(event: Event) {
               <rect x="3" y="5" width="18" height="16" rx="2" />
               <path d="M16 3v4M8 3v4M3 11h18" />
             </svg>
-            <span>Deadline : {{ formatDate(milestone.deadline) }}</span>
+            <span>{{ t('common.deadline') }} : {{ formatDate(milestone.deadline) }}</span>
           </span>
           <div
             v-if="
@@ -593,7 +593,7 @@ function handleFileChange(event: Event) {
                 target="_blank"
                 rel="noreferrer"
               >
-                Reference : {{ reference }}
+                {{ t('common.reference') }} : {{ reference }}
               </a>
             </div>
             <button
@@ -684,7 +684,7 @@ function handleFileChange(event: Event) {
         >
           <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
             <MilestoneSelectDropdown
-              label="Graduation Semester *"
+              :label="`${t('studentPortal.graduationSemester')} *`"
               :model-value="graduationSemester"
               :options="graduationSemesterOptions"
               :open="graduationSemesterDropdownOpen"
@@ -693,14 +693,14 @@ function handleFileChange(event: Event) {
               @select="selectGraduationSemester"
             />
             <label class="block min-w-0 text-xs font-semibold">
-              Graduation Academic Year *
+              {{ t('studentPortal.graduationAcademicYear') }} *
               <input
                 v-model="graduationAcademicYear"
                 type="text"
                 inputmode="numeric"
                 pattern="[0-9]{4}"
                 maxlength="4"
-                placeholder="e.g. 2569"
+                :placeholder="t('studentPortal.graduationYearPlaceholder')"
                 class="mt-1 h-10 w-full rounded-lg border border-[#c9827c] bg-white px-3 text-xs font-semibold shadow-[0_2px_4px_rgba(0,0,0,0.08)] outline-none focus:border-[#7D2923]"
                 :disabled="isSavingGraduation"
                 @input="
@@ -713,7 +713,7 @@ function handleFileChange(event: Event) {
             v-if="graduationSemester && graduationAcademicYear"
             class="mt-3 text-sm text-slate-600"
           >
-            Graduation term:
+            {{ t('milestone.graduationTerm') }}:
             <span class="font-semibold">{{ graduationSemester }}/{{ graduationAcademicYear }}</span>
           </p>
           <div class="mt-4 flex justify-end">
@@ -728,7 +728,7 @@ function handleFileChange(event: Event) {
               "
               @click="submitGraduation"
             >
-              {{ isSavingGraduation ? 'Saving...' : 'Submit' }}
+              {{ isSavingGraduation ? t('studentPortal.saving') : t('studentPortal.submit') }}
             </button>
           </div>
           <p v-if="graduationError" class="mt-3 text-xs text-red-600" role="alert">
@@ -742,7 +742,7 @@ function handleFileChange(event: Event) {
           "
           class="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-slate-700"
         >
-          <span class="font-semibold text-slate-900">Graduation term:</span>
+          <span class="font-semibold text-slate-900">{{ t('milestone.graduationTerm') }}:</span>
           {{ currentGraduationSemester }}/{{ currentGraduationAcademicYear }}
         </div>
 
@@ -785,7 +785,7 @@ function handleFileChange(event: Event) {
             :disabled="isReviewing"
             @click="emit('approve', milestone)"
           >
-            Approve
+            {{ t('advisorPortal.approve') }}
           </button>
           <button
             type="button"
@@ -793,7 +793,7 @@ function handleFileChange(event: Event) {
             :disabled="isReviewing"
             @click="emit('reject', milestone)"
           >
-            Reject
+            {{ t('advisorPortal.reject') }}
           </button>
         </div>
 
@@ -826,7 +826,7 @@ function handleFileChange(event: Event) {
             {{ isUploading ? 'Uploading...' : 'Upload Evidence' }}
           </button>
           <p class="text-[11px] text-amber-700">
-            Please upload a PNG, JPG, or PDF file (maximum 2 MB).
+            {{ t('studentPortal.evidenceFileHelp') }}
           </p>
         </div>
 
@@ -865,7 +865,7 @@ function handleFileChange(event: Event) {
           v-if="hasAdvisorComment"
           class="mt-3 rounded bg-[#f5dfe0] px-3 py-1 text-xs text-[#4a240f]"
         >
-          <span class="font-semibold">Comment :</span>
+          <span class="font-semibold">{{ t('milestone.comment') }} :</span>
           {{ milestone.advisorComment }}
         </div>
       </div>

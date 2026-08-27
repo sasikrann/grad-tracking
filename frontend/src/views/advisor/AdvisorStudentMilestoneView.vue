@@ -11,10 +11,12 @@ import {
 } from '@/services/advisor-milestones.api'
 import type { StudentMilestone } from '@/types/milestone'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useLanguage } from '@/composables/useLanguage'
 
 defineOptions({ name: 'AdvisorStudentMilestoneView' })
 
 const route = useRoute()
+const { t } = useLanguage()
 
 const studentId = computed(() => String(route.params.studentId ?? ''))
 const studentName = ref('')
@@ -122,12 +124,14 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
     <div class="w-full">
       <header class="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 class="text-xl font-bold tracking-tight text-black sm:text-3xl">Milestone</h1>
+          <h1 class="text-xl font-bold tracking-tight text-black sm:text-3xl">
+            {{ t('advisorPortal.milestone') }}
+          </h1>
           <p class="mt-0.5 text-xs text-slate-500 sm:mt-1 sm:text-sm">
             {{
               advisorCanReview
-                ? "You have permission to approve, reject, and view students' progress."
-                : "You have permission to view this student's progress."
+                ? t('advisorPortal.canReview')
+                : t('advisorPortal.viewOnly')
             }}
           </p>
         </div>
@@ -191,7 +195,7 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
       </p>
 
       <div v-if="isLoading" class="mt-5 rounded-lg bg-white px-5 py-4 text-sm text-slate-500">
-        Loading milestones...
+        {{ t('advisorPortal.loadingMilestones') }}
       </div>
 
       <template v-else>
@@ -234,7 +238,7 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
           v-else
           class="mt-5 rounded-lg border border-slate-200 bg-white px-5 py-10 text-center text-sm text-slate-500"
         >
-          No milestones are currently assigned.
+          {{ t('advisorPortal.noMilestones') }}
         </section>
       </template>
     </div>
@@ -244,19 +248,19 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
         class="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl"
         @submit.prevent="submitReject"
       >
-        <h2 class="text-lg font-bold text-black">Reject Submission</h2>
+        <h2 class="text-lg font-bold text-black">{{ t('advisorPortal.rejectSubmission') }}</h2>
         <p class="mt-1 text-xs text-slate-500">
-          {{ rejectMilestone.title }} - Provide feedback for the student
+          {{ rejectMilestone.title }} - {{ t('advisorPortal.rejectDescription') }}
         </p>
 
         <label class="mt-4 block text-sm font-semibold text-black" for="reject-comment">
-          Reason for rejection
+          {{ t('advisorPortal.rejectionReason') }}
         </label>
         <textarea
           id="reject-comment"
           v-model="rejectComment"
           class="mt-1 min-h-20 w-full resize-none rounded border border-[#c06f68] px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-[#8a2b25]/25"
-          placeholder="Please provide detailed feedback on why this submission is being rejected..."
+          :placeholder="t('advisorPortal.rejectionPlaceholder')"
           required
         ></textarea>
 
@@ -266,14 +270,14 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
             class="h-8 rounded border border-slate-300 bg-white px-4 text-xs font-semibold text-black shadow-sm hover:bg-slate-50"
             @click="closeRejectDialog"
           >
-            Cancel
+            {{ t('common.cancel') }}
           </button>
           <button
             type="submit"
             class="h-8 rounded bg-[#8a2b25] px-4 text-xs font-semibold text-white shadow-sm hover:bg-[#75201b] disabled:cursor-not-allowed disabled:opacity-60"
             :disabled="!rejectComment.trim() || reviewingMilestoneId === rejectMilestone.milestoneId"
           >
-            Reject Submission
+            {{ t('advisorPortal.rejectSubmission') }}
           </button>
         </div>
       </form>
