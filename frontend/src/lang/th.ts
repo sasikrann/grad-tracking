@@ -133,6 +133,8 @@ export const th = {
     graduationYearPlaceholder: 'เช่น 2569',
     submit: 'ส่งข้อมูล',
     saving: 'กำลังบันทึก...',
+    uploadEvidence: 'อัพโหลดหลักฐาน',
+    uploadingEvidence: 'กำลังอัพโหลด...',
     notificationTitle: 'การแจ้งเตือน',
     notificationDescription: 'ติดตามข่าวสารเกี่ยวกับขั้นตอนการศึกษาและข้อความจากอาจารย์ที่ปรึกษา',
     markAllAsRead: 'ทำเครื่องหมายว่าอ่านทั้งหมด',

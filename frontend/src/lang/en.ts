@@ -133,6 +133,8 @@ export const en = {
     graduationYearPlaceholder: 'e.g. 2569',
     submit: 'Submit',
     saving: 'Saving...',
+    uploadEvidence: 'Upload Evidence',
+    uploadingEvidence: 'Uploading...',
     notificationTitle: 'Notification',
     notificationDescription: 'Stay updated with your milestones and advisor messages.',
     markAllAsRead: 'Mark all as read',

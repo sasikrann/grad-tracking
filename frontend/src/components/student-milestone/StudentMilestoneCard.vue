@@ -823,7 +823,11 @@ function handleFileChange(event: Event) {
               <path d="M12 3v12M7 8l5-5 5 5" />
               <path d="M5 15v4h14v-4" />
             </svg>
-            {{ isUploading ? 'Uploading...' : 'Upload Evidence' }}
+            {{
+              isUploading
+                ? t('studentPortal.uploadingEvidence')
+                : t('studentPortal.uploadEvidence')
+            }}
           </button>
           <p class="text-[11px] text-amber-700">
             {{ t('studentPortal.evidenceFileHelp') }}
