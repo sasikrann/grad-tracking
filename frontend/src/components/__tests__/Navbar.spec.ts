@@ -31,7 +31,7 @@ describe('Navbar', () => {
     expect(wrapper.text()).toContain('JD')
   })
 
-  it('allows only admins to change the language', async () => {
+  it('allows every role to change the language and defaults advisors and students to English', async () => {
     const admin = mount(Navbar, {
       props: { user: { fullName: 'Admin User', email: 'admin@example.com', role: 'admin' } },
       global: { stubs: { RouterLink: RouterLinkStub } },
@@ -42,13 +42,25 @@ describe('Navbar', () => {
     expect(admin.text()).toContain(th.nav.studentManagement)
 
     useLanguage().setLanguage('en')
+    const advisor = mount(Navbar, {
+      props: { user: { fullName: 'Advisor User', email: 'advisor@example.com', role: 'advisor' } },
+      global: { stubs: { RouterLink: RouterLinkStub } },
+    })
+    expect(useLanguage().language.value).toBe('en')
+    const advisorThaiButton = advisor.findAll('button').find((button) => button.text() === 'TH')
+    expect(advisorThaiButton?.attributes('disabled')).toBeUndefined()
+    await advisorThaiButton?.trigger('click')
+    expect(advisor.text()).toContain(th.nav.studentOverall)
+
+    useLanguage().setLanguage('en')
     const student = mount(Navbar, {
       props: { user: { fullName: 'Student User', email: 'student@example.com', role: 'student' } },
       global: { stubs: { RouterLink: RouterLinkStub } },
     })
     const studentThaiButton = student.findAll('button').find((button) => button.text() === 'TH')
-    expect(studentThaiButton?.attributes('disabled')).toBeDefined()
+    expect(studentThaiButton?.attributes('disabled')).toBeUndefined()
     await studentThaiButton?.trigger('click')
-    expect(useLanguage().language.value).toBe('en')
+    expect(useLanguage().language.value).toBe('th')
+    expect(student.text()).toContain(th.nav.studentInformation)
   })
 })

@@ -7,7 +7,7 @@ import type { StudentProfile } from '@/services/student-profile.api'
 const props = defineProps<{
   profile: StudentProfile
 }>()
-useLanguage()
+const { t } = useLanguage()
 
 const studentInitials = computed(() => {
   const normalizedName = props.profile.fullName
@@ -29,21 +29,21 @@ const studentInitials = computed(() => {
 })
 
 const studentRows = computed(() => [
-  { label: 'Full-Name', value: props.profile.fullName, icon: 'user', profileField: true },
-  { label: 'Student ID', value: props.profile.studentId, icon: 'id', profileField: true },
-  { label: 'Program', value: props.profile.program, icon: 'cap' },
+  { label: t('studentPortal.fullName'), value: props.profile.fullName, icon: 'user', profileField: true },
+  { label: t('studentPortal.studentId'), value: props.profile.studentId, icon: 'id', profileField: true },
+  { label: t('common.program'), value: props.profile.program, icon: 'cap' },
   {
-    label: 'Enrollment Academic Year',
+    label: t('studentPortal.enrollmentAcademicYear'),
     value: formatAcademicYear(props.profile.enrollmentAcademicYear),
     icon: 'calendar',
   },
-  { label: 'Enrollment Semester', value: props.profile.semester, icon: 'calendar' },
+  { label: t('studentPortal.enrollmentSemester'), value: props.profile.semester, icon: 'calendar' },
   {
-    label: 'Expected Graduation Year',
+    label: t('studentPortal.expectedGraduationYear'),
     value:
       props.profile.graduationSemester && props.profile.graduationAcademicYear
         ? `${props.profile.graduationSemester}/${props.profile.graduationAcademicYear}`
-        : 'Please complete the Graduate milestone.',
+        : t('studentPortal.completeGraduateMilestone'),
     icon: 'calendar',
   },
 ])
@@ -66,7 +66,7 @@ const studentRows = computed(() => [
           <path d="M15 3v5h5M9 13h6M9 17h6" />
         </svg>
       </div>
-      <h2 class="text-base font-semibold">Study Plan Information</h2>
+      <h2 class="text-base font-semibold">{{ t('studentPortal.studyPlanInformation') }}</h2>
     </div>
 
     <div class="-mt-1 flex flex-col items-center text-center sm:hidden">

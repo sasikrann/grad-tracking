@@ -266,7 +266,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
         >
           <path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 5v4M6 15v4" />
         </svg>
-        Filters
+        {{ t('student.filters') }}
       </button>
     </div>
 

@@ -39,8 +39,8 @@ defineProps<{
       </svg>
     </div>
 
-    <div class="ml-3 min-w-0 leading-tight sm:ml-4">
-      <p class="truncate text-xs text-[#7b7b7b] sm:text-sm">{{ title }}</p>
+    <div class="ml-3 min-w-0 sm:ml-4">
+      <p class="truncate py-0.5 text-xs leading-normal text-[#7b7b7b] sm:text-sm">{{ title }}</p>
       <p class="mt-0.5 text-lg font-semibold">{{ value }}</p>
     </div>
   </article>

@@ -18,6 +18,9 @@ import {
 } from '@/services/student-milestones.api'
 import type { StudentMilestone } from '@/types/milestone'
 import type { Advisor } from '@/types/advisor'
+import { useLanguage } from '@/composables/useLanguage'
+
+const { t } = useLanguage()
 
 const milestones = ref<StudentMilestone[]>([])
 const profile = ref<StudentProfile | null>(null)
@@ -303,10 +306,10 @@ onBeforeUnmount(() => {
 <template>
   <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
     <header>
-      <h1 class="text-xl font-bold tracking-tight text-black sm:text-3xl">Milestone</h1>
+      <h1 class="text-xl font-bold tracking-tight text-black sm:text-3xl">{{ t('studentPortal.milestoneTitle') }}</h1>
       <div class="mt-0.5 flex items-center justify-between gap-4 sm:mt-1">
         <p class="shrink-0 text-xs text-slate-500 sm:text-sm">
-          Track your academic progress and deadline
+          {{ t('studentPortal.milestoneDescription') }}
         </p>
         <div class="hidden w-full sm:block">
           <MilestoneStatusOverview :milestones="milestones" />
@@ -333,7 +336,7 @@ onBeforeUnmount(() => {
     </p>
 
     <div v-if="isLoading" class="mt-5 rounded-lg bg-white px-5 py-4 text-sm text-slate-500">
-      Loading milestones...
+      {{ t('studentPortal.loadingMilestones') }}
     </div>
 
     <template v-else>
@@ -348,7 +351,7 @@ onBeforeUnmount(() => {
         v-if="profile?.academicStatus === 'Overdue'"
         class="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
       >
-        Your study period is overdue. You can view existing information, but an administrator must extend your study period before you can submit milestones.
+        {{ t('studentPortal.overdueNotice') }}
       </p>
 
       <div v-if="visibleMilestones.length" class="relative mt-5 space-y-4 pb-10">

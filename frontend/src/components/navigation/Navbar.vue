@@ -49,17 +49,17 @@ const menus: Record<MenuRole, MenuItem[]> = {
   ],
   advisor: [
     {
-      label: 'Student Overall',
+      label: 'nav.studentOverall',
       to: '/advisor/student-overall',
       icon: 'dashboard',
       activePaths: ['/advisor/students/'],
     },
-    { label: 'Milestone Summary', to: '/advisor/summary', icon: 'milestone' },
+    { label: 'nav.milestoneSummary', to: '/advisor/summary', icon: 'milestone' },
   ],
   student: [
-    { label: 'Student Information', to: '/student/information', icon: 'student' },
-    { label: 'Milestone', to: '/student/milestones', icon: 'milestone' },
-    { label: 'Notification', to: '/notifications', icon: 'notification' },
+    { label: 'nav.studentInformation', to: '/student/information', icon: 'student' },
+    { label: 'nav.studentMilestones', to: '/student/milestones', icon: 'milestone' },
+    { label: 'nav.studentNotifications', to: '/notifications', icon: 'notification' },
   ],
 }
 
@@ -71,10 +71,10 @@ const routePath = computed(() => route?.path ?? '')
 const shouldShowNotificationBadge = computed(
   () => menuRole.value === 'student' && notificationUnreadCount.value > 0,
 )
-const canChangeLanguage = computed(() => props.user.role === 'admin')
+const canChangeLanguage = computed(() => ['admin', 'advisor', 'student'].includes(props.user.role))
 
 function menuLabel(item: MenuItem) {
-  return menuRole.value === 'admin' ? t(item.label as Parameters<typeof t>[0]) : item.label
+  return t(item.label as Parameters<typeof t>[0])
 }
 
 const userInitials = computed(() => {
@@ -276,7 +276,7 @@ watch(
       <!-- ส่วนเมนู: สร้างรายการตาม role ด้วย v-for -->
       <nav class="-mt-4 md:mt-3">
         <p class="mb-1 px-1 py-1 text-sm text-white/60">
-          {{ menuRole === 'admin' ? t('nav.overview') : 'Overview' }}
+          {{ t('nav.overview') }}
         </p>
 
         <RouterLink
@@ -360,7 +360,7 @@ watch(
 
         <button
           type="button"
-          :aria-label="menuRole === 'admin' ? t('nav.signOut') : 'Sign out'"
+          :aria-label="t('nav.signOut')"
           class="rounded p-1.5 hover:bg-[#720008]"
           @click="emit('logout')"
         >

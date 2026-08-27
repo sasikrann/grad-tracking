@@ -8,6 +8,9 @@ import {
   resolveNotificationAttachmentUrl,
 } from '@/services/notifications.api'
 import type { StudentNotification } from '@/types/notification'
+import { useLanguage } from '@/composables/useLanguage'
+
+const { t } = useLanguage()
 
 const notifications = ref<StudentNotification[]>([])
 const isLoading = ref(false)
@@ -431,7 +434,7 @@ watch(totalPages, (nextTotalPages) => {
 <template>
   <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
     <header class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 sm:gap-x-4">
-      <h1 class="min-w-0 text-xl font-bold tracking-tight text-black sm:text-3xl">Notification</h1>
+      <h1 class="min-w-0 text-xl font-bold tracking-tight text-black sm:text-3xl">{{ t('studentPortal.notificationTitle') }}</h1>
 
       <button
         type="button"
@@ -450,11 +453,11 @@ watch(totalPages, (nextTotalPages) => {
           <path d="M9 11 12 14 22 4" />
           <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
         </svg>
-        Mark all as read
+        {{ t('studentPortal.markAllAsRead') }}
       </button>
 
       <p class="col-span-2 mt-1 whitespace-nowrap text-xs text-slate-500 sm:text-sm">
-        Stay updated with your milestones and advisor messages.
+        {{ t('studentPortal.notificationDescription') }}
       </p>
     </header>
 
@@ -466,14 +469,14 @@ watch(totalPages, (nextTotalPages) => {
       class="mt-5 bg-transparent sm:rounded-lg sm:border sm:border-slate-200 sm:bg-white sm:px-5 sm:py-5 sm:shadow-[0_2px_4px_rgba(0,0,0,0.12)]"
     >
       <div v-if="isLoading" class="py-8 text-center text-sm text-slate-500">
-        Loading notifications...
+        {{ t('studentPortal.loadingNotifications') }}
       </div>
 
       <div
         v-else-if="notifications.length === 0"
         class="py-10 text-center text-sm text-slate-500"
       >
-        No notifications yet.
+        {{ t('studentPortal.noNotifications') }}
       </div>
 
       <template v-else>
@@ -564,7 +567,7 @@ watch(totalPages, (nextTotalPages) => {
                   class="inline-flex h-7 items-center justify-center whitespace-nowrap rounded-lg border border-[#ead0d0] px-3 text-xs font-semibold text-[#8b2a23] hover:bg-[#f8eeee] disabled:cursor-not-allowed disabled:opacity-60"
                   @click.stop="markOneAsRead(notification)"
                 >
-                  Mark as read
+                  {{ t('studentPortal.markAsRead') }}
                 </button>
               </div>
             </div>
@@ -575,14 +578,17 @@ watch(totalPages, (nextTotalPages) => {
           class="flex flex-col gap-3 px-1 pt-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-0 sm:pt-4 sm:text-sm"
         >
           <p>
-            Showing {{ currentPageStart }}-{{ currentPageEnd }} of
-            {{ notifications.length }} notification{{ notifications.length === 1 ? '' : 's' }}
+            {{ t('studentPortal.showingNotifications', {
+              start: currentPageStart,
+              end: currentPageEnd,
+              count: notifications.length,
+            }) }}
           </p>
 
           <nav
             v-if="totalPages > 1"
             class="flex flex-wrap items-center gap-1"
-            aria-label="Notification pages"
+            :aria-label="t('studentPortal.notificationPages')"
           >
             <button
               v-for="page in pageNumbers"
@@ -616,7 +622,7 @@ watch(totalPages, (nextTotalPages) => {
         <button
           type="button"
           class="absolute right-5 top-5 rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-          aria-label="Close notification detail"
+          :aria-label="t('studentPortal.closeNotificationDetail')"
           @click="closeDetail"
         >
           <svg
@@ -670,7 +676,7 @@ watch(totalPages, (nextTotalPages) => {
         </div>
 
         <div class="px-6 pb-6 pt-0">
-          <p class="text-xs font-semibold text-black">Description</p>
+          <p class="text-xs font-semibold text-black">{{ t('common.description') }}</p>
           <div
             class="mt-2 break-words text-xs leading-5 text-slate-900 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
             v-html="formattedNotificationMessage(notificationDescription(selectedNotification.message))"
@@ -678,7 +684,7 @@ watch(totalPages, (nextTotalPages) => {
 
           <div v-if="notificationDeadline(selectedNotification.message)" class="mt-5">
             <p class="text-xs font-semibold text-black">
-              Deadline:
+              {{ t('common.deadline') }}:
               <span class="ml-2 font-medium text-slate-900">
                 {{ formatNotificationDeadline(notificationDeadline(selectedNotification.message)) }}
               </span>
@@ -686,7 +692,7 @@ watch(totalPages, (nextTotalPages) => {
           </div>
 
           <div v-if="selectedNotification.attachmentUrl" class="mt-5">
-            <p class="text-xs font-semibold text-black">Attachment</p>
+            <p class="text-xs font-semibold text-black">{{ t('notification.attachment') }}</p>
               <div
                 v-if="canOpenAttachment(selectedNotification.attachmentUrl)"
                 class="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 transition-colors hover:border-[#dfcccc] hover:bg-[#fff8f8]"
@@ -717,7 +723,7 @@ watch(totalPages, (nextTotalPages) => {
                 <button
                   type="button"
                   class="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-[#dfcccc] hover:text-[#8b2a23]"
-                  aria-label="Download attachment"
+                  :aria-label="t('studentPortal.downloadAttachment')"
                   @click="downloadAttachment(selectedNotification.attachmentUrl)"
                 >
                   <svg
@@ -785,7 +791,7 @@ watch(totalPages, (nextTotalPages) => {
         <button
           type="button"
           class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-          aria-label="Close attachment preview"
+          :aria-label="t('studentPortal.closeAttachmentPreview')"
           @click="closeAttachmentPreview"
         >
           <svg
@@ -798,13 +804,13 @@ watch(totalPages, (nextTotalPages) => {
           >
             <path d="m15 18-6-6 6-6" />
           </svg>
-          Back
+          {{ t('notification.back') }}
         </button>
       </header>
 
       <div class="flex min-h-0 flex-1 items-center justify-center p-3 sm:p-5">
         <p v-if="isLoadingAttachmentPreview" class="text-sm font-medium text-white">
-          Loading attachment...
+          {{ t('notification.loadingAttachment') }}
         </p>
         <p
           v-else-if="attachmentPreviewError"

@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { useLanguage } from '@/composables/useLanguage'
+
+const { t } = useLanguage()
+
 defineProps<{
   coAdvisors: Array<{ advisorId: string; fullName: string; email: string }>
 }>()
@@ -22,10 +26,10 @@ defineProps<{
         </svg>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <h2 class="text-[14px] font-semibold sm:text-base">Co-advisor Information</h2>
+        <h2 class="text-[14px] font-semibold sm:text-base">{{ t('studentPortal.coAdvisorInformation') }}</h2>
         <span
           class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 sm:text-[11px]"
-          >Optional</span
+          >{{ t('common.optional') }}</span
         >
       </div>
     </div>
@@ -41,7 +45,7 @@ defineProps<{
         class="rounded-xl border border-[#eadedd] bg-[#faf7f7] p-3.5 sm:rounded-lg sm:p-4"
       >
         <p class="text-[11px] text-slate-500 sm:text-xs">
-          Current Co-advisor{{ coAdvisors.length > 1 ? ` ${index + 1}` : '' }}
+          {{ t('studentPortal.currentCoAdvisor') }}{{ coAdvisors.length > 1 ? ` ${index + 1}` : '' }}
         </p>
         <p class="mt-1 text-xs font-semibold text-slate-900 sm:text-sm">
           {{ coAdvisor.fullName }}
@@ -55,9 +59,9 @@ defineProps<{
       v-else
       class="mt-4 rounded-xl border border-[#eadedd] bg-[#faf7f7] p-3.5 sm:rounded-lg sm:p-4"
     >
-      <p class="text-[11px] text-slate-500 sm:text-xs">Current Co-advisor</p>
+      <p class="text-[11px] text-slate-500 sm:text-xs">{{ t('studentPortal.currentCoAdvisor') }}</p>
       <p class="mt-1 text-xs leading-5 text-slate-500 sm:text-sm">
-        Select a co-advisor from the Appoint an Advisor milestone.
+        {{ t('studentPortal.selectCoAdvisorHelp') }}
       </p>
     </div>
   </section>
