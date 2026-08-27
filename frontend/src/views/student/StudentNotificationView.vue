@@ -431,7 +431,7 @@ watch(totalPages, (nextTotalPages) => {
 <template>
   <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
     <header class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 sm:gap-x-4">
-      <h1 class="min-w-0 text-3xl font-bold tracking-tight text-black">Notification</h1>
+      <h1 class="min-w-0 text-xl font-bold tracking-tight text-black sm:text-3xl">Notification</h1>
 
       <button
         type="button"

@@ -17,13 +17,31 @@ defineEmits<{
 }>()
 
 function initials(name: string) {
-  return name
-    .replace(/^(Mr\.?|Mrs\.?|Ms\.?|Dr\.?)\s*/i, '')
+  const normalizedName = name
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/^(?:(?:Asst\.?\s*Prof\.?|Assoc\.?\s*Prof\.?|Prof\.?|Dr\.?)\s*)+/i, '')
+    .replace(/^(?:นาย|นางสาว|นาง)\s*/, '')
+    .replace(/^(?:Mr\.?|Mrs\.?|Ms\.?)\s*/i, '')
     .trim()
+
+  const nameParts = normalizedName
     .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join('')
+    .filter(Boolean)
+
+  const firstName = nameParts[0] ?? ''
+  const lastName = nameParts[nameParts.length - 1] ?? ''
+  const initialNames = lastName && lastName !== firstName ? [firstName, lastName] : [firstName]
+
+  return initialNames.map((part) => part.charAt(0).toUpperCase()).join('')
+}
+
+function assistantProfessorTitle(name: string) {
+  return name.match(/^Asst\.?\s*Prof\.?/i)?.[0] ?? ''
+}
+
+function nameWithoutAssistantProfessorTitle(name: string) {
+  return name.replace(/^Asst\.?\s*Prof\.?\s*/i, '')
 }
 
 function statusLabel(status: Advisor['status']) {
@@ -77,7 +95,13 @@ function statusLabel(status: Advisor['status']) {
             {{ initials(advisor.fullName) }}
           </span>
           <div class="min-w-0 flex-1 leading-tight">
-            <p class="break-words text-sm font-semibold">{{ advisor.fullName }}</p>
+            <p class="break-words text-sm font-semibold">
+              <template v-if="assistantProfessorTitle(advisor.fullName)">
+                <span class="block">{{ assistantProfessorTitle(advisor.fullName) }}</span>
+                <span class="block">{{ nameWithoutAssistantProfessorTitle(advisor.fullName) }}</span>
+              </template>
+              <template v-else>{{ advisor.fullName }}</template>
+            </p>
             <p class="mt-1 text-xs text-[#858585]">{{ advisor.advisorId }}</p>
             <p class="mt-1 truncate text-[11px] text-[#7690a5]">{{ advisor.email }}</p>
           </div>

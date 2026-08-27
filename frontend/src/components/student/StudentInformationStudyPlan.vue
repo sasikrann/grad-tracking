@@ -10,16 +10,22 @@ const props = defineProps<{
 useLanguage()
 
 const studentInitials = computed(() => {
-  const names = props.profile.fullName
+  const normalizedName = props.profile.fullName
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/^(?:นาย|นางสาว|นาง)\s*/, '')
     .replace(/^(Mr\.?|Mrs\.?|Ms\.?|Miss|Dr\.?)\s*/i, '')
     .trim()
+
+  const names = normalizedName
     .split(/\s+/)
     .filter(Boolean)
 
-  return names
-    .slice(0, 2)
-    .map((name) => name.charAt(0).toUpperCase())
-    .join('')
+  const firstName = names[0] ?? ''
+  const lastName = names[names.length - 1] ?? ''
+  const initialNames = lastName && lastName !== firstName ? [firstName, lastName] : [firstName]
+
+  return initialNames.map((name) => name.charAt(0).toUpperCase()).join('')
 })
 
 const studentRows = computed(() => [

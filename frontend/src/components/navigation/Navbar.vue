@@ -77,19 +77,23 @@ function menuLabel(item: MenuItem) {
   return menuRole.value === 'admin' ? t(item.label as Parameters<typeof t>[0]) : item.label
 }
 
-// ใช้ initials ที่ส่งมา หรือสร้างจากชื่อผู้ใช้ให้อัตโนมัติ เช่น John Doe เป็น JD
 const userInitials = computed(() => {
-  if (props.user.initials) return props.user.initials
-
-  const names = props.user.fullName
+  const normalizedName = props.user.fullName
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/^(?:(?:Asst\.?\s*Prof\.?|Assoc\.?\s*Prof\.?|Prof\.?|Dr\.?)\s*)+/i, '')
+    .replace(/^(?:นาย|นางสาว|นาง)\s*/, '')
     .replace(/^(Mr\.?|Mrs\.?|Ms\.?|Dr\.?)\s*/i, '')
     .trim()
+
+  const names = normalizedName
     .split(/\s+/)
 
-  return names
-    .slice(0, 2)
-    .map((name) => name.charAt(0).toUpperCase())
-    .join('')
+  const firstName = names[0] ?? ''
+  const lastName = names[names.length - 1] ?? ''
+  const initialNames = lastName && lastName !== firstName ? [firstName, lastName] : [firstName]
+
+  return initialNames.map((name) => name.charAt(0).toUpperCase()).join('')
 })
 
 function isActiveItem(item: MenuItem) {
