@@ -6,12 +6,14 @@ import path from 'node:path'
 import { ApiError } from '../errors/api-error.js'
 import {
   areStudentMilestonePrerequisitesComplete,
-  clearStudentMilestoneEvidence,
   findStudentMilestonesByUserId,
-  hasReachedRejectedRevisionLimit,
   studentMilestoneRequiresAdvisor,
+} from '../services/milestone-student.service.js'
+import {
+  clearStudentMilestoneEvidence,
+  hasReachedRejectedRevisionLimit,
   submitStudentMilestoneEvidence,
-} from '../services/milestones.service.js'
+} from '../services/milestone-evidence.service.js'
 import {
   appointStudentAdvisorsByUserId,
   canStudentSubmitMilestones,

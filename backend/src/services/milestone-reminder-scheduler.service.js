@@ -1,18 +1,30 @@
-import { createDueMilestoneReminderNotifications } from "./milestones.service.js";
+import { createDueMilestoneReminderNotifications } from "./milestone-reminder.service.js";
 
 const reminderCheckIntervalMs = 60 * 60 * 1000;
 
 let reminderScheduler;
 
 async function runReminderCheck() {
+  const checkedAt = new Date().toISOString();
   try {
-    const notifications = await createDueMilestoneReminderNotifications();
-    if (notifications.length) {
-      console.info(`Created ${notifications.length} milestone reminder notification(s).`);
-    }
+    const result = await createDueMilestoneReminderNotifications();
+    console.info({
+      event: "milestone_reminder_check",
+      checkedAt,
+      targetDate: result.targetDate,
+      milestonesFound: result.milestonesFound,
+      attemptedStages: result.attemptedStages,
+      notificationsCreated: result.notifications.length,
+      duplicatesSkipped: result.duplicatesSkipped,
+    });
   } catch (error) {
     // Keep error logging to surface failures in scheduler
-    console.error("Unable to create milestone reminder notifications:", error);
+    console.error({
+      event: "milestone_reminder_check_failed",
+      checkedAt,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
   }
 }
 
