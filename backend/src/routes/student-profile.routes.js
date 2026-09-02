@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import multer from 'multer'
 
-import { findStudentMilestoneEvidenceFileDetails } from '../services/milestones.service.js'
+import { findStudentMilestoneEvidenceFileDetails } from '../services/milestone-evidence.service.js'
 
 import {
   appointMyAdvisors,

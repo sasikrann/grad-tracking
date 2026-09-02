@@ -3,6 +3,7 @@ import path from 'node:path'
 
 import pool from '../config/database.js'
 import { sendNotificationEmail } from './email.service.js'
+import { findNotificationEmailRecipients } from './notification-recipient.service.js'
 
 let notificationSchemaReady
 const notificationAttachmentDirectory = path.resolve('uploads/notifications')
@@ -87,27 +88,6 @@ export async function findNotificationsForAdmin({ targetAudience } = {}) {
   )
 
   return result.rows
-}
-
-async function findNotificationEmailRecipients(client, targetAudience) {
-  const result = await client.query(
-    `
-      SELECT DISTINCT u.email
-      FROM users u
-      JOIN students s ON s.user_id = u.user_id
-      WHERE u.role = 'student'
-        AND u.email IS NOT NULL
-        AND (
-          $1 = 'All Students'
-          OR ($1 = 'Master Students' AND s.degree_level = 'Master')
-          OR ($1 = 'Doctoral Students' AND s.degree_level = 'Doctoral')
-        )
-      ORDER BY u.email
-    `,
-    [targetAudience],
-  )
-
-  return result.rows.map((row) => row.email)
 }
 
 function notificationEmailAttachment(attachmentUrl) {
@@ -324,83 +304,6 @@ export async function createNotification(input, createdBy) {
   } finally {
     client.release()
   }
-}
-
-function targetAudienceForDegreeLevel(degreeLevel) {
-  if (degreeLevel === 'Master') return 'Master Students'
-  if (degreeLevel === 'Doctoral') return 'Doctoral Students'
-  return 'All Students'
-}
-
-function formatDate(value) {
-  if (!value) return null
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return null
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function milestoneReminderContent(milestone, reminderStage) {
-  const deadline = formatDate(milestone.deadline)
-  const title = String(milestone.title ?? '').trim()
-  const deadlineText = deadline ? ` Deadline: ${deadline}.` : ''
-
-  if (reminderStage === 'created') {
-    return {
-      title: `New Milestone Added: ${title}`,
-      message: `A new milestone "${title}" has been added.${deadlineText} Please review the milestone details and prepare the required documents.`,
-    }
-  }
-
-  if (reminderStage === 'first') {
-    return {
-      title: `First Reminder: ${title}`,
-      message: `This is the first reminder for milestone "${title}".${deadlineText} Please review your progress and prepare your submission.`,
-    }
-  }
-
-  return {
-    title: `Second Reminder: ${title}`,
-    message: `This is the second reminder for milestone "${title}".${deadlineText} Please review your progress and prepare your submission.`,
-  }
-}
-
-export async function createMilestoneReminderNotification(milestone, reminderStage) {
-  await ensureNotificationSchema()
-
-  const content = milestoneReminderContent(milestone, reminderStage)
-  const notificationId = randomUUID()
-  const result = await pool.query(
-    `
-      INSERT INTO notifications (
-        notification_id,
-        title,
-        message,
-        attachment_url,
-        target_audience,
-        send_email,
-        created_by,
-        milestone_id,
-        reminder_stage,
-        sent_at
-      )
-      VALUES ($1, $2, $3, NULL, $4, FALSE, NULL, $5, $6, NOW())
-      ON CONFLICT (milestone_id, reminder_stage) DO NOTHING
-      RETURNING ${returningNotificationColumns}
-    `,
-    [
-      notificationId,
-      content.title,
-      content.message,
-      targetAudienceForDegreeLevel(milestone.degreeLevel),
-      milestone.milestoneId,
-      reminderStage,
-    ],
-  )
-
-  return result.rows[0] || null
 }
 
 export async function markNotificationAsRead(notificationId, userId) {

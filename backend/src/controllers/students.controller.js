@@ -6,7 +6,7 @@ import {
   normalizeStudent,
   readStudentImportFile,
 } from '../services/student-files.service.js'
-import { findStudentMilestonesByStudentId } from '../services/milestones.service.js'
+import { findStudentMilestonesByStudentId } from '../services/milestone-student.service.js'
 import {
   findAllStudents,
   findStudentById,

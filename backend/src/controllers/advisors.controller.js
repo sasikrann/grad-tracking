@@ -22,7 +22,7 @@ import {
   findAdvisorStudentMilestones,
   findAdvisorMilestoneSubmissions,
   reviewStudentMilestone,
-} from '../services/milestones.service.js'
+} from '../services/milestone-advisor.service.js'
 import { findAllStudents, findStudentsByAdvisorId } from '../services/students.service.js'
 
 export async function getAdvisors(request, response) {

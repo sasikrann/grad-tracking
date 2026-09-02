@@ -7,6 +7,8 @@ import {
   stopMilestoneReminderScheduler,
 } from "./services/milestone-reminder-scheduler.service.js";
 
+process.env.TZ ||= "Asia/Bangkok";
+
 const port = process.env.PORT || 3000;
 
 const server = app.listen(port, () => {
