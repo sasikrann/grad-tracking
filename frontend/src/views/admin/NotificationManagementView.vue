@@ -10,9 +10,12 @@ import {
 import type { Notification, NotificationInput, NotificationTargetAudience } from '@/types/notification'
 import { useLanguage } from '@/composables/useLanguage'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
-const { t } = useLanguage()
+import { getStudents } from '@/services/students.api'
+import type { Student } from '@/types/student'
+const { isThai, t } = useLanguage()
 
 type AudienceFilter = NotificationTargetAudience | 'all'
+type TargetDropdown = 'program' | 'plan' | 'year'
 
 const notifications = ref<Notification[]>([])
 const isLoading = ref(false)
@@ -36,6 +39,11 @@ const formError = ref('')
 const title = ref('')
 const message = ref('')
 const targetAudience = ref<NotificationTargetAudience>('All Students')
+const targetProgram = ref('all')
+const targetPlan = ref('all')
+const targetAcademicYear = ref('all')
+const openTargetDropdown = ref<TargetDropdown | null>(null)
+const audienceStudents = ref<Student[]>([])
 const sendEmail = ref(false)
 const attachmentFile = ref<File | null>(null)
 const attachmentInput = useTemplateRef<HTMLInputElement>('attachmentInput')
@@ -48,6 +56,83 @@ const audienceOptions = computed<{ label: string; value: NotificationTargetAudie
   { label: t('common.doctoral'), value: 'Doctoral Students' },
   { label: t('common.master'), value: 'Master Students' },
 ])
+
+const selectedDegree = computed(() => {
+  if (targetAudience.value === 'Doctoral Students') return 'Ph. D.'
+  if (targetAudience.value === 'Master Students') return 'Master'
+  return null
+})
+
+const studentsForSelectedDegree = computed(() =>
+  selectedDegree.value
+    ? audienceStudents.value.filter((student) => student.degree === selectedDegree.value)
+    : [],
+)
+
+const targetProgramOptions = computed(() =>
+  Array.from(new Set(studentsForSelectedDegree.value.map((student) => student.program)))
+    .filter(Boolean)
+    .sort((left, right) => left.localeCompare(right)),
+)
+
+const targetPlanOptions = computed(() => {
+  const allowedPlans = selectedDegree.value === 'Ph. D.' ? ['2.1', '2.2'] : ['A1', 'A2', 'B']
+  const availablePlans = new Set(
+    studentsForSelectedDegree.value.map((student) => student.educationPlan),
+  )
+  return allowedPlans.filter((plan) => availablePlans.has(plan))
+})
+
+const targetAcademicYearOptions = computed(() =>
+  Array.from(
+    new Set(studentsForSelectedDegree.value.map((student) => student.enrollmentAcademicYear)),
+  ).sort((left, right) => Number(right) - Number(left)),
+)
+
+const selectedTargetProgramLabel = computed(() =>
+  targetProgram.value === 'all' ? t('student.allProgram') : targetProgram.value,
+)
+
+function targetPlanLabel(plan: string) {
+  const planTranslationKeys = {
+    A1: 'common.planA1',
+    A2: 'common.planA2',
+    B: 'common.planB',
+    '2.1': 'common.plan21',
+    '2.2': 'common.plan22',
+  } as const
+
+  return planTranslationKeys[plan as keyof typeof planTranslationKeys]
+    ? t(planTranslationKeys[plan as keyof typeof planTranslationKeys])
+    : plan
+}
+
+const selectedTargetPlanLabel = computed(() =>
+  targetPlan.value === 'all' ? t('student.allPlan') : targetPlanLabel(targetPlan.value),
+)
+const selectedTargetAcademicYearLabel = computed(() =>
+  targetAcademicYear.value === 'all' ? t('student.allYear') : targetAcademicYear.value,
+)
+const mobileTargetProgramLabel = computed(() =>
+  isThai.value && targetProgram.value === 'all' ? 'หลักสูตร' : selectedTargetProgramLabel.value,
+)
+const mobileTargetPlanLabel = computed(() =>
+  isThai.value && targetPlan.value === 'all' ? 'แผน' : selectedTargetPlanLabel.value,
+)
+const mobileTargetAcademicYearLabel = computed(() =>
+  isThai.value && targetAcademicYear.value === 'all' ? 'ปี' : selectedTargetAcademicYearLabel.value,
+)
+
+function toggleTargetDropdown(dropdown: TargetDropdown) {
+  openTargetDropdown.value = openTargetDropdown.value === dropdown ? null : dropdown
+}
+
+function selectTargetDropdown(dropdown: TargetDropdown, value: string) {
+  if (dropdown === 'program') targetProgram.value = value
+  if (dropdown === 'plan') targetPlan.value = value
+  if (dropdown === 'year') targetAcademicYear.value = value
+  openTargetDropdown.value = null
+}
 
 const filterOptions = computed<{ label: string; value: AudienceFilter }[]>(() => [
   { label: t('notification.allProgram'), value: 'all' },
@@ -339,6 +424,7 @@ function goToPage(page: number) {
 
 function closeDropdown() {
   isFilterOpen.value = false
+  openTargetDropdown.value = null
 }
 
 async function loadNotifications({ silent = false } = {}) {
@@ -373,6 +459,9 @@ function resetForm() {
   title.value = ''
   message.value = ''
   targetAudience.value = 'All Students'
+  targetProgram.value = 'all'
+  targetPlan.value = 'all'
+  targetAcademicYear.value = 'all'
   sendEmail.value = false
   attachmentFile.value = null
   formError.value = ''
@@ -471,6 +560,9 @@ function closeDetail() {
 
 onMounted(() => {
   void loadNotifications()
+  void getStudents()
+    .then((students) => { audienceStudents.value = students })
+    .catch(() => { audienceStudents.value = [] })
   document.addEventListener('click', closeDropdown)
 })
 
@@ -489,6 +581,13 @@ watch(isPanelOpen, (isOpen) => {
   }
 
   document.body.style.overflow = bodyOverflowBeforePanelOpen
+})
+
+watch(targetAudience, () => {
+  targetProgram.value = 'all'
+  targetPlan.value = 'all'
+  targetAcademicYear.value = 'all'
+  openTargetDropdown.value = null
 })
 
 useAutoRefresh(() => loadNotifications({ silent: true }), {
@@ -774,7 +873,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
 
     <aside
       v-if="isPanelOpen"
-      class="fixed inset-4 z-50 flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-[18px] bg-white px-6 py-7 shadow-2xl sm:inset-y-0 sm:left-auto sm:right-0 sm:max-h-none sm:w-full sm:max-w-md sm:rounded-none"
+      class="fixed inset-3 z-50 flex max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden rounded-2xl bg-white px-4 py-5 shadow-2xl sm:inset-y-4 sm:left-auto sm:right-4 sm:max-h-[calc(100dvh-2rem)] sm:w-[34rem] sm:max-w-[calc(100vw-2rem)] sm:rounded-[18px] sm:px-6 sm:py-7"
       role="dialog"
       aria-modal="true"
       aria-labelledby="send-notification-title"
@@ -902,20 +1001,65 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
 
             <section class="border-t border-slate-200 pt-5">
               <h3 class="text-base font-semibold text-slate-950 sm:text-lg">{{ t('notification.targetAudience') }}</h3>
-              <div class="mt-3 space-y-2">
-                <label
+              <div class="mt-3 space-y-3">
+                <div
                   v-for="option in audienceOptions"
                   :key="option.value"
-                  class="flex w-fit items-center gap-3 text-sm text-slate-900"
                 >
-                  <input
-                    v-model="targetAudience"
-                    type="radio"
-                    :value="option.value"
-                    class="size-4 accent-[#8b2a23]"
-                  />
-                  {{ option.label }}
-                </label>
+                  <label class="flex w-fit cursor-pointer items-center gap-3 text-sm text-slate-900">
+                    <input
+                      v-model="targetAudience"
+                      type="radio"
+                      :value="option.value"
+                      class="size-4 accent-[#8b2a23]"
+                    />
+                    {{ option.label }}
+                  </label>
+
+                  <div
+                    v-if="option.value === targetAudience && option.value !== 'All Students'"
+                    class="ml-7 mt-2.5 grid grid-cols-3 gap-1.5 sm:gap-2.5"
+                  >
+                    <div class="relative min-w-0 text-xs font-medium text-slate-600" @click.stop>
+                      <button type="button" class="flex h-9 w-full items-center justify-between gap-1 rounded-lg border border-slate-100 bg-white px-2 text-left text-xs font-normal text-slate-800 shadow-sm outline-none transition hover:border-[#dfcccc] focus:border-[#8b2a23] sm:gap-2 sm:px-3" :class="{ 'border-[#8b2a23]': openTargetDropdown === 'program' }" :aria-expanded="openTargetDropdown === 'program'" @click="toggleTargetDropdown('program')">
+                        <span class="min-w-0 truncate sm:hidden">{{ mobileTargetProgramLabel }}</span>
+                        <span class="hidden min-w-0 truncate sm:inline">{{ selectedTargetProgramLabel }}</span>
+                        <svg class="size-4 shrink-0 text-slate-500 transition-transform duration-200" :class="{ 'rotate-180': openTargetDropdown === 'program' }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
+                      </button>
+                      <Transition enter-active-class="transition duration-150 ease-out" enter-from-class="-translate-y-1 opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transition duration-100 ease-in" leave-from-class="translate-y-0 opacity-100" leave-to-class="-translate-y-1 opacity-0">
+                        <div v-if="openTargetDropdown === 'program'" class="absolute left-0 right-0 top-[calc(100%+6px)] z-40 max-h-40 overflow-y-auto overscroll-contain rounded-lg border border-slate-100 bg-white p-1.5 shadow-[0_8px_20px_rgba(0,0,0,0.14)] sm:max-h-44 sm:shadow-[0_5px_12px_rgba(0,0,0,0.12)]">
+                          <button v-for="program in ['all', ...targetProgramOptions]" :key="program" type="button" class="flex w-full items-center justify-between gap-1 rounded-md px-2 py-2 text-left text-xs font-normal text-slate-800 hover:bg-[#f8eeee] sm:px-2.5" :class="{ 'bg-[#f8eeee]': targetProgram === program }" @click="selectTargetDropdown('program', program)"><span class="min-w-0 flex-1 truncate">{{ program === 'all' ? t('student.allProgram') : program }}</span><svg v-if="targetProgram === program" class="size-4 shrink-0 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg></button>
+                        </div>
+                      </Transition>
+                    </div>
+
+                    <div class="relative min-w-0 text-xs font-medium text-slate-600" @click.stop>
+                      <button type="button" class="flex h-9 w-full items-center justify-between gap-1 rounded-lg border border-slate-100 bg-white px-2 text-left text-xs font-normal text-slate-800 shadow-sm outline-none transition hover:border-[#dfcccc] focus:border-[#8b2a23] sm:gap-2 sm:px-3" :class="{ 'border-[#8b2a23]': openTargetDropdown === 'plan' }" :aria-expanded="openTargetDropdown === 'plan'" @click="toggleTargetDropdown('plan')">
+                        <span class="min-w-0 truncate sm:hidden">{{ mobileTargetPlanLabel }}</span>
+                        <span class="hidden min-w-0 truncate sm:inline">{{ selectedTargetPlanLabel }}</span>
+                        <svg class="size-4 shrink-0 text-slate-500 transition-transform duration-200" :class="{ 'rotate-180': openTargetDropdown === 'plan' }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
+                      </button>
+                      <Transition enter-active-class="transition duration-150 ease-out" enter-from-class="-translate-y-1 opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transition duration-100 ease-in" leave-from-class="translate-y-0 opacity-100" leave-to-class="-translate-y-1 opacity-0">
+                        <div v-if="openTargetDropdown === 'plan'" class="absolute left-1/2 top-[calc(100%+6px)] z-40 w-40 -translate-x-1/2 overflow-hidden rounded-lg border border-slate-100 bg-white p-1.5 shadow-[0_8px_18px_rgba(0,0,0,0.14)] sm:left-0 sm:right-0 sm:w-auto sm:translate-x-0 sm:shadow-[0_5px_12px_rgba(0,0,0,0.12)]">
+                          <button v-for="plan in ['all', ...targetPlanOptions]" :key="plan" type="button" class="flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-xs font-normal text-slate-800 hover:bg-[#f8eeee] sm:px-2.5 sm:py-2" :class="{ 'bg-[#f8eeee]': targetPlan === plan }" @click="selectTargetDropdown('plan', plan)"><span>{{ plan === 'all' ? t('student.allPlan') : targetPlanLabel(plan) }}</span><svg v-if="targetPlan === plan" class="size-4 shrink-0 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg></button>
+                        </div>
+                      </Transition>
+                    </div>
+
+                    <div class="relative min-w-0 text-xs font-medium text-slate-600" @click.stop>
+                      <button type="button" class="flex h-9 w-full items-center justify-between gap-1 rounded-lg border border-slate-100 bg-white px-2 text-left text-xs font-normal text-slate-800 shadow-sm outline-none transition hover:border-[#dfcccc] focus:border-[#8b2a23] sm:gap-2 sm:px-3" :class="{ 'border-[#8b2a23]': openTargetDropdown === 'year' }" :aria-expanded="openTargetDropdown === 'year'" @click="toggleTargetDropdown('year')">
+                        <span class="min-w-0 truncate sm:hidden">{{ mobileTargetAcademicYearLabel }}</span>
+                        <span class="hidden min-w-0 truncate sm:inline">{{ selectedTargetAcademicYearLabel }}</span>
+                        <svg class="size-4 shrink-0 text-slate-500 transition-transform duration-200" :class="{ 'rotate-180': openTargetDropdown === 'year' }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
+                      </button>
+                      <Transition enter-active-class="transition duration-150 ease-out" enter-from-class="-translate-y-1 opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transition duration-100 ease-in" leave-from-class="translate-y-0 opacity-100" leave-to-class="-translate-y-1 opacity-0">
+                        <div v-if="openTargetDropdown === 'year'" class="absolute right-0 top-[calc(100%+6px)] z-40 max-h-40 w-36 overflow-y-auto overscroll-contain rounded-lg border border-slate-100 bg-white p-1.5 shadow-[0_8px_20px_rgba(0,0,0,0.14)] sm:left-0 sm:max-h-44 sm:w-auto sm:shadow-[0_5px_12px_rgba(0,0,0,0.12)]">
+                          <button v-for="year in ['all', ...targetAcademicYearOptions]" :key="year" type="button" class="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs font-normal text-slate-800 hover:bg-[#f8eeee]" :class="{ 'bg-[#f8eeee]': targetAcademicYear === year }" @click="selectTargetDropdown('year', year)"><span v-if="year === 'all'" class="sm:hidden">{{ isThai ? 'ทุกปีการศึกษา' : t('student.allYear') }}</span><span :class="{ 'hidden sm:inline': year === 'all' }">{{ year === 'all' ? t('student.allYear') : year }}</span><svg v-if="targetAcademicYear === year" class="size-4 shrink-0 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg></button>
+                        </div>
+                      </Transition>
+                    </div>
+                  </div>
+                </div>
               </div>
             </section>
 
