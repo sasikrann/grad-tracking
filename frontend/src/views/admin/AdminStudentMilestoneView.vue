@@ -88,13 +88,13 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f7f7] px-3 py-4 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8">
+  <div class="min-h-screen bg-[#f7f7f7] px-3 pt-3 pb-4 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8">
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h1 class="text-xl font-bold tracking-tight text-black sm:text-3xl">
           {{ t('milestone.milestones') }}
         </h1>
-        <p class="mt-0.5 text-xs text-slate-500 sm:mt-1 sm:text-sm">
+        <p class="text-xs text-slate-500 sm:mt-1 sm:text-sm">
           {{ t('milestone.studentViewOnly') }}
         </p>
       </div>

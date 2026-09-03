@@ -53,21 +53,21 @@ function statusLabel(status: Advisor['status']) {
   <section
     class="mt-3 rounded-lg border border-[#ececec] bg-white px-2 pt-3 pb-4 shadow-[0_2px_4px_rgba(0,0,0,0.12)] sm:mt-4 sm:rounded-xl sm:px-5 sm:py-5"
   >
-    <div class="flex items-start justify-between gap-3">
+    <div class="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
       <div class="shrink-0">
         <h2 class="text-base font-semibold sm:text-lg">{{ t('advisor.advisor') }}</h2>
         <p class="text-xs font-medium text-[#7d7d7d] sm:font-normal sm:text-slate-500">
           {{ t('advisor.showingUsers', { count: advisors.length }) }}
         </p>
       </div>
-      <label class="relative block min-w-0 flex-1 sm:w-80 sm:flex-none">
+      <label class="relative block w-full min-w-0 sm:w-80 sm:flex-none">
         <span class="sr-only">{{ t('advisor.searchPlaceholder') }}</span>
         <svg
-          class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#cfcfcf]"
+          class="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[#888] sm:left-3.5 sm:size-4 sm:text-[#cfcfcf]"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          stroke-width="2.5"
+          stroke-width="2"
           aria-hidden="true"
         >
           <circle cx="11" cy="11" r="7" />
@@ -77,7 +77,7 @@ function statusLabel(status: Advisor['status']) {
           v-model="search"
           type="search"
           :placeholder="t('advisor.searchPlaceholder')"
-          class="h-8 w-full rounded-lg border border-[#eeeeee] bg-white pr-4 pl-10 text-xs font-medium text-[#333] shadow-[0_2px_4px_rgba(0,0,0,0.08)] outline-none placeholder:text-[#888] focus:border-[#8a2b25]"
+          class="h-9 w-full rounded-lg border border-[#e7e7e7] bg-white pr-3 pl-9 text-[10px] outline-none focus:border-[#8a2b25] sm:h-8 sm:border-[#eeeeee] sm:pr-4 sm:pl-10 sm:text-xs sm:font-medium sm:text-[#333] sm:shadow-[0_2px_4px_rgba(0,0,0,0.08)] sm:placeholder:text-[#888]"
         />
       </label>
     </div>

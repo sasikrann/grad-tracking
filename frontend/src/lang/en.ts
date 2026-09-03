@@ -16,6 +16,9 @@ export const en = {
     studentInformation: 'Student Information',
     studentMilestones: 'Milestone',
     studentNotifications: 'Notification',
+    textSize: 'Text size',
+    decreaseTextSize: 'Decrease text size',
+    increaseTextSize: 'Increase text size',
     signOut: 'Sign out',
   },
   dashboard: {

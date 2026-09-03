@@ -223,12 +223,12 @@ useAutoRefresh(() => loadSummary({ silent: true }))
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f7f7] px-4 py-5 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8">
+  <div class="min-h-screen bg-[#f7f7f7] px-4 pt-3 pb-5 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8">
     <header>
       <h1 class="text-xl font-bold tracking-tight sm:text-3xl">
         {{ t('advisorPortal.milestoneSummary') }}
       </h1>
-      <p class="mt-1 text-sm text-slate-500">
+      <p class="text-xs text-slate-500 sm:mt-1 sm:text-sm">
         {{ t('advisorPortal.summaryDescription') }}
       </p>
     </header>

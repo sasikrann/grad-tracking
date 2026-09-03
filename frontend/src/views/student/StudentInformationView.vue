@@ -33,11 +33,11 @@ useAutoRefresh(() => loadPage({ silent: true }))
 
 <template>
   <div
-    class="min-h-screen bg-[#f7f7f7] px-4 py-5 pb-8 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8"
+    class="min-h-screen bg-[#f7f7f7] px-4 pt-3 pb-8 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8"
   >
     <header>
       <h1 class="text-xl font-bold tracking-tight sm:text-3xl">{{ t('studentPortal.informationTitle') }}</h1>
-      <p class="mt-1 max-w-md text-sm leading-5 text-slate-500">
+      <p class="max-w-md text-xs text-slate-500 sm:mt-1 sm:text-sm">
         {{ t('studentPortal.informationDescription') }}
       </p>
     </header>
