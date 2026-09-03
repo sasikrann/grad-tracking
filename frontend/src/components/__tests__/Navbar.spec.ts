@@ -63,4 +63,53 @@ describe('Navbar', () => {
     expect(useLanguage().language.value).toBe('th')
     expect(student.text()).toContain(th.nav.studentInformation)
   })
+
+  it('changes and remembers the mobile font size', async () => {
+    const wrapper = mount(Navbar, {
+      props: { user: { fullName: 'Student User', email: 'student@example.com', role: 'student' } },
+      global: { stubs: { RouterLink: RouterLinkStub } },
+    })
+
+    await wrapper.get('[aria-label="Text size"]').trigger('click')
+    const increaseButton = wrapper.get('[aria-label="Increase text size"]')
+    await increaseButton.trigger('click')
+    await increaseButton.trigger('click')
+    await increaseButton.trigger('click')
+
+    expect(localStorage.getItem('mobile-font-size-level')).toBe('60')
+    expect(document.documentElement.style.getPropertyValue('--mobile-content-scale')).toBe('124%')
+
+    wrapper.unmount()
+    expect(document.documentElement.style.getPropertyValue('--mobile-content-scale')).toBe('')
+  })
+
+  it('closes the font size controls when the page scrolls', async () => {
+    const wrapper = mount(Navbar, {
+      props: { user: { fullName: 'Student User', email: 'student@example.com', role: 'student' } },
+      global: { stubs: { RouterLink: RouterLinkStub } },
+    })
+
+    await wrapper.get('[aria-label="Text size"]').trigger('click')
+    expect(wrapper.find('#mobile-font-size-menu').exists()).toBe(true)
+
+    window.dispatchEvent(new Event('scroll'))
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('#mobile-font-size-menu').exists()).toBe(false)
+  })
+
+  it('closes the font size controls when clicking elsewhere', async () => {
+    const wrapper = mount(Navbar, {
+      props: { user: { fullName: 'Student User', email: 'student@example.com', role: 'student' } },
+      global: { stubs: { RouterLink: RouterLinkStub } },
+    })
+
+    await wrapper.get('[aria-label="Text size"]').trigger('click')
+    expect(wrapper.find('#mobile-font-size-menu').exists()).toBe(true)
+
+    document.body.click()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('#mobile-font-size-menu').exists()).toBe(false)
+  })
 })

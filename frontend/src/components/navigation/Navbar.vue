@@ -27,7 +27,10 @@ const props = defineProps<{
 const route = useRoute()
 const { setLanguage, t } = useLanguage()
 const isMobileMenuOpen = ref(false)
+const isFontSizeMenuOpen = ref(false)
 const notificationUnreadCount = ref(0)
+const fontSizeLevel = ref(0)
+const FONT_SIZE_STORAGE_KEY = 'mobile-font-size-level'
 let unreadCountTimer: number | undefined
 let bodyOverflowBeforeMenuOpen = ''
 const emit = defineEmits<{
@@ -128,12 +131,34 @@ function refreshUnreadCountWhenVisible() {
   if (document.visibilityState === 'visible') void loadNotificationUnreadCount()
 }
 
+function applyFontSizeLevel(value: number) {
+  const actualIncrease = value * 0.4
+  document.documentElement.style.setProperty('--mobile-content-scale', `${100 + actualIncrease}%`)
+}
+
+function changeFontSize(step: number) {
+  const value = Math.min(100, Math.max(0, fontSizeLevel.value + step))
+  fontSizeLevel.value = value
+  localStorage.setItem(FONT_SIZE_STORAGE_KEY, String(value))
+  applyFontSizeLevel(value)
+}
+
+function closeFontSizeMenu() {
+  isFontSizeMenuOpen.value = false
+}
+
 onMounted(() => {
+  const savedFontSize = Number(localStorage.getItem(FONT_SIZE_STORAGE_KEY))
+  fontSizeLevel.value = [0, 20, 40, 60, 80, 100].includes(savedFontSize) ? savedFontSize : 0
+  applyFontSizeLevel(fontSizeLevel.value)
+
   void loadNotificationUnreadCount()
   unreadCountTimer = window.setInterval(() => {
     void loadNotificationUnreadCount()
   }, 15_000)
   window.addEventListener('focus', refreshUnreadCountWhenVisible)
+  window.addEventListener('scroll', closeFontSizeMenu, true)
+  document.addEventListener('click', closeFontSizeMenu)
   document.addEventListener('visibilitychange', refreshUnreadCountWhenVisible)
   window.addEventListener(
     'notifications:unread-count-changed',
@@ -142,9 +167,12 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  document.documentElement.style.removeProperty('--mobile-content-scale')
   document.body.style.overflow = bodyOverflowBeforeMenuOpen
   if (unreadCountTimer) window.clearInterval(unreadCountTimer)
   window.removeEventListener('focus', refreshUnreadCountWhenVisible)
+  window.removeEventListener('scroll', closeFontSizeMenu, true)
+  document.removeEventListener('click', closeFontSizeMenu)
   document.removeEventListener('visibilitychange', refreshUnreadCountWhenVisible)
   window.removeEventListener(
     'notifications:unread-count-changed',
@@ -206,13 +234,61 @@ watch(
       </div>
       <div class="min-w-0">
         <p class="truncate text-base font-semibold leading-tight">ADT GRAD Tracking</p>
-        <p class="text-[10px] text-white/75">Progress System</p>
+        <p class="text-[11px] text-white/75">Progress System</p>
       </div>
     </div>
 
     <div class="flex shrink-0 items-center">
       <div class="[&>div]:mb-0 [&_[role=group]]:w-14 [&_button]:px-1">
         <LanguageSwitch :enabled="canChangeLanguage" />
+      </div>
+      <div class="relative ml-1" @click.stop>
+        <button
+          type="button"
+          class="flex size-8 items-center justify-center rounded-lg hover:bg-[#720008]"
+          :aria-label="t('nav.textSize')"
+          :aria-expanded="isFontSizeMenuOpen"
+          aria-controls="mobile-font-size-menu"
+          @click="isFontSizeMenuOpen = !isFontSizeMenuOpen"
+        >
+          <svg
+            class="size-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            aria-hidden="true"
+          >
+            <circle cx="10" cy="10" r="6" />
+            <path d="M14.5 14.5 21 21M7 10h6M10 7v6" />
+          </svg>
+        </button>
+        <div
+          v-if="isFontSizeMenuOpen"
+          id="mobile-font-size-menu"
+          class="absolute right-0 top-10 z-50 flex overflow-hidden rounded-lg border border-gray-200 bg-white p-1 text-gray-700 shadow-lg"
+          role="group"
+          :aria-label="t('nav.textSize')"
+        >
+          <button
+            type="button"
+            class="flex size-9 items-center justify-center rounded-md text-xl hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-35"
+            :aria-label="t('nav.decreaseTextSize')"
+            :disabled="fontSizeLevel === 0"
+            @click="changeFontSize(-20)"
+          >
+            −
+          </button>
+          <button
+            type="button"
+            class="flex size-9 items-center justify-center rounded-md text-xl hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-35"
+            :aria-label="t('nav.increaseTextSize')"
+            :disabled="fontSizeLevel === 100"
+            @click="changeFontSize(20)"
+          >
+            +
+          </button>
+        </div>
       </div>
       <RouterLink
         v-if="menuRole === 'student'"

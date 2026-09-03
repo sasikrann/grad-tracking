@@ -16,6 +16,9 @@ export const th = {
     studentInformation: 'ข้อมูลนักศึกษา',
     studentMilestones: 'ขั้นตอนการศึกษา',
     studentNotifications: 'การแจ้งเตือน',
+    textSize: 'ขนาดตัวอักษร',
+    decreaseTextSize: 'ลดขนาดตัวอักษร',
+    increaseTextSize: 'เพิ่มขนาดตัวอักษร',
     signOut: 'ออกจากระบบ',
   },
   dashboard: {

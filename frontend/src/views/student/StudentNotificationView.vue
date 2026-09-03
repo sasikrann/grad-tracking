@@ -432,18 +432,25 @@ watch(totalPages, (nextTotalPages) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f7f7] px-4 py-6 font-sans text-slate-900 sm:px-6 xl:px-8">
-    <header class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 sm:gap-x-4">
-      <h1 class="min-w-0 text-xl font-bold tracking-tight text-black sm:text-3xl">{{ t('studentPortal.notificationTitle') }}</h1>
+  <div class="min-h-screen bg-[#f7f7f7] px-4 pt-3 pb-6 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8">
+    <header class="flex items-start justify-between gap-2 sm:flex-wrap sm:gap-4">
+      <div class="min-w-0">
+        <h1 class="text-xl font-bold tracking-tight text-black sm:text-3xl">
+          {{ t('studentPortal.notificationTitle') }}
+        </h1>
+        <p class="text-xs text-slate-500 sm:mt-1 sm:text-sm">
+          {{ t('studentPortal.notificationDescription') }}
+        </p>
+      </div>
 
       <button
         type="button"
         :disabled="isMarkingAll || unreadCount === 0"
-        class="-mt-1 inline-flex shrink-0 items-center justify-center gap-1 rounded-lg bg-[#8b2a23] px-2.5 py-2 text-[10px] font-medium text-white shadow-sm transition-colors hover:bg-[#7a211c] disabled:cursor-not-allowed disabled:opacity-60 sm:mt-0 sm:gap-2 sm:px-4 sm:text-sm"
+        class="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-[#8b2a23] px-2 py-1.5 text-[9px] font-medium text-white shadow-sm transition-colors hover:bg-[#7a211c] disabled:cursor-not-allowed disabled:opacity-60 sm:gap-2 sm:rounded-lg sm:px-4 sm:py-2 sm:text-sm"
         @click="markAllAsRead"
       >
         <svg
-          class="size-4"
+          class="size-3.5 sm:size-4"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -455,10 +462,6 @@ watch(totalPages, (nextTotalPages) => {
         </svg>
         {{ t('studentPortal.markAllAsRead') }}
       </button>
-
-      <p class="col-span-2 mt-1 whitespace-nowrap text-xs text-slate-500 sm:text-sm">
-        {{ t('studentPortal.notificationDescription') }}
-      </p>
     </header>
 
     <p v-if="errorMessage" class="mt-4 text-sm text-red-600" role="alert">
