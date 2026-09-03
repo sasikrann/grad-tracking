@@ -2,9 +2,12 @@
 import cors from 'cors'
 import express from 'express'
 
+import { getAllowedOrigins } from './config/allowed-origins.js'
 import pool from './config/database.js'
+import { ApiError } from './errors/api-error.js'
 import { requireAuth, requireRole } from './middleware/auth.middleware.js'
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js'
+import { requireTrustedOrigin } from './middleware/origin.middleware.js'
 import authRouter from './routes/auth.routes.js'
 import advisorsRouter from './routes/advisors.routes.js'
 import evidenceRouter from './routes/evidence.routes.js'
@@ -16,10 +19,19 @@ import usersRouter from './routes/users.routes.js'
 
 const app = express()
 
-const frontendOrigin = process.env.FRONTEND_ORIGIN || 'http://localhost:5173'
+app.use(cors({
+  credentials: true,
+  origin(origin, callback) {
+    if (!origin || getAllowedOrigins().has(origin)) {
+      callback(null, true)
+      return
+    }
 
-app.use(cors({ origin: frontendOrigin, credentials: true }))
+    callback(new ApiError(403, 'Request origin is not allowed'))
+  },
+}))
 app.use(express.json({ limit: '3mb' }))
+app.use('/api', requireTrustedOrigin)
 app.use('/api/auth', authRouter)
 app.use('/api/advisors', requireAuth, requireRole('advisor', 'admin', 'student'), advisorsRouter)
 app.use('/api/evidence', requireAuth, requireRole('student', 'advisor', 'admin'), evidenceRouter)
