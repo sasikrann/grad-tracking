@@ -129,6 +129,10 @@ router.beforeEach(async (to) => {
     return getDefaultRoute()
   }
 
+  if (to.name === 'access-unavailable' && currentUser.value) {
+    return getDefaultRoute()
+  }
+
   const requiredRole = typeof to.meta.role === 'string' ? to.meta.role : undefined
   const userRole = currentUser.value?.role
 

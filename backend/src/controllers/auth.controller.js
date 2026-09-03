@@ -109,8 +109,7 @@ export async function loginForDevelopment(request, response) {
 }
 
 export function logout(_request, response) {
-  const { maxAge: _maxAge, ...cookieOptions } = getAuthCookieOptions();
-  response.clearCookie(authCookieName, cookieOptions);
+  response.clearCookie(authCookieName, getAuthCookieOptions());
   response.status(204).end();
 }
 
