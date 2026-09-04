@@ -10,7 +10,7 @@ import {
 import type { StudentNotification } from '@/types/notification'
 import { useLanguage } from '@/composables/useLanguage'
 
-const { t } = useLanguage()
+const { language, t } = useLanguage()
 
 const notifications = ref<StudentNotification[]>([])
 const isLoading = ref(false)
@@ -73,31 +73,43 @@ function formatNotificationTime(value: string | null) {
   const diffMinutes = Math.max(0, Math.floor(diffMs / 60_000))
   const diffHours = Math.floor(diffMinutes / 60)
   const diffDays = Math.floor(diffHours / 24)
+  const locale = language.value === 'th' ? 'th-TH' : 'en-GB'
+  const relativeTime = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
 
-  if (diffMinutes < 1) return 'Just now'
-  if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`
-  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
+  if (diffMinutes < 1) return relativeTime.format(0, 'second')
+  if (diffMinutes < 60) return relativeTime.format(-diffMinutes, 'minute')
+  if (diffHours < 24) return relativeTime.format(-diffHours, 'hour')
   if (diffDays === 1) {
-    return `Yesterday, ${date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+    const time = new Intl.DateTimeFormat(locale, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(date)
+    return `${relativeTime.format(-1, 'day')}, ${time}`
   }
 
-  return date.toLocaleDateString([], {
+  return new Intl.DateTimeFormat(locale, {
+    calendar: language.value === 'th' ? 'buddhist' : 'gregory',
     year: 'numeric',
     month: 'short',
     day: 'numeric',
-  })
+  }).format(date)
 }
 
 function formatDateTime(value: string | null) {
   if (!value) return '-'
 
-  return new Intl.DateTimeFormat('en-GB', {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+
+  return new Intl.DateTimeFormat(language.value === 'th' ? 'th-TH' : 'en-GB', {
+    calendar: language.value === 'th' ? 'buddhist' : 'gregory',
     day: '2-digit',
     month: 'short',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(value))
+  }).format(date)
 }
 
 function attachmentName(value: string | null) {
@@ -224,7 +236,8 @@ function formatNotificationDeadline(value: string) {
   const date = new Date(`${value}T00:00:00`)
   if (Number.isNaN(date.getTime())) return value
 
-  return new Intl.DateTimeFormat('en-GB', {
+  return new Intl.DateTimeFormat(language.value === 'th' ? 'th-TH' : 'en-GB', {
+    calendar: language.value === 'th' ? 'buddhist' : 'gregory',
     day: '2-digit',
     month: 'short',
     year: 'numeric',
