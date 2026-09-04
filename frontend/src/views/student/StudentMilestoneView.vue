@@ -239,7 +239,8 @@ async function uploadEvidence(milestoneId: string, file: File) {
   uploadErrorMessage.value = ''
 
   if (milestoneSubmissionLocked.value) {
-    uploadErrorMessage.value = 'Your study period is overdue. Please contact an administrator to extend it.'
+    uploadErrorMessage.value =
+      'Your study period is overdue. Please contact an administrator to extend it.'
     uploadingMilestoneId.value = null
     return
   }
@@ -304,9 +305,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f7f7] px-4 pt-3 pb-6 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8">
+  <div
+    class="min-h-screen bg-[#f7f7f7] px-3 pt-3 pb-6 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8"
+  >
     <header>
-      <h1 class="text-xl font-bold tracking-tight text-black sm:text-3xl">{{ t('studentPortal.milestoneTitle') }}</h1>
+      <h1 class="text-xl font-bold tracking-tight text-black sm:text-3xl">
+        {{ t('studentPortal.milestoneTitle') }}
+      </h1>
       <div class="flex items-center justify-between gap-4 sm:mt-1">
         <p class="shrink-0 text-xs text-slate-500 sm:text-sm">
           {{ t('studentPortal.milestoneDescription') }}

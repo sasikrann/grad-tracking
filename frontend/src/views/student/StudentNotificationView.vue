@@ -111,10 +111,10 @@ function attachmentName(value: string | null) {
 function canOpenAttachment(value: string | null) {
   return Boolean(
     value &&
-      (value.startsWith('/uploads/') ||
-        value.startsWith('http://') ||
-        value.startsWith('https://') ||
-        value.startsWith('data:image/')),
+    (value.startsWith('/uploads/') ||
+      value.startsWith('http://') ||
+      value.startsWith('https://') ||
+      value.startsWith('data:image/')),
   )
 }
 
@@ -153,7 +153,8 @@ async function openAttachmentPreview(value: string) {
 
     const blob = await response.blob()
     const fileName = attachmentPreviewName.value.toLowerCase()
-    const isImage = blob.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(fileName)
+    const isImage =
+      blob.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(fileName)
     const isPdf = blob.type === 'application/pdf' || fileName.endsWith('.pdf')
 
     if (!isImage && !isPdf) {
@@ -196,9 +197,7 @@ function escapeHtml(value: string) {
 }
 
 function formattedNotificationMessage(value: string) {
-  return escapeHtml(
-    value.replace(/&(?:nbsp|#160|#x0*a0);/gi, ' ').replace(/\u00a0/g, ' '),
-  )
+  return escapeHtml(value.replace(/&(?:nbsp|#160|#x0*a0);/gi, ' ').replace(/\u00a0/g, ' '))
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/&lt;(strong|b)&gt;(.*?)&lt;\/\1&gt;/g, '<strong>$2</strong>')
@@ -214,7 +213,10 @@ function formattedNotificationMessage(value: string) {
 }
 
 function notificationDeadline(value: string) {
-  return plainNotificationMessage(value).match(/\bDeadline:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\.?/i)?.[1] ?? ''
+  return (
+    plainNotificationMessage(value).match(/\bDeadline:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\.?/i)?.[1] ??
+    ''
+  )
 }
 
 function formatNotificationDeadline(value: string) {
@@ -432,7 +434,9 @@ watch(totalPages, (nextTotalPages) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f7f7] px-4 pt-3 pb-6 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8">
+  <div
+    class="min-h-screen bg-[#f7f7f7] px-3 pt-3 pb-6 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8"
+  >
     <header class="flex items-start justify-between gap-2 sm:flex-wrap sm:gap-4">
       <div class="min-w-0">
         <h1 class="text-xl font-bold tracking-tight text-black sm:text-3xl">
@@ -475,10 +479,7 @@ watch(totalPages, (nextTotalPages) => {
         {{ t('studentPortal.loadingNotifications') }}
       </div>
 
-      <div
-        v-else-if="notifications.length === 0"
-        class="py-10 text-center text-sm text-slate-500"
-      >
+      <div v-else-if="notifications.length === 0" class="py-10 text-center text-sm text-slate-500">
         {{ t('studentPortal.noNotifications') }}
       </div>
 
@@ -533,7 +534,9 @@ watch(totalPages, (nextTotalPages) => {
                 </template>
                 <template v-else-if="notificationTone(notification) === 'system'">
                   <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z" />
-                  <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6 1h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z" />
+                  <path
+                    d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6 1h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z"
+                  />
                 </template>
                 <template v-else>
                   <rect x="5" y="4" width="14" height="16" rx="3" />
@@ -547,11 +550,15 @@ watch(totalPages, (nextTotalPages) => {
               class="grid min-w-0 flex-1 grid-cols-1 items-start gap-y-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-3 sm:gap-y-0"
             >
               <div class="min-w-0">
-                <h2 class="line-clamp-2 pr-3 text-sm font-semibold leading-snug text-slate-950 sm:truncate sm:pr-0 sm:font-medium">
+                <h2
+                  class="line-clamp-2 pr-3 text-sm font-semibold leading-snug text-slate-950 sm:truncate sm:pr-0 sm:font-medium"
+                >
                   {{ notification.title }}
                 </h2>
 
-                <p class="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500 sm:truncate sm:leading-snug">
+                <p
+                  class="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500 sm:truncate sm:leading-snug"
+                >
                   {{ plainNotificationMessage(notification.message) }}
                 </p>
               </div>
@@ -581,11 +588,13 @@ watch(totalPages, (nextTotalPages) => {
           class="flex flex-col gap-3 px-1 pt-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-0 sm:pt-4 sm:text-sm"
         >
           <p>
-            {{ t('studentPortal.showingNotifications', {
-              start: currentPageStart,
-              end: currentPageEnd,
-              count: notifications.length,
-            }) }}
+            {{
+              t('studentPortal.showingNotifications', {
+                start: currentPageStart,
+                end: currentPageEnd,
+                count: notifications.length,
+              })
+            }}
           </p>
 
           <nav
@@ -621,7 +630,9 @@ watch(totalPages, (nextTotalPages) => {
       aria-labelledby="notification-detail-title"
       @click.self="closeDetail"
     >
-      <section class="relative w-full max-w-[480px] overflow-hidden rounded-[18px] bg-white shadow-xl">
+      <section
+        class="relative w-full max-w-[480px] overflow-hidden rounded-[18px] bg-white shadow-xl"
+      >
         <button
           type="button"
           class="absolute right-5 top-5 rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
@@ -658,7 +669,10 @@ watch(totalPages, (nextTotalPages) => {
           </span>
 
           <div class="min-w-0">
-            <h2 id="notification-detail-title" class="break-words text-base font-semibold leading-tight text-slate-950">
+            <h2
+              id="notification-detail-title"
+              class="break-words text-base font-semibold leading-tight text-slate-950"
+            >
               {{ selectedNotification.title }}
             </h2>
             <p class="mt-0.5 inline-flex max-w-full items-center gap-1.5 text-xs text-slate-500">
@@ -682,7 +696,9 @@ watch(totalPages, (nextTotalPages) => {
           <p class="text-xs font-semibold text-black">{{ t('common.description') }}</p>
           <div
             class="mt-2 break-words text-xs leading-5 text-slate-900 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
-            v-html="formattedNotificationMessage(notificationDescription(selectedNotification.message))"
+            v-html="
+              formattedNotificationMessage(notificationDescription(selectedNotification.message))
+            "
           ></div>
 
           <div v-if="notificationDeadline(selectedNotification.message)" class="mt-5">
@@ -696,58 +712,18 @@ watch(totalPages, (nextTotalPages) => {
 
           <div v-if="selectedNotification.attachmentUrl" class="mt-5">
             <p class="text-xs font-semibold text-black">{{ t('notification.attachment') }}</p>
-              <div
-                v-if="canOpenAttachment(selectedNotification.attachmentUrl)"
-                class="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 transition-colors hover:border-[#dfcccc] hover:bg-[#fff8f8]"
+            <div
+              v-if="canOpenAttachment(selectedNotification.attachmentUrl)"
+              class="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 transition-colors hover:border-[#dfcccc] hover:bg-[#fff8f8]"
+            >
+              <button
+                type="button"
+                class="flex min-w-0 flex-1 items-center gap-3"
+                @click="openAttachmentPreview(selectedNotification.attachmentUrl)"
               >
-                <button
-                  type="button"
-                  class="flex min-w-0 flex-1 items-center gap-3"
-                  @click="openAttachmentPreview(selectedNotification.attachmentUrl)"
+                <span
+                  class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600"
                 >
-                  <span class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600">
-                    <svg
-                      class="size-5"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      aria-hidden="true"
-                    >
-                      <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7Z" />
-                      <path d="M14 2v5h5" />
-                      <path d="M9 13h6M9 17h6M9 9h1" />
-                    </svg>
-                  </span>
-                  <span class="min-w-0 flex-1 truncate text-xs font-medium text-slate-950">
-                    {{ attachmentName(selectedNotification.attachmentUrl) }}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  class="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-[#dfcccc] hover:text-[#8b2a23]"
-                  :aria-label="t('studentPortal.downloadAttachment')"
-                  @click="downloadAttachment(selectedNotification.attachmentUrl)"
-                >
-                  <svg
-                    class="size-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.9"
-                    aria-hidden="true"
-                  >
-                    <path d="M12 3v12" />
-                    <path d="m7 10 5 5 5-5" />
-                    <path d="M5 21h14" />
-                  </svg>
-                </button>
-              </div>
-              <div
-                v-else
-                class="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3"
-              >
-                <span class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-600">
                   <svg
                     class="size-5"
                     viewBox="0 0 24 24"
@@ -764,7 +740,51 @@ watch(totalPages, (nextTotalPages) => {
                 <span class="min-w-0 flex-1 truncate text-xs font-medium text-slate-950">
                   {{ attachmentName(selectedNotification.attachmentUrl) }}
                 </span>
-              </div>
+              </button>
+              <button
+                type="button"
+                class="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-[#dfcccc] hover:text-[#8b2a23]"
+                :aria-label="t('studentPortal.downloadAttachment')"
+                @click="downloadAttachment(selectedNotification.attachmentUrl)"
+              >
+                <svg
+                  class="size-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.9"
+                  aria-hidden="true"
+                >
+                  <path d="M12 3v12" />
+                  <path d="m7 10 5 5 5-5" />
+                  <path d="M5 21h14" />
+                </svg>
+              </button>
+            </div>
+            <div
+              v-else
+              class="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3"
+            >
+              <span
+                class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-600"
+              >
+                <svg
+                  class="size-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  aria-hidden="true"
+                >
+                  <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7Z" />
+                  <path d="M14 2v5h5" />
+                  <path d="M9 13h6M9 17h6M9 9h1" />
+                </svg>
+              </span>
+              <span class="min-w-0 flex-1 truncate text-xs font-medium text-slate-950">
+                {{ attachmentName(selectedNotification.attachmentUrl) }}
+              </span>
+            </div>
           </div>
 
           <p

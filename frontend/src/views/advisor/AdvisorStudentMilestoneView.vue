@@ -31,7 +31,9 @@ const rejectMilestone = ref<StudentMilestone | null>(null)
 const rejectComment = ref('')
 
 const completedCount = computed(
-  () => milestones.value.filter((milestone) => ['Approved', 'Completed'].includes(milestone.status)).length,
+  () =>
+    milestones.value.filter((milestone) => ['Approved', 'Completed'].includes(milestone.status))
+      .length,
 )
 
 const progressPercentage = computed(() => {
@@ -52,7 +54,8 @@ async function loadMilestones({ silent = false } = {}) {
     advisorCanReview.value = result.canReview
   } catch (error) {
     advisorCanReview.value = false
-    errorMessage.value = error instanceof Error ? error.message : 'Unable to load student milestones'
+    errorMessage.value =
+      error instanceof Error ? error.message : 'Unable to load student milestones'
   } finally {
     if (!silent) isLoading.value = false
   }
@@ -60,9 +63,7 @@ async function loadMilestones({ silent = false } = {}) {
 
 function canReview(milestone: StudentMilestone) {
   return (
-    advisorCanReview.value &&
-    milestone.status === 'Completed' &&
-    Boolean(milestone.evidenceUrl)
+    advisorCanReview.value && milestone.status === 'Completed' && Boolean(milestone.evidenceUrl)
   )
 }
 
@@ -120,7 +121,9 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f7f7] px-4 pt-3 pb-6 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8">
+  <div
+    class="min-h-screen bg-[#f7f7f7] px-3 pt-3 pb-6 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8"
+  >
     <div class="w-full">
       <header class="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -128,11 +131,7 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
             {{ t('advisorPortal.milestone') }}
           </h1>
           <p class="text-xs text-slate-500 sm:mt-1 sm:text-sm">
-            {{
-              advisorCanReview
-                ? t('advisorPortal.canReview')
-                : t('advisorPortal.viewOnly')
-            }}
+            {{ advisorCanReview ? t('advisorPortal.canReview') : t('advisorPortal.viewOnly') }}
           </p>
         </div>
 
@@ -206,10 +205,7 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
           :percentage="progressPercentage"
         />
 
-        <div
-          v-if="milestones.length"
-          class="relative mt-5 space-y-4 pb-10"
-        >
+        <div v-if="milestones.length" class="relative mt-5 space-y-4 pb-10">
           <div
             v-if="milestones.length > 1"
             class="absolute bottom-3 left-3 top-3 w-px bg-slate-200 md:left-4"
@@ -243,7 +239,10 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
       </template>
     </div>
 
-    <div v-if="rejectMilestone" class="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
+    <div
+      v-if="rejectMilestone"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4"
+    >
       <form
         class="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl"
         @submit.prevent="submitReject"
@@ -275,7 +274,9 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
           <button
             type="submit"
             class="h-8 rounded bg-[#8a2b25] px-4 text-xs font-semibold text-white shadow-sm hover:bg-[#75201b] disabled:cursor-not-allowed disabled:opacity-60"
-            :disabled="!rejectComment.trim() || reviewingMilestoneId === rejectMilestone.milestoneId"
+            :disabled="
+              !rejectComment.trim() || reviewingMilestoneId === rejectMilestone.milestoneId
+            "
           >
             {{ t('advisorPortal.rejectSubmission') }}
           </button>

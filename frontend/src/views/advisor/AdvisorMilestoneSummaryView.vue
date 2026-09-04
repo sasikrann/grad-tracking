@@ -224,7 +224,7 @@ useAutoRefresh(() => loadSummary({ silent: true }))
 
 <template>
   <div
-    class="min-h-screen bg-[#f7f7f7] px-4 pt-3 pb-5 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8"
+    class="min-h-screen bg-[#f7f7f7] px-3 pt-3 pb-5 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8"
   >
     <header>
       <h1 class="text-xl font-bold tracking-tight sm:text-3xl">
