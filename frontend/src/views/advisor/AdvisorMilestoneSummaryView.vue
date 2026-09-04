@@ -223,7 +223,9 @@ useAutoRefresh(() => loadSummary({ silent: true }))
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f7f7] px-4 pt-3 pb-5 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8">
+  <div
+    class="min-h-screen bg-[#f7f7f7] px-4 pt-3 pb-5 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8"
+  >
     <header>
       <h1 class="text-xl font-bold tracking-tight sm:text-3xl">
         {{ t('advisorPortal.milestoneSummary') }}
@@ -239,12 +241,7 @@ useAutoRefresh(() => loadSummary({ silent: true }))
         :key="card.title"
         class="flex h-[76px] w-full items-center rounded-lg border border-[#e6e6e6] bg-white px-3 shadow-[0_2px_3px_rgba(0,0,0,0.12)] sm:rounded-xl sm:px-5"
       >
-        <div
-          :class="[
-            'flex size-10 shrink-0 items-center justify-center rounded-xl',
-            card.accent,
-          ]"
-        >
+        <div :class="['flex size-10 shrink-0 items-center justify-center rounded-xl', card.accent]">
           <svg
             class="size-6"
             viewBox="0 0 24 24"
@@ -271,9 +268,9 @@ useAutoRefresh(() => loadSummary({ silent: true }))
             </template>
           </svg>
         </div>
-        <div class="ml-3 min-w-0 sm:ml-4">
-          <p class="truncate py-0.5 text-xs leading-normal text-[#7b7b7b] sm:text-sm">{{ card.title }}</p>
-          <p class="mt-0.5 text-lg font-semibold text-black">
+        <div class="ml-3 flex h-10 min-w-0 flex-col justify-center sm:ml-4">
+          <p class="truncate text-xs leading-5 text-[#7b7b7b] sm:text-sm">{{ card.title }}</p>
+          <p class="text-lg font-semibold leading-5 text-black">
             {{ card.value }}
           </p>
         </div>
@@ -337,7 +334,17 @@ useAutoRefresh(() => loadSummary({ silent: true }))
                 @click="selectFilter(filter.key, option.value)"
               >
                 {{ option.label }}
-                <span v-if="selectedFilterValue(filter.key) === option.value">✓</span>
+                <svg
+                  v-if="selectedFilterValue(filter.key) === option.value"
+                  class="size-4 shrink-0 text-[#777]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path d="m5 12 4 4L19 6" />
+                </svg>
               </button>
             </div>
           </div>
@@ -384,7 +391,8 @@ useAutoRefresh(() => loadSummary({ silent: true }))
             <div class="mt-3 grid grid-cols-2 gap-2 pl-9">
               <div class="flex items-center justify-between rounded-lg bg-amber-50 px-2.5 py-2">
                 <span class="flex items-center gap-1.5 text-[10px] font-medium text-amber-700">
-                  <span class="size-2 rounded-full bg-amber-400"></span>{{ t('advisorPortal.inProgress') }}
+                  <span class="size-2 rounded-full bg-amber-400"></span
+                  >{{ t('advisorPortal.inProgress') }}
                 </span>
                 <strong class="text-xs text-amber-800">{{
                   milestone.inProgress + milestone.missing
@@ -392,7 +400,8 @@ useAutoRefresh(() => loadSummary({ silent: true }))
               </div>
               <div class="flex items-center justify-between rounded-lg bg-emerald-50 px-2.5 py-2">
                 <span class="flex items-center gap-1.5 text-[10px] font-medium text-emerald-700">
-                  <span class="size-2 rounded-full bg-emerald-500"></span>{{ t('advisorPortal.completed') }}
+                  <span class="size-2 rounded-full bg-emerald-500"></span
+                  >{{ t('advisorPortal.completed') }}
                 </span>
                 <strong class="text-xs text-emerald-800">{{
                   milestone.completed + milestone.approved
@@ -409,12 +418,14 @@ useAutoRefresh(() => loadSummary({ silent: true }))
                 <th class="w-1/2 py-3 font-semibold">{{ t('advisorPortal.milestone') }}</th>
                 <th class="w-1/4 py-3 text-center font-semibold">
                   <span class="inline-flex items-center gap-1.5"
-                    ><span class="size-3 rounded-full bg-[#ffbd38]"></span>{{ t('advisorPortal.inProgress') }}</span
+                    ><span class="size-3 rounded-full bg-[#ffbd38]"></span
+                    >{{ t('advisorPortal.inProgress') }}</span
                   >
                 </th>
                 <th class="w-1/4 py-3 text-center font-semibold">
                   <span class="inline-flex items-center gap-1.5"
-                    ><span class="size-3 rounded-full bg-[#49b866]"></span>{{ t('advisorPortal.completed') }}</span
+                    ><span class="size-3 rounded-full bg-[#49b866]"></span
+                    >{{ t('advisorPortal.completed') }}</span
                   >
                 </th>
               </tr>
@@ -425,9 +436,7 @@ useAutoRefresh(() => loadSummary({ silent: true }))
                 :key="milestone.milestoneId"
                 class="border-b border-[#dedede]"
               >
-                <td class="py-4 font-semibold">
-                  {{ index + 1 }}. {{ milestone.title }}
-                </td>
+                <td class="py-4 font-semibold">{{ index + 1 }}. {{ milestone.title }}</td>
                 <td class="py-4 text-center">{{ milestone.inProgress + milestone.missing }}</td>
                 <td class="py-4 text-center">{{ milestone.completed + milestone.approved }}</td>
               </tr>
