@@ -243,6 +243,7 @@ async function handleDelete(advisorId: string) {
   try {
     await deleteAdvisor(advisorId)
     await loadAdvisors()
+    showNotification(t('toast.advisorDeleted'))
   } catch (error) {
     showNotification(
       isThai.value && error instanceof Error

@@ -52,6 +52,7 @@ export const en = {
     advisorsExportFailed: 'Unable to export advisors. Please try again.',
     advisorStatusChanged: 'Advisor status changed to {status}.',
     advisorStatusUpdateFailed: 'Unable to update advisor status.',
+    advisorDeleted: 'Advisor deleted successfully.',
     advisorDeleteFailed: 'Unable to delete advisor.',
     milestoneLoadFailed: 'Unable to load milestones.',
     milestoneUpdated: 'Milestone updated successfully.',

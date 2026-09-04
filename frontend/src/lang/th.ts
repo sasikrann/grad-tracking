@@ -52,6 +52,7 @@ export const th = {
     advisorsExportFailed: 'ไม่สามารถส่งออกข้อมูลอาจารย์ที่ปรึกษาได้ กรุณาลองอีกครั้ง',
     advisorStatusChanged: 'เปลี่ยนสถานะอาจารย์ที่ปรึกษาเป็น{status}แล้ว',
     advisorStatusUpdateFailed: 'ไม่สามารถเปลี่ยนสถานะอาจารย์ที่ปรึกษาได้',
+    advisorDeleted: 'ลบอาจารย์ที่ปรึกษาแล้ว',
     advisorDeleteFailed: 'ไม่สามารถลบข้อมูลอาจารย์ที่ปรึกษาได้',
     milestoneLoadFailed: 'ไม่สามารถโหลดข้อมูลขั้นตอนการศึกษาได้',
     milestoneUpdated: 'แก้ไขขั้นตอนการศึกษาสำเร็จ',
