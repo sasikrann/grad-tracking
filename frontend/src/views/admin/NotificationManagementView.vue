@@ -188,7 +188,7 @@ function audienceLabel(value: NotificationTargetAudience) {
 function formatDateTime(value: string | null) {
   if (!value) return '-'
 
-  return new Intl.DateTimeFormat('en-GB', {
+  return new Intl.DateTimeFormat(isThai.value ? 'th-TH' : 'en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -322,7 +322,7 @@ function formatNotificationDeadline(value: string) {
   const date = new Date(`${value}T00:00:00`)
   if (Number.isNaN(date.getTime())) return value
 
-  return new Intl.DateTimeFormat('en-GB', {
+  return new Intl.DateTimeFormat(isThai.value ? 'th-TH' : 'en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -848,7 +848,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
                     <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
                     <circle cx="12" cy="12" r="3" />
                   </svg>
-                  View
+                  {{ t('common.view') }}
                 </button>
               </td>
             </tr>
