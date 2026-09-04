@@ -12,7 +12,7 @@ import type {
   NotificationInput,
   NotificationTargetAudience,
 } from '@/types/notification'
-import { useLanguage } from '@/composables/useLanguage'
+import { formatAcademicYear, useLanguage } from '@/composables/useLanguage'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { getStudents } from '@/services/students.api'
 import type { Student } from '@/types/student'
@@ -115,7 +115,9 @@ const selectedTargetPlanLabel = computed(() =>
   targetPlan.value === 'all' ? t('student.allPlan') : targetPlanLabel(targetPlan.value),
 )
 const selectedTargetAcademicYearLabel = computed(() =>
-  targetAcademicYear.value === 'all' ? t('student.allYear') : targetAcademicYear.value,
+  targetAcademicYear.value === 'all'
+    ? t('student.allYear')
+    : formatAcademicYear(targetAcademicYear.value),
 )
 const mobileTargetProgramLabel = computed(() =>
   isThai.value && targetProgram.value === 'all' ? 'หลักสูตร' : selectedTargetProgramLabel.value,
@@ -1238,7 +1240,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
                               isThai ? 'ทุกปีการศึกษา' : t('student.allYear')
                             }}</span
                             ><span :class="{ 'hidden sm:inline': year === 'all' }">{{
-                              year === 'all' ? t('student.allYear') : year
+                              year === 'all' ? t('student.allYear') : formatAcademicYear(year)
                             }}</span
                             ><svg
                               v-if="targetAcademicYear === year"
