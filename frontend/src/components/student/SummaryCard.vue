@@ -1,9 +1,15 @@
 <script setup lang="ts">
-defineProps<{
-  title: string
-  value: number
-  icon: 'students' | 'on-track' | 'overdue' | 'graduate'
-}>()
+withDefaults(
+  defineProps<{
+    title: string
+    value: number
+    icon: 'students' | 'on-track' | 'overdue' | 'graduate'
+    compactValue?: boolean
+  }>(),
+  {
+    compactValue: false,
+  },
+)
 </script>
 
 <template>
@@ -39,9 +45,19 @@ defineProps<{
       </svg>
     </div>
 
-    <div class="ml-3 min-w-0 sm:ml-4">
-      <p class="truncate py-0.5 text-xs leading-normal text-[#7b7b7b] sm:text-sm">{{ title }}</p>
-      <p class="mt-0.5 text-lg font-semibold">{{ value }}</p>
+    <div
+      class="ml-3 min-w-0 sm:ml-4"
+      :class="{ 'flex h-10 flex-col justify-center': compactValue }"
+    >
+      <p
+        class="truncate text-xs text-[#7b7b7b] sm:text-sm"
+        :class="compactValue ? 'leading-5' : 'py-0.5 leading-normal'"
+      >
+        {{ title }}
+      </p>
+      <p class="text-lg font-semibold" :class="compactValue ? 'leading-5' : 'mt-0.5'">
+        {{ value }}
+      </p>
     </div>
   </article>
 </template>

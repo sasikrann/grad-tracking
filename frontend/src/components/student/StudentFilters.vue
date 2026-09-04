@@ -78,6 +78,7 @@ function statusLabel(status: string) {
 const planOptions = computed<FilterOption[]>(() => {
   const allPlan = { label: t('student.allPlan'), value: 'all' }
   const planOrder = ['A1', 'A2', 'B', '2.1', '2.2']
+  const selectedDegree = props.modelValue.degree
   const plans = (
     props.filterOptions?.plans ??
     props.availableStudents
@@ -86,7 +87,12 @@ const planOptions = computed<FilterOption[]>(() => {
           props.modelValue.degree === 'all' || student.degree === props.modelValue.degree,
       )
       .map((student) => student.educationPlan)
-  ).filter((plan) => plan && plan !== '-')
+  ).filter((plan) => {
+    if (!plan || plan === '-') return false
+    if (selectedDegree === 'Master') return !['2.1', '2.2'].includes(plan)
+    if (['Doctoral', 'Ph. D.'].includes(selectedDegree)) return !['A1', 'A2', 'B'].includes(plan)
+    return true
+  })
   return [
     allPlan,
     ...Array.from(new Set(plans))
@@ -109,7 +115,7 @@ function optionsFromValues(values: Array<string | number>) {
 const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
   {
     key: 'degree',
-    defaultLabel: 'All Program',
+    defaultLabel: t('student.allProgram'),
     options: [
       { label: t('student.allProgram'), value: 'all' },
       ...optionsFromValues(
@@ -130,12 +136,12 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
   },
   {
     key: 'plan',
-    defaultLabel: 'All Plan',
+    defaultLabel: t('student.allPlan'),
     options: planOptions.value,
   },
   {
     key: 'semester',
-    defaultLabel: 'All Semester',
+    defaultLabel: t('student.allSemester'),
     options: [
       { label: t('student.allSemester'), value: 'all' },
       ...optionsFromValues(
@@ -146,7 +152,7 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
   },
   {
     key: 'year',
-    defaultLabel: 'All Year',
+    defaultLabel: t('student.allYear'),
     options: [
       { label: t('student.allYear'), value: 'all' },
       ...Array.from(
@@ -162,7 +168,7 @@ const baseFilterDefinitions = computed<FilterDefinition[]>(() => [
   },
   {
     key: 'status',
-    defaultLabel: 'All Status',
+    defaultLabel: t('student.allStatus'),
     options: [
       { label: t('student.allStatus'), value: 'all' },
       ...optionsFromValues(
@@ -179,7 +185,7 @@ const filterDefinitions = computed<FilterDefinition[]>(() => {
     ...baseFilterDefinitions.value,
     {
       key: 'advisor',
-      defaultLabel: 'Advisor (Default)',
+      defaultLabel: t('student.advisorDefault'),
       options: [
         { label: t('student.advisorDefault'), value: 'default' },
         { label: t('student.coAdvisor'), value: 'co-advisor' },
@@ -200,10 +206,24 @@ const filterGridClass = computed(() =>
 )
 
 function selectedFilterLabel(filter: FilterDefinition) {
-  return (
-    filter.options.find((option) => option.value === props.modelValue[filter.key])?.label ??
-    filter.defaultLabel
-  )
+  const selectedValue = props.modelValue[filter.key]
+  const optionLabel = filter.options.find((option) => option.value === selectedValue)?.label
+  if (optionLabel) return optionLabel
+  if (selectedValue === 'all') return filter.defaultLabel
+
+  if (filter.key === 'degree') {
+    if (selectedValue === 'Master') return t('common.master')
+    if (['Doctoral', 'Ph. D.'].includes(selectedValue)) return t('common.doctoral')
+  }
+  if (filter.key === 'plan') return planLabel(selectedValue)
+  if (filter.key === 'status') return statusLabel(selectedValue)
+  if (filter.key === 'year') return yearLabel(selectedValue)
+  if (filter.key === 'advisor') {
+    if (selectedValue === 'default') return t('student.advisorDefault')
+    if (selectedValue === 'co-advisor') return t('student.coAdvisor')
+  }
+
+  return selectedValue
 }
 
 function selectFilter(key: StudentFilterKey, value: string) {

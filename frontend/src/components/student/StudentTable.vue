@@ -58,11 +58,12 @@ function planLabel(plan: string) {
 </script>
 
 <template>
-  <div class="mt-3 space-y-2 md:hidden">
+  <div class="relative mt-3 min-h-40 space-y-2 md:hidden" :aria-busy="isLoading">
     <article
       v-for="student in students"
       :key="student.studentId"
-      class="rounded-lg border border-[#eeeeee] bg-white p-3 shadow-sm"
+      class="rounded-lg border border-[#eeeeee] bg-white p-3 shadow-sm transition-opacity duration-150"
+      :class="{ 'pointer-events-none opacity-60': isLoading }"
     >
       <div class="flex items-start justify-between gap-2">
         <div class="flex min-w-0 items-center gap-2">
@@ -161,15 +162,36 @@ function planLabel(plan: string) {
         </div>
       </div>
     </article>
-    <p v-if="isLoading" class="py-10 text-center text-xs text-[#777]">{{ t('common.loading') }}</p>
-    <p v-else-if="error" class="py-10 text-center text-xs text-[#b42318]">{{ error }}</p>
-    <p v-else-if="students.length === 0" class="py-10 text-center text-xs text-[#777]">
+    <p v-if="!isLoading && error" class="py-10 text-center text-xs text-[#b42318]">{{ error }}</p>
+    <p
+      v-else-if="!isLoading && students.length === 0"
+      class="py-10 text-center text-xs text-[#777]"
+    >
       {{ t('student.noStudents') }}
     </p>
+    <div
+      v-if="isLoading"
+      class="absolute inset-0 z-10 flex min-h-40 items-center justify-center rounded-lg bg-white/55 backdrop-blur-[1px]"
+      role="status"
+      aria-live="polite"
+    >
+      <div
+        class="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-[#777] shadow-sm"
+      >
+        <span
+          class="size-4 animate-spin rounded-full border-2 border-[#e7c8c5] border-t-[#8b2a23]"
+          aria-hidden="true"
+        ></span>
+        {{ t('common.loading') }}
+      </div>
+    </div>
   </div>
 
-  <div class="mt-6 hidden overflow-x-auto md:block">
-    <table class="w-full min-w-225 table-fixed border-collapse text-left">
+  <div class="relative mt-6 hidden min-h-36 overflow-x-auto md:block" :aria-busy="isLoading">
+    <table
+      class="w-full min-w-225 table-fixed border-collapse text-left transition-opacity duration-150"
+      :class="{ 'pointer-events-none opacity-60': isLoading }"
+    >
       <thead>
         <tr class="border-b border-[#dddddd] text-xs">
           <th class="w-[25%] pt-1 pb-3 leading-5 font-semibold">{{ t('student.student') }}</th>
@@ -318,20 +340,33 @@ function planLabel(plan: string) {
             </button>
           </td>
         </tr>
-        <tr v-if="isLoading">
-          <td colspan="8" class="py-14 text-center text-[#777]">{{ t('common.loading') }}</td>
-        </tr>
-        <tr v-else-if="error">
+        <tr v-if="!isLoading && error">
           <td colspan="8" class="py-14 text-center text-[#b42318]">
             {{ error }} Please make sure the backend is running.
           </td>
         </tr>
-        <tr v-else-if="students.length === 0">
+        <tr v-else-if="!isLoading && students.length === 0">
           <td colspan="8" class="py-14 text-center text-[#777]">
             {{ t('student.noStudents') }}
           </td>
         </tr>
       </tbody>
     </table>
+    <div
+      v-if="isLoading"
+      class="absolute inset-0 z-10 flex min-h-36 items-center justify-center rounded-lg bg-white/55 backdrop-blur-[1px]"
+      role="status"
+      aria-live="polite"
+    >
+      <div
+        class="flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-[#777] shadow-sm"
+      >
+        <span
+          class="size-5 animate-spin rounded-full border-2 border-[#e7c8c5] border-t-[#8b2a23]"
+          aria-hidden="true"
+        ></span>
+        {{ t('common.loading') }}
+      </div>
+    </div>
   </div>
 </template>

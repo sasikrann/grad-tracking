@@ -57,7 +57,7 @@ const duplicateAdvisorMessage =
   'Some advisor emails already exist. Please choose which advisor record to keep before importing.'
 
 function advisorStatusLabel(status: Advisor['status']) {
-  return status === 'active' ? 'Active' : 'Inactive'
+  return status === 'active' ? t('advisor.active') : t('advisor.inactive')
 }
 
 function showNotification(text: string, type: 'success' | 'error' = 'success') {
@@ -132,8 +132,8 @@ function showImportResult(result: AdvisorImportResult) {
     : ''
   showNotification(
     result.failedRecords
-      ? `Imported ${result.successRecords}/${result.totalRecords} advisors.${errorText}`
-      : `Imported ${result.successRecords} advisors successfully.`,
+      ? `${t('toast.advisorsImportPartial', { success: result.successRecords, total: result.totalRecords })}${isThai.value ? '' : errorText}`
+      : t('toast.advisorsImported', { count: result.successRecords }),
     result.failedRecords ? 'error' : 'success',
   )
 }
@@ -150,7 +150,8 @@ function advisorImportErrorMessage(error: unknown) {
       'Please choose one advisor record for each duplicated email.',
   }
 
-  return (readableMessages[message] ?? message) || 'Unable to import advisors. Please try again.'
+  if (isThai.value) return t('toast.advisorsImportFailed')
+  return (readableMessages[message] ?? message) || t('toast.advisorsImportFailed')
 }
 
 async function finishImport(result: AdvisorImportResult) {
@@ -203,11 +204,15 @@ async function handleExport() {
   isExporting.value = true
   try {
     await exportAdvisors()
-    showNotification('Exported advisors successfully.')
+    showNotification(t('toast.advisorsExported'))
     isExportModalOpen.value = false
   } catch (error) {
     showNotification(
-      error instanceof Error ? error.message : 'Unable to export advisors. Please try again.',
+      isThai.value && error instanceof Error
+        ? t('toast.advisorsExportFailed')
+        : error instanceof Error
+          ? error.message
+          : t('toast.advisorsExportFailed'),
       'error',
     )
   } finally {
@@ -221,10 +226,14 @@ async function handleStatusChange(advisorId: string, status: Advisor['status']) 
     advisors.value = advisors.value.map((advisor) =>
       advisor.advisorId === advisorId ? updated : advisor,
     )
-    showNotification(`Advisor status changed to ${advisorStatusLabel(status)}.`)
+    showNotification(t('toast.advisorStatusChanged', { status: advisorStatusLabel(status) }))
   } catch (error) {
     showNotification(
-      error instanceof Error ? error.message : 'Unable to update advisor status.',
+      isThai.value && error instanceof Error
+        ? t('toast.advisorStatusUpdateFailed')
+        : error instanceof Error
+          ? error.message
+          : t('toast.advisorStatusUpdateFailed'),
       'error',
     )
   }
@@ -235,7 +244,14 @@ async function handleDelete(advisorId: string) {
     await deleteAdvisor(advisorId)
     await loadAdvisors()
   } catch (error) {
-    showNotification(error instanceof Error ? error.message : 'Unable to delete advisor.', 'error')
+    showNotification(
+      isThai.value && error instanceof Error
+        ? t('toast.advisorDeleteFailed')
+        : error instanceof Error
+          ? error.message
+          : t('toast.advisorDeleteFailed'),
+      'error',
+    )
   }
 }
 

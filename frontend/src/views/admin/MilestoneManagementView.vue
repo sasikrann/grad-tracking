@@ -201,7 +201,12 @@ async function loadMilestones({ silent = false } = {}) {
   } catch (error) {
     milestones.value = []
     students.value = []
-    showNotification(formatMilestoneError(error, 'Unable to load milestones.'), 'error')
+    showNotification(
+      isThai.value
+        ? t('toast.milestoneLoadFailed')
+        : formatMilestoneError(error, t('toast.milestoneLoadFailed')),
+      'error',
+    )
   } finally {
     if (!silent) isLoading.value = false
   }
@@ -250,10 +255,10 @@ async function saveMilestone(input: MilestoneInput) {
 
     if (editingMilestone.value) {
       await updateMilestone(editingMilestone.value.milestoneId, normalizedInput, selectedPlan.value)
-      showNotification('Milestone updated successfully')
+      showNotification(t('toast.milestoneUpdated'))
     } else {
       await createMilestone(normalizedInput)
-      showNotification('Milestone added successfully')
+      showNotification(t('toast.milestoneAdded'))
     }
     await loadMilestones()
     selectedDegreeLevel.value = input.degreeLevel
@@ -263,7 +268,12 @@ async function saveMilestone(input: MilestoneInput) {
     selectedYear.value = normalizedInput.academicYear
     isFormOpen.value = false
   } catch (error) {
-    showNotification(formatMilestoneError(error, 'Unable to save milestone'), 'error')
+    showNotification(
+      isThai.value
+        ? t('toast.milestoneSaveFailed')
+        : formatMilestoneError(error, t('toast.milestoneSaveFailed')),
+      'error',
+    )
   }
 }
 
@@ -274,10 +284,15 @@ async function removeMilestone() {
   try {
     await deleteMilestone(deletingMilestone.value.milestoneId)
     await loadMilestones()
-    showNotification('Milestone deleted successfully')
+    showNotification(t('toast.milestoneDeleted'))
     closeDeleteModal(true)
   } catch (error) {
-    showNotification(formatMilestoneError(error, 'Unable to delete milestone'), 'error')
+    showNotification(
+      isThai.value
+        ? t('toast.milestoneDeleteFailed')
+        : formatMilestoneError(error, t('toast.milestoneDeleteFailed')),
+      'error',
+    )
   } finally {
     isDeleting.value = false
   }
@@ -289,11 +304,14 @@ async function setMilestoneStatus(milestone: Milestone, isEnabled: boolean) {
     if (milestone.isEnabled === isEnabled) return
     await setMilestoneEnabled(milestone.milestoneId, isEnabled)
     await loadMilestones()
-    showNotification(
-      isEnabled ? 'Milestone enabled successfully' : 'Milestone disabled successfully',
-    )
+    showNotification(isEnabled ? t('toast.milestoneEnabled') : t('toast.milestoneDisabled'))
   } catch (error) {
-    showNotification(formatMilestoneError(error, 'Unable to update milestone'), 'error')
+    showNotification(
+      isThai.value
+        ? t('toast.milestoneUpdateFailed')
+        : formatMilestoneError(error, t('toast.milestoneUpdateFailed')),
+      'error',
+    )
   }
 }
 
@@ -302,9 +320,14 @@ async function moveMilestoneOrder(milestoneId: string, direction: 'up' | 'down')
   try {
     await moveMilestone(milestoneId, direction)
     await loadMilestones()
-    showNotification('Milestone order updated successfully')
+    showNotification(t('toast.milestoneOrderUpdated'))
   } catch (error) {
-    showNotification(formatMilestoneError(error, 'Unable to reorder milestone'), 'error')
+    showNotification(
+      isThai.value
+        ? t('toast.milestoneReorderFailed')
+        : formatMilestoneError(error, t('toast.milestoneReorderFailed')),
+      'error',
+    )
   }
 }
 
@@ -325,9 +348,14 @@ async function moveMilestoneTo(milestoneId: string, targetMilestoneId: string) {
       await moveMilestone(milestoneId, direction)
     }
     await loadMilestones()
-    showNotification('Milestone order updated successfully')
+    showNotification(t('toast.milestoneOrderUpdated'))
   } catch (error) {
-    showNotification(formatMilestoneError(error, 'Unable to reorder milestone'), 'error')
+    showNotification(
+      isThai.value
+        ? t('toast.milestoneReorderFailed')
+        : formatMilestoneError(error, t('toast.milestoneReorderFailed')),
+      'error',
+    )
   }
 }
 

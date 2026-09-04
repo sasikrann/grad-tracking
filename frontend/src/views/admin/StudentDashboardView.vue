@@ -59,7 +59,12 @@ async function loadStudents({ silent = false } = {}) {
     students.value = result.students
     pagination.value = result.pagination
     dashboardStatistics.value = result.statistics
-    filterOptions.value = result.filterOptions
+    const hasFilterOptions = Object.values(result.filterOptions).some(
+      (options) => options.length > 0,
+    )
+    if (hasFilterOptions || filterOptions.value.degrees.length === 0) {
+      filterOptions.value = result.filterOptions
+    }
     if (page.value > 1 && result.students.length === 0) {
       page.value = 1
       await loadStudents({ silent })
@@ -169,7 +174,8 @@ function formatStudentImportError(error: unknown) {
     'A valid email is required': 'Please enter a valid email address.',
   }
 
-  return (readableMessages[text] ?? text) || 'Unable to import students'
+  if (isThai.value) return t('toast.studentsImportFailed')
+  return (readableMessages[text] ?? text) || t('toast.studentsImportFailed')
 }
 
 function resetImportState() {
@@ -293,9 +299,16 @@ async function handleExport() {
       exportStudentsList.map((student) => student.studentId),
       isThai.value ? 'th' : 'en',
     )
-    showNotification('Exported students successfully')
+    showNotification(t('toast.studentsExported'))
   } catch (error) {
-    showNotification(error instanceof Error ? error.message : 'Unable to export students', 'error')
+    showNotification(
+      isThai.value && error instanceof Error
+        ? t('toast.studentsExportFailed')
+        : error instanceof Error
+          ? error.message
+          : t('toast.studentsExportFailed'),
+      'error',
+    )
   } finally {
     isExporting.value = false
   }
@@ -345,21 +358,25 @@ useAutoRefresh(() => loadStudents({ silent: true }), {
         :title="t('dashboard.totalStudents')"
         :value="dashboardStatistics.total"
         icon="students"
+        compact-value
       />
       <SummaryCard
         :title="t('dashboard.onTrack')"
         :value="dashboardStatistics.onTrack"
         icon="on-track"
+        compact-value
       />
       <SummaryCard
         :title="t('dashboard.overdue')"
         :value="dashboardStatistics.overdue"
         icon="overdue"
+        compact-value
       />
       <SummaryCard
         :title="t('dashboard.graduate')"
         :value="dashboardStatistics.graduate"
         icon="graduate"
+        compact-value
       />
     </section>
 

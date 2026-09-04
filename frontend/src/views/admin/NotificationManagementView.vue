@@ -7,7 +7,11 @@ import {
   resolveNotificationAttachmentUrl,
   uploadNotificationAttachment,
 } from '@/services/notifications.api'
-import type { Notification, NotificationInput, NotificationTargetAudience } from '@/types/notification'
+import type {
+  Notification,
+  NotificationInput,
+  NotificationTargetAudience,
+} from '@/types/notification'
 import { useLanguage } from '@/composables/useLanguage'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { getStudents } from '@/services/students.api'
@@ -141,7 +145,9 @@ const filterOptions = computed<{ label: string; value: AudienceFilter }[]>(() =>
 ])
 
 const selectedFilterLabel = computed(
-  () => filterOptions.value.find((option) => option.value === selectedFilter.value)?.label ?? t('notification.allProgram'),
+  () =>
+    filterOptions.value.find((option) => option.value === selectedFilter.value)?.label ??
+    t('notification.allProgram'),
 )
 
 const messageLength = computed(() => plainNotificationMessage(message.value).length)
@@ -202,10 +208,10 @@ function attachmentName(value: string | null) {
 function canOpenAttachment(value: string | null) {
   return Boolean(
     value &&
-      (value.startsWith('/uploads/') ||
-        value.startsWith('http://') ||
-        value.startsWith('https://') ||
-        value.startsWith('data:image/')),
+    (value.startsWith('/uploads/') ||
+      value.startsWith('http://') ||
+      value.startsWith('https://') ||
+      value.startsWith('data:image/')),
   )
 }
 
@@ -244,7 +250,8 @@ async function openAttachmentPreview(value: string) {
 
     const blob = await response.blob()
     const fileName = attachmentPreviewName.value.toLowerCase()
-    const isImage = blob.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(fileName)
+    const isImage =
+      blob.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(fileName)
     const isPdf = blob.type === 'application/pdf' || fileName.endsWith('.pdf')
 
     if (!isImage && !isPdf) {
@@ -288,9 +295,7 @@ function escapeHtml(value: string) {
 }
 
 function formattedNotificationMessage(value: string) {
-  return escapeHtml(
-    value.replace(/&(?:nbsp|#160|#x0*a0);/gi, ' ').replace(/\u00a0/g, ' '),
-  )
+  return escapeHtml(value.replace(/&(?:nbsp|#160|#x0*a0);/gi, ' ').replace(/\u00a0/g, ' '))
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/&lt;(strong|b)&gt;(.*?)&lt;\/\1&gt;/g, '<strong>$2</strong>')
@@ -306,7 +311,10 @@ function formattedNotificationMessage(value: string) {
 }
 
 function notificationDeadline(value: string) {
-  return plainNotificationMessage(value).match(/\bDeadline:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\.?/i)?.[1] ?? ''
+  return (
+    plainNotificationMessage(value).match(/\bDeadline:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\.?/i)?.[1] ??
+    ''
+  )
 }
 
 function formatNotificationDeadline(value: string) {
@@ -368,7 +376,14 @@ function syncMessageFromEditor() {
 }
 
 function applyMessageFormat(
-  format: 'bold' | 'italic' | 'underline' | 'strikeThrough' | 'insertUnorderedList' | 'insertOrderedList' | 'removeFormat',
+  format:
+    | 'bold'
+    | 'italic'
+    | 'underline'
+    | 'strikeThrough'
+    | 'insertUnorderedList'
+    | 'insertOrderedList'
+    | 'removeFormat',
 ) {
   const editor = messageEditor.value
   if (!editor) return
@@ -438,7 +453,14 @@ async function loadNotifications({ silent = false } = {}) {
     currentPage.value = Math.min(currentPage.value, totalPages.value)
   } catch (error) {
     notifications.value = []
-    showToast(error instanceof Error ? error.message : 'Unable to load notifications', 'error')
+    showToast(
+      isThai.value && error instanceof Error
+        ? t('toast.notificationsLoadFailed')
+        : error instanceof Error
+          ? error.message
+          : t('toast.notificationsLoadFailed'),
+      'error',
+    )
   } finally {
     if (!silent) isLoading.value = false
   }
@@ -538,7 +560,7 @@ async function submitNotification() {
     await createNotification(input)
     isPanelOpen.value = false
     resetForm()
-    showToast('Notification sent successfully')
+    showToast(t('toast.notificationSent'))
     await loadNotifications()
   } catch (error) {
     formError.value = error instanceof Error ? error.message : 'Unable to send notification'
@@ -561,8 +583,12 @@ function closeDetail() {
 onMounted(() => {
   void loadNotifications()
   void getStudents()
-    .then((students) => { audienceStudents.value = students })
-    .catch(() => { audienceStudents.value = [] })
+    .then((students) => {
+      audienceStudents.value = students
+    })
+    .catch(() => {
+      audienceStudents.value = []
+    })
   document.addEventListener('click', closeDropdown)
 })
 
@@ -596,7 +622,9 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f7f7] px-4 pt-3 pb-6 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8">
+  <div
+    class="min-h-screen bg-[#f7f7f7] px-4 pt-3 pb-6 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8"
+  >
     <header class="flex items-start justify-between gap-3 sm:gap-4">
       <div class="min-w-0">
         <h1 class="text-xl font-bold tracking-tight text-black sm:text-3xl">
@@ -794,7 +822,9 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
                 </p>
               </td>
               <td class="px-1 py-4 text-center">
-                <span class="inline-flex min-w-24 justify-center rounded-md bg-slate-100 px-3 py-1 text-xs text-slate-700">
+                <span
+                  class="inline-flex min-w-24 justify-center rounded-md bg-slate-100 px-3 py-1 text-xs text-slate-700"
+                >
                   {{ audienceLabel(notification.targetAudience) }}
                 </span>
               </td>
@@ -887,7 +917,9 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
         <form class="mt-5" @submit.prevent="submitNotification">
           <fieldset :disabled="isSubmitting" class="space-y-5">
             <section>
-              <h3 class="text-base font-semibold text-slate-950 sm:text-lg">{{ t('notification.basicInformation') }}</h3>
+              <h3 class="text-base font-semibold text-slate-950 sm:text-lg">
+                {{ t('notification.basicInformation') }}
+              </h3>
 
               <label class="mt-2 block text-sm font-medium text-slate-900" for="notification-title">
                 {{ t('common.title') }} <span class="text-[#8b2a23]">*</span>
@@ -900,11 +932,16 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
                 :placeholder="t('notification.enterTitle')"
               />
 
-              <label class="mt-4 block text-sm font-medium text-slate-900" for="notification-message">
+              <label
+                class="mt-4 block text-sm font-medium text-slate-900"
+                for="notification-message"
+              >
                 {{ t('common.description') }} <span class="text-[#8b2a23]">*</span>
               </label>
               <div class="mt-1 overflow-hidden rounded-md border border-slate-200">
-                <div class="flex h-8 items-center gap-1.5 border-b border-slate-100 px-3 text-xs font-semibold text-slate-600">
+                <div
+                  class="flex h-8 items-center gap-1.5 border-b border-slate-100 px-3 text-xs font-semibold text-slate-600"
+                >
                   <button
                     type="button"
                     class="flex size-6 items-center justify-center rounded hover:bg-slate-100 hover:text-[#8b2a23]"
@@ -971,7 +1008,9 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
                       aria-hidden="true"
                     >
                       <path d="M10 6h11M10 12h11M10 18h11" />
-                      <path d="M4 6h1v4M3.5 10h2M3.5 14h2c0-1 .5-2 2-2H4M4 18h1.5a1 1 0 0 1 0 2H4" />
+                      <path
+                        d="M4 6h1v4M3.5 10h2M3.5 14h2c0-1 .5-2 2-2H4M4 18h1.5a1 1 0 0 1 0 2H4"
+                      />
                     </svg>
                   </button>
                   <span class="mx-1 h-4 w-px bg-slate-200" aria-hidden="true"></span>
@@ -1000,13 +1039,14 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
             </section>
 
             <section class="border-t border-slate-200 pt-5">
-              <h3 class="text-base font-semibold text-slate-950 sm:text-lg">{{ t('notification.targetAudience') }}</h3>
+              <h3 class="text-base font-semibold text-slate-950 sm:text-lg">
+                {{ t('notification.targetAudience') }}
+              </h3>
               <div class="mt-3 space-y-3">
-                <div
-                  v-for="option in audienceOptions"
-                  :key="option.value"
-                >
-                  <label class="flex w-fit cursor-pointer items-center gap-3 text-sm text-slate-900">
+                <div v-for="option in audienceOptions" :key="option.value">
+                  <label
+                    class="flex w-fit cursor-pointer items-center gap-3 text-sm text-slate-900"
+                  >
                     <input
                       v-model="targetAudience"
                       type="radio"
@@ -1021,40 +1061,197 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
                     class="ml-7 mt-2.5 grid grid-cols-3 gap-1.5 sm:gap-2.5"
                   >
                     <div class="relative min-w-0 text-xs font-medium text-slate-600" @click.stop>
-                      <button type="button" class="flex h-9 w-full items-center justify-between gap-1 rounded-lg border border-slate-100 bg-white px-2 text-left text-xs font-normal text-slate-800 shadow-sm outline-none transition hover:border-[#dfcccc] focus:border-[#8b2a23] sm:gap-2 sm:px-3" :class="{ 'border-[#8b2a23]': openTargetDropdown === 'program' }" :aria-expanded="openTargetDropdown === 'program'" @click="toggleTargetDropdown('program')">
-                        <span class="min-w-0 truncate sm:hidden">{{ mobileTargetProgramLabel }}</span>
-                        <span class="hidden min-w-0 truncate sm:inline">{{ selectedTargetProgramLabel }}</span>
-                        <svg class="size-4 shrink-0 text-slate-500 transition-transform duration-200" :class="{ 'rotate-180': openTargetDropdown === 'program' }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
+                      <button
+                        type="button"
+                        class="flex h-9 w-full items-center justify-between gap-1 rounded-lg border border-slate-100 bg-white px-2 text-left text-xs font-normal text-slate-800 shadow-sm outline-none transition hover:border-[#dfcccc] focus:border-[#8b2a23] sm:gap-2 sm:px-3"
+                        :class="{ 'border-[#8b2a23]': openTargetDropdown === 'program' }"
+                        :aria-expanded="openTargetDropdown === 'program'"
+                        @click="toggleTargetDropdown('program')"
+                      >
+                        <span class="min-w-0 truncate sm:hidden">{{
+                          mobileTargetProgramLabel
+                        }}</span>
+                        <span class="hidden min-w-0 truncate sm:inline">{{
+                          selectedTargetProgramLabel
+                        }}</span>
+                        <svg
+                          class="size-4 shrink-0 text-slate-500 transition-transform duration-200"
+                          :class="{ 'rotate-180': openTargetDropdown === 'program' }"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          aria-hidden="true"
+                        >
+                          <path d="m7 10 5 5 5-5" />
+                        </svg>
                       </button>
-                      <Transition enter-active-class="transition duration-150 ease-out" enter-from-class="-translate-y-1 opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transition duration-100 ease-in" leave-from-class="translate-y-0 opacity-100" leave-to-class="-translate-y-1 opacity-0">
-                        <div v-if="openTargetDropdown === 'program'" class="absolute left-1/2 top-[calc(100%+6px)] z-40 max-h-40 w-40 -translate-x-1/2 overflow-y-auto overscroll-contain rounded-lg border border-slate-100 bg-white p-1.5 shadow-[0_8px_20px_rgba(0,0,0,0.14)] sm:left-0 sm:right-0 sm:max-h-44 sm:w-auto sm:translate-x-0 sm:shadow-[0_5px_12px_rgba(0,0,0,0.12)]">
-                          <button v-for="program in ['all', ...targetProgramOptions]" :key="program" type="button" class="flex w-full items-center justify-between gap-1 rounded-md px-3 py-2.5 text-left text-xs font-normal text-slate-800 hover:bg-[#f8eeee] sm:px-2.5 sm:py-2" :class="{ 'bg-[#f8eeee]': targetProgram === program }" @click="selectTargetDropdown('program', program)"><span class="min-w-0 flex-1 whitespace-nowrap">{{ program === 'all' ? t('student.allProgram') : program }}</span><svg v-if="targetProgram === program" class="size-4 shrink-0 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg></button>
+                      <Transition
+                        enter-active-class="transition duration-150 ease-out"
+                        enter-from-class="-translate-y-1 opacity-0"
+                        enter-to-class="translate-y-0 opacity-100"
+                        leave-active-class="transition duration-100 ease-in"
+                        leave-from-class="translate-y-0 opacity-100"
+                        leave-to-class="-translate-y-1 opacity-0"
+                      >
+                        <div
+                          v-if="openTargetDropdown === 'program'"
+                          class="absolute left-1/2 top-[calc(100%+6px)] z-40 max-h-40 w-40 -translate-x-1/2 overflow-y-auto overscroll-contain rounded-lg border border-slate-100 bg-white p-1.5 shadow-[0_8px_20px_rgba(0,0,0,0.14)] sm:left-0 sm:right-0 sm:max-h-44 sm:w-auto sm:translate-x-0 sm:shadow-[0_5px_12px_rgba(0,0,0,0.12)]"
+                        >
+                          <button
+                            v-for="program in ['all', ...targetProgramOptions]"
+                            :key="program"
+                            type="button"
+                            class="flex w-full items-center justify-between gap-1 rounded-md px-3 py-2.5 text-left text-xs font-normal text-slate-800 hover:bg-[#f8eeee] sm:px-2.5 sm:py-2"
+                            :class="{ 'bg-[#f8eeee]': targetProgram === program }"
+                            @click="selectTargetDropdown('program', program)"
+                          >
+                            <span class="min-w-0 flex-1 whitespace-nowrap">{{
+                              program === 'all' ? t('student.allProgram') : program
+                            }}</span
+                            ><svg
+                              v-if="targetProgram === program"
+                              class="size-4 shrink-0 text-slate-500"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              aria-hidden="true"
+                            >
+                              <path d="m5 12 4 4L19 6" />
+                            </svg>
+                          </button>
                         </div>
                       </Transition>
                     </div>
 
                     <div class="relative min-w-0 text-xs font-medium text-slate-600" @click.stop>
-                      <button type="button" class="flex h-9 w-full items-center justify-between gap-1 rounded-lg border border-slate-100 bg-white px-2 text-left text-xs font-normal text-slate-800 shadow-sm outline-none transition hover:border-[#dfcccc] focus:border-[#8b2a23] sm:gap-2 sm:px-3" :class="{ 'border-[#8b2a23]': openTargetDropdown === 'plan' }" :aria-expanded="openTargetDropdown === 'plan'" @click="toggleTargetDropdown('plan')">
+                      <button
+                        type="button"
+                        class="flex h-9 w-full items-center justify-between gap-1 rounded-lg border border-slate-100 bg-white px-2 text-left text-xs font-normal text-slate-800 shadow-sm outline-none transition hover:border-[#dfcccc] focus:border-[#8b2a23] sm:gap-2 sm:px-3"
+                        :class="{ 'border-[#8b2a23]': openTargetDropdown === 'plan' }"
+                        :aria-expanded="openTargetDropdown === 'plan'"
+                        @click="toggleTargetDropdown('plan')"
+                      >
                         <span class="min-w-0 truncate sm:hidden">{{ mobileTargetPlanLabel }}</span>
-                        <span class="hidden min-w-0 truncate sm:inline">{{ selectedTargetPlanLabel }}</span>
-                        <svg class="size-4 shrink-0 text-slate-500 transition-transform duration-200" :class="{ 'rotate-180': openTargetDropdown === 'plan' }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
+                        <span class="hidden min-w-0 truncate sm:inline">{{
+                          selectedTargetPlanLabel
+                        }}</span>
+                        <svg
+                          class="size-4 shrink-0 text-slate-500 transition-transform duration-200"
+                          :class="{ 'rotate-180': openTargetDropdown === 'plan' }"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          aria-hidden="true"
+                        >
+                          <path d="m7 10 5 5 5-5" />
+                        </svg>
                       </button>
-                      <Transition enter-active-class="transition duration-150 ease-out" enter-from-class="-translate-y-1 opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transition duration-100 ease-in" leave-from-class="translate-y-0 opacity-100" leave-to-class="-translate-y-1 opacity-0">
-                        <div v-if="openTargetDropdown === 'plan'" class="absolute left-1/2 top-[calc(100%+6px)] z-40 w-40 -translate-x-1/2 overflow-hidden rounded-lg border border-slate-100 bg-white p-1.5 shadow-[0_8px_18px_rgba(0,0,0,0.14)] sm:left-0 sm:right-0 sm:w-auto sm:translate-x-0 sm:shadow-[0_5px_12px_rgba(0,0,0,0.12)]">
-                          <button v-for="plan in ['all', ...targetPlanOptions]" :key="plan" type="button" class="flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-xs font-normal text-slate-800 hover:bg-[#f8eeee] sm:px-2.5 sm:py-2" :class="{ 'bg-[#f8eeee]': targetPlan === plan }" @click="selectTargetDropdown('plan', plan)"><span>{{ plan === 'all' ? t('student.allPlan') : targetPlanLabel(plan) }}</span><svg v-if="targetPlan === plan" class="size-4 shrink-0 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg></button>
+                      <Transition
+                        enter-active-class="transition duration-150 ease-out"
+                        enter-from-class="-translate-y-1 opacity-0"
+                        enter-to-class="translate-y-0 opacity-100"
+                        leave-active-class="transition duration-100 ease-in"
+                        leave-from-class="translate-y-0 opacity-100"
+                        leave-to-class="-translate-y-1 opacity-0"
+                      >
+                        <div
+                          v-if="openTargetDropdown === 'plan'"
+                          class="absolute left-1/2 top-[calc(100%+6px)] z-40 w-40 -translate-x-1/2 overflow-hidden rounded-lg border border-slate-100 bg-white p-1.5 shadow-[0_8px_18px_rgba(0,0,0,0.14)] sm:left-0 sm:right-0 sm:w-auto sm:translate-x-0 sm:shadow-[0_5px_12px_rgba(0,0,0,0.12)]"
+                        >
+                          <button
+                            v-for="plan in ['all', ...targetPlanOptions]"
+                            :key="plan"
+                            type="button"
+                            class="flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-xs font-normal text-slate-800 hover:bg-[#f8eeee] sm:px-2.5 sm:py-2"
+                            :class="{ 'bg-[#f8eeee]': targetPlan === plan }"
+                            @click="selectTargetDropdown('plan', plan)"
+                          >
+                            <span>{{
+                              plan === 'all' ? t('student.allPlan') : targetPlanLabel(plan)
+                            }}</span
+                            ><svg
+                              v-if="targetPlan === plan"
+                              class="size-4 shrink-0 text-slate-500"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              aria-hidden="true"
+                            >
+                              <path d="m5 12 4 4L19 6" />
+                            </svg>
+                          </button>
                         </div>
                       </Transition>
                     </div>
 
                     <div class="relative min-w-0 text-xs font-medium text-slate-600" @click.stop>
-                      <button type="button" class="flex h-9 w-full items-center justify-between gap-1 rounded-lg border border-slate-100 bg-white px-2 text-left text-xs font-normal text-slate-800 shadow-sm outline-none transition hover:border-[#dfcccc] focus:border-[#8b2a23] sm:gap-2 sm:px-3" :class="{ 'border-[#8b2a23]': openTargetDropdown === 'year' }" :aria-expanded="openTargetDropdown === 'year'" @click="toggleTargetDropdown('year')">
-                        <span class="min-w-0 truncate sm:hidden">{{ mobileTargetAcademicYearLabel }}</span>
-                        <span class="hidden min-w-0 truncate sm:inline">{{ selectedTargetAcademicYearLabel }}</span>
-                        <svg class="size-4 shrink-0 text-slate-500 transition-transform duration-200" :class="{ 'rotate-180': openTargetDropdown === 'year' }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
+                      <button
+                        type="button"
+                        class="flex h-9 w-full items-center justify-between gap-1 rounded-lg border border-slate-100 bg-white px-2 text-left text-xs font-normal text-slate-800 shadow-sm outline-none transition hover:border-[#dfcccc] focus:border-[#8b2a23] sm:gap-2 sm:px-3"
+                        :class="{ 'border-[#8b2a23]': openTargetDropdown === 'year' }"
+                        :aria-expanded="openTargetDropdown === 'year'"
+                        @click="toggleTargetDropdown('year')"
+                      >
+                        <span class="min-w-0 truncate sm:hidden">{{
+                          mobileTargetAcademicYearLabel
+                        }}</span>
+                        <span class="hidden min-w-0 truncate sm:inline">{{
+                          selectedTargetAcademicYearLabel
+                        }}</span>
+                        <svg
+                          class="size-4 shrink-0 text-slate-500 transition-transform duration-200"
+                          :class="{ 'rotate-180': openTargetDropdown === 'year' }"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          aria-hidden="true"
+                        >
+                          <path d="m7 10 5 5 5-5" />
+                        </svg>
                       </button>
-                      <Transition enter-active-class="transition duration-150 ease-out" enter-from-class="-translate-y-1 opacity-0" enter-to-class="translate-y-0 opacity-100" leave-active-class="transition duration-100 ease-in" leave-from-class="translate-y-0 opacity-100" leave-to-class="-translate-y-1 opacity-0">
-                        <div v-if="openTargetDropdown === 'year'" class="absolute right-0 top-[calc(100%+6px)] z-40 max-h-40 w-36 overflow-y-auto overscroll-contain rounded-lg border border-slate-100 bg-white p-1.5 shadow-[0_8px_20px_rgba(0,0,0,0.14)] sm:left-0 sm:max-h-44 sm:w-auto sm:shadow-[0_5px_12px_rgba(0,0,0,0.12)]">
-                          <button v-for="year in ['all', ...targetAcademicYearOptions]" :key="year" type="button" class="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs font-normal text-slate-800 hover:bg-[#f8eeee]" :class="{ 'bg-[#f8eeee]': targetAcademicYear === year }" @click="selectTargetDropdown('year', year)"><span v-if="year === 'all'" class="sm:hidden">{{ isThai ? 'ทุกปีการศึกษา' : t('student.allYear') }}</span><span :class="{ 'hidden sm:inline': year === 'all' }">{{ year === 'all' ? t('student.allYear') : year }}</span><svg v-if="targetAcademicYear === year" class="size-4 shrink-0 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg></button>
+                      <Transition
+                        enter-active-class="transition duration-150 ease-out"
+                        enter-from-class="-translate-y-1 opacity-0"
+                        enter-to-class="translate-y-0 opacity-100"
+                        leave-active-class="transition duration-100 ease-in"
+                        leave-from-class="translate-y-0 opacity-100"
+                        leave-to-class="-translate-y-1 opacity-0"
+                      >
+                        <div
+                          v-if="openTargetDropdown === 'year'"
+                          class="absolute right-0 top-[calc(100%+6px)] z-40 max-h-40 w-36 overflow-y-auto overscroll-contain rounded-lg border border-slate-100 bg-white p-1.5 shadow-[0_8px_20px_rgba(0,0,0,0.14)] sm:left-0 sm:max-h-44 sm:w-auto sm:shadow-[0_5px_12px_rgba(0,0,0,0.12)]"
+                        >
+                          <button
+                            v-for="year in ['all', ...targetAcademicYearOptions]"
+                            :key="year"
+                            type="button"
+                            class="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs font-normal text-slate-800 hover:bg-[#f8eeee]"
+                            :class="{ 'bg-[#f8eeee]': targetAcademicYear === year }"
+                            @click="selectTargetDropdown('year', year)"
+                          >
+                            <span v-if="year === 'all'" class="sm:hidden">{{
+                              isThai ? 'ทุกปีการศึกษา' : t('student.allYear')
+                            }}</span
+                            ><span :class="{ 'hidden sm:inline': year === 'all' }">{{
+                              year === 'all' ? t('student.allYear') : year
+                            }}</span
+                            ><svg
+                              v-if="targetAcademicYear === year"
+                              class="size-4 shrink-0 text-slate-500"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              aria-hidden="true"
+                            >
+                              <path d="m5 12 4 4L19 6" />
+                            </svg>
+                          </button>
                         </div>
                       </Transition>
                     </div>
@@ -1064,13 +1261,10 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
             </section>
 
             <section class="border-t border-slate-200 pt-5">
-              <h3 class="text-base font-semibold text-slate-950 sm:text-lg">{{ t('notification.attachmentOptional') }}</h3>
-              <input
-                ref="attachmentInput"
-                type="file"
-                class="hidden"
-                @change="updateAttachment"
-              />
+              <h3 class="text-base font-semibold text-slate-950 sm:text-lg">
+                {{ t('notification.attachmentOptional') }}
+              </h3>
+              <input ref="attachmentInput" type="file" class="hidden" @change="updateAttachment" />
               <div class="mt-3 flex flex-wrap items-center gap-3">
                 <button
                   type="button"
@@ -1147,7 +1341,9 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
       aria-labelledby="notification-detail-title"
       @click.self="closeDetail"
     >
-      <section class="relative w-full max-w-[480px] overflow-hidden rounded-[18px] bg-white shadow-xl">
+      <section
+        class="relative w-full max-w-[480px] overflow-hidden rounded-[18px] bg-white shadow-xl"
+      >
         <button
           type="button"
           class="absolute right-5 top-5 rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
@@ -1184,7 +1380,10 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
           </span>
 
           <div class="min-w-0">
-            <h2 id="notification-detail-title" class="break-words text-base font-semibold leading-tight text-slate-950">
+            <h2
+              id="notification-detail-title"
+              class="break-words text-base font-semibold leading-tight text-slate-950"
+            >
               {{ selectedNotification.title }}
             </h2>
             <div class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -1227,7 +1426,9 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
           <p class="text-xs font-semibold text-black">{{ t('common.description') }}</p>
           <div
             class="mt-2 break-words text-xs leading-5 text-slate-900 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
-            v-html="formattedNotificationMessage(notificationDescription(selectedNotification.message))"
+            v-html="
+              formattedNotificationMessage(notificationDescription(selectedNotification.message))
+            "
           ></div>
 
           <div v-if="notificationDeadline(selectedNotification.message)" class="mt-5">
@@ -1241,58 +1442,18 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
 
           <div v-if="selectedNotification.attachmentUrl" class="mt-5">
             <p class="text-xs font-semibold text-black">{{ t('notification.attachment') }}</p>
-              <div
-                v-if="canOpenAttachment(selectedNotification.attachmentUrl)"
-                class="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 transition-colors hover:border-[#dfcccc] hover:bg-[#fff8f8]"
+            <div
+              v-if="canOpenAttachment(selectedNotification.attachmentUrl)"
+              class="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 transition-colors hover:border-[#dfcccc] hover:bg-[#fff8f8]"
+            >
+              <button
+                type="button"
+                class="flex min-w-0 flex-1 items-center gap-3"
+                @click="openAttachmentPreview(selectedNotification.attachmentUrl)"
               >
-                <button
-                  type="button"
-                  class="flex min-w-0 flex-1 items-center gap-3"
-                  @click="openAttachmentPreview(selectedNotification.attachmentUrl)"
+                <span
+                  class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600"
                 >
-                  <span class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600">
-                    <svg
-                      class="size-5"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      aria-hidden="true"
-                    >
-                      <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7Z" />
-                      <path d="M14 2v5h5" />
-                      <path d="M9 13h6M9 17h6M9 9h1" />
-                    </svg>
-                  </span>
-                  <span class="min-w-0 flex-1 truncate text-xs font-medium text-slate-950">
-                    {{ attachmentName(selectedNotification.attachmentUrl) }}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  class="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-[#dfcccc] hover:text-[#8b2a23]"
-                  aria-label="Download attachment"
-                  @click="downloadAttachment(selectedNotification.attachmentUrl)"
-                >
-                  <svg
-                    class="size-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.9"
-                    aria-hidden="true"
-                  >
-                    <path d="M12 3v12" />
-                    <path d="m7 10 5 5 5-5" />
-                    <path d="M5 21h14" />
-                  </svg>
-                </button>
-              </div>
-              <div
-                v-else
-                class="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3"
-              >
-                <span class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-600">
                   <svg
                     class="size-5"
                     viewBox="0 0 24 24"
@@ -1309,7 +1470,51 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
                 <span class="min-w-0 flex-1 truncate text-xs font-medium text-slate-950">
                   {{ attachmentName(selectedNotification.attachmentUrl) }}
                 </span>
-              </div>
+              </button>
+              <button
+                type="button"
+                class="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-[#dfcccc] hover:text-[#8b2a23]"
+                aria-label="Download attachment"
+                @click="downloadAttachment(selectedNotification.attachmentUrl)"
+              >
+                <svg
+                  class="size-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.9"
+                  aria-hidden="true"
+                >
+                  <path d="M12 3v12" />
+                  <path d="m7 10 5 5 5-5" />
+                  <path d="M5 21h14" />
+                </svg>
+              </button>
+            </div>
+            <div
+              v-else
+              class="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3"
+            >
+              <span
+                class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-600"
+              >
+                <svg
+                  class="size-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  aria-hidden="true"
+                >
+                  <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7Z" />
+                  <path d="M14 2v5h5" />
+                  <path d="M9 13h6M9 17h6M9 9h1" />
+                </svg>
+              </span>
+              <span class="min-w-0 flex-1 truncate text-xs font-medium text-slate-950">
+                {{ attachmentName(selectedNotification.attachmentUrl) }}
+              </span>
+            </div>
           </div>
 
           <p
