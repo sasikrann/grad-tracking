@@ -82,7 +82,7 @@ function planLabel(plan: string) {
             </svg>
           </div>
           <div class="min-w-0 leading-tight">
-            <p class="truncate text-xs font-semibold">{{ student.name }}</p>
+            <p class="truncate py-0.5 text-xs font-semibold leading-normal">{{ student.name }}</p>
             <p class="mt-1 text-[10px] text-[#7690a5]">{{ student.studentId }}</p>
           </div>
         </div>

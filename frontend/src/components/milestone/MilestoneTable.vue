@@ -390,6 +390,28 @@ const tableRows = computed(() => {
               {{ line }}
             </p>
           </div>
+          <div
+            class="flex items-center gap-1.5"
+            :class="row.milestone.description?.trim() ? 'mt-2' : 'mt-1'"
+          >
+            <span
+              class="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[9px] text-[#607995]"
+            >
+              {{
+                row.milestone.degreeLevel === 'Doctoral' ? t('common.doctoral') : t('common.master')
+              }}
+            </span>
+            <span
+              class="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[9px] text-[#607995]"
+            >
+              {{ row.milestone.plans.map(planLabel).join(', ') }}
+            </span>
+            <span
+              class="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[9px] text-[#607995]"
+            >
+              ◫ {{ formatDate(row.milestone.deadline) }}
+            </span>
+          </div>
         </div>
 
         <details class="milestone-actions-menu relative shrink-0">
@@ -442,24 +464,6 @@ const tableRows = computed(() => {
             </button>
           </div>
         </details>
-      </div>
-
-      <div class="mt-2 flex items-center gap-1.5 pl-9">
-        <span
-          class="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[9px] text-[#607995]"
-        >
-          {{ row.milestone.degreeLevel === 'Doctoral' ? t('common.doctoral') : t('common.master') }}
-        </span>
-        <span
-          class="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[9px] text-[#607995]"
-        >
-          {{ row.milestone.plans.map(planLabel).join(', ') }}
-        </span>
-        <span
-          class="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[9px] text-[#607995]"
-        >
-          ◫ {{ formatDate(row.milestone.deadline) }}
-        </span>
       </div>
 
       <div class="mt-2 flex flex-wrap items-center gap-3 pl-9 text-[9px] text-[#607995]">

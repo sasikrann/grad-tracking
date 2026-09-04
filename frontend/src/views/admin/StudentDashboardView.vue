@@ -381,6 +381,7 @@ useAutoRefresh(() => loadStudents({ silent: true }), {
     </section>
 
     <StudentOverview
+      class="!mt-3 sm:!mt-4"
       v-model:filters="filters"
       v-model:search="search"
       :students="students"
