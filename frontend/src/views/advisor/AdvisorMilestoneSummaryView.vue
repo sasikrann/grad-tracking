@@ -269,8 +269,8 @@ useAutoRefresh(() => loadSummary({ silent: true }))
           </svg>
         </div>
         <div class="ml-3 flex h-10 min-w-0 flex-col justify-center sm:ml-4">
-          <p class="truncate text-xs leading-5 text-[#7b7b7b] sm:text-sm">{{ card.title }}</p>
-          <p class="text-lg font-semibold leading-5 text-black">
+          <p class="truncate text-xs leading-6 text-[#7b7b7b] sm:text-sm">{{ card.title }}</p>
+          <p class="text-lg font-semibold leading-4 text-black">
             {{ card.value }}
           </p>
         </div>

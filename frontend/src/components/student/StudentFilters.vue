@@ -323,7 +323,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
           :aria-expanded="openFilter === filter.key"
           @click="openFilter = openFilter === filter.key ? null : filter.key"
         >
-          <span class="truncate">{{ selectedFilterLabel(filter) }}</span>
+          <span class="truncate py-0.5 leading-normal">{{ selectedFilterLabel(filter) }}</span>
           <svg
             class="size-4 shrink-0 text-[#777] transition-transform"
             :class="{ 'rotate-180': openFilter === filter.key }"

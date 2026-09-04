@@ -778,10 +778,13 @@ function handleFileChange(event: Event) {
           {{ evidenceOpenError }}
         </p>
 
-        <div v-if="canReview" class="mt-3 grid w-full grid-cols-2 gap-3 sm:flex sm:justify-end">
+        <div
+          v-if="canReview"
+          class="mt-3 grid w-full grid-cols-2 gap-3 sm:-mt-7 sm:flex sm:justify-end"
+        >
           <button
             type="button"
-            class="h-7 w-full rounded bg-[#8a2b25] px-4 text-xs font-semibold text-white shadow-sm hover:bg-[#75201b] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-28"
+            class="h-7 w-full rounded bg-[#49b866] px-4 text-xs font-semibold text-white shadow-sm hover:bg-[#3da456] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-28"
             :disabled="isReviewing"
             @click="emit('approve', milestone)"
           >
@@ -789,7 +792,7 @@ function handleFileChange(event: Event) {
           </button>
           <button
             type="button"
-            class="h-7 w-full rounded border border-slate-300 bg-[#f3f3f3] px-4 text-xs font-semibold text-black shadow-sm hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-28"
+            class="h-7 w-full rounded border border-[#e6c7cc] bg-[#efd5d9] px-4 text-xs font-semibold text-[#8a2b25] shadow-sm hover:bg-[#e8c8cd] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-28"
             :disabled="isReviewing"
             @click="emit('reject', milestone)"
           >
@@ -824,9 +827,7 @@ function handleFileChange(event: Event) {
               <path d="M5 15v4h14v-4" />
             </svg>
             {{
-              isUploading
-                ? t('studentPortal.uploadingEvidence')
-                : t('studentPortal.uploadEvidence')
+              isUploading ? t('studentPortal.uploadingEvidence') : t('studentPortal.uploadEvidence')
             }}
           </button>
           <p class="text-[11px] text-amber-700">
@@ -913,10 +914,7 @@ function handleFileChange(event: Event) {
         <p v-if="isOpeningEvidence" class="text-sm font-medium text-white">
           {{ t('milestone.openingAttachment') }}
         </p>
-        <p
-          v-else-if="evidenceOpenError"
-          class="rounded-lg bg-white px-4 py-3 text-sm text-red-600"
-        >
+        <p v-else-if="evidenceOpenError" class="rounded-lg bg-white px-4 py-3 text-sm text-red-600">
           {{ evidenceOpenError }}
         </p>
         <img

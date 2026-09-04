@@ -51,11 +51,11 @@ withDefaults(
     >
       <p
         class="truncate text-xs text-[#7b7b7b] sm:text-sm"
-        :class="compactValue ? 'leading-5' : 'py-0.5 leading-normal'"
+        :class="compactValue ? 'leading-6' : 'py-0.5 leading-normal'"
       >
         {{ title }}
       </p>
-      <p class="text-lg font-semibold" :class="compactValue ? 'leading-5' : 'mt-0.5'">
+      <p class="text-lg font-semibold" :class="compactValue ? 'leading-4' : 'mt-0.5'">
         {{ value }}
       </p>
     </div>
