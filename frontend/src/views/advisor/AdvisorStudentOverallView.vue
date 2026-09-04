@@ -48,11 +48,12 @@ const totalStudentsTitle = computed(() => {
 function viewStudentMilestones(studentId: string) {
   void router.push({ name: 'advisor-student-milestones', params: { studentId } })
 }
-
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f7f7] px-4 pt-3 pb-5 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8">
+  <div
+    class="min-h-screen bg-[#f7f7f7] px-4 pt-3 pb-5 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8"
+  >
     <header>
       <h1 class="text-xl font-bold tracking-tight sm:text-3xl">
         {{ t('advisorPortal.studentOverall') }}
@@ -63,10 +64,30 @@ function viewStudentMilestones(studentId: string) {
     </header>
 
     <section class="mt-3 grid grid-cols-2 gap-2.5 sm:mt-4 sm:gap-5 xl:grid-cols-4">
-      <SummaryCard :title="totalStudentsTitle" :value="statistics.total" icon="students" />
-      <SummaryCard :title="t('advisorPortal.onTrack')" :value="statistics.onTrack" icon="on-track" />
-      <SummaryCard :title="t('advisorPortal.overdue')" :value="statistics.overdue" icon="overdue" />
-      <SummaryCard :title="t('advisorPortal.graduate')" :value="statistics.graduate" icon="graduate" />
+      <SummaryCard
+        compact-value
+        :title="totalStudentsTitle"
+        :value="statistics.total"
+        icon="students"
+      />
+      <SummaryCard
+        compact-value
+        :title="t('advisorPortal.onTrack')"
+        :value="statistics.onTrack"
+        icon="on-track"
+      />
+      <SummaryCard
+        compact-value
+        :title="t('advisorPortal.overdue')"
+        :value="statistics.overdue"
+        icon="overdue"
+      />
+      <SummaryCard
+        compact-value
+        :title="t('advisorPortal.graduate')"
+        :value="statistics.graduate"
+        icon="graduate"
+      />
     </section>
 
     <StudentOverview
