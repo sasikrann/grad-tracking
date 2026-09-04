@@ -399,7 +399,7 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f7f7f7] px-3 py-3 font-sans text-slate-900 sm:px-8 sm:py-6">
+  <div class="min-h-screen bg-[#f7f7f7] px-3 py-3 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8">
     <header class="flex items-start justify-between gap-2">
       <div class="min-w-0">
         <h1 class="text-xl font-bold tracking-tight sm:text-3xl">

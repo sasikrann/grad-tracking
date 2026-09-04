@@ -625,7 +625,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
 
 <template>
   <div
-    class="min-h-screen bg-[#f7f7f7] px-4 pt-3 pb-6 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8"
+    class="min-h-screen bg-[#f7f7f7] px-3 pt-3 pb-6 font-sans text-slate-900 sm:px-6 sm:py-6 xl:px-8"
   >
     <header class="flex items-start justify-between gap-3 sm:gap-4">
       <div class="min-w-0">
