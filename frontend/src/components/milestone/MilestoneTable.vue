@@ -278,7 +278,7 @@ function cancelTouchReorder(event: PointerEvent) {
 
 function formatDate(value: string | null) {
   if (!value) return '-'
-  return new Intl.DateTimeFormat('en-GB', {
+  return new Intl.DateTimeFormat(isThai.value ? 'th-TH' : 'en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -521,8 +521,10 @@ const tableRows = computed(() => {
           <th class="w-[13%] py-3 pl-4 font-semibold">{{ t('common.reference') }}</th>
           <th class="w-[10%] py-3 text-center font-semibold">{{ t('common.program') }}</th>
           <th class="w-[11%] py-3 text-center font-semibold">{{ t('common.plan') }}</th>
-          <th class="w-[9.5%] py-3 pl-4 font-semibold">{{ t('common.deadline') }}</th>
-          <th class="w-[210px] py-3 text-right font-semibold">{{ t('common.actions') }}</th>
+          <th class="w-[9.5%] py-3 text-center font-semibold">{{ t('common.deadline') }}</th>
+          <th class="w-[210px] py-3 text-center font-semibold">
+            <span class="inline-block translate-x-2">{{ t('common.actions') }}</span>
+          </th>
         </tr>
       </thead>
 
@@ -642,7 +644,7 @@ const tableRows = computed(() => {
                 </span>
               </td>
 
-              <td class="py-4 pl-4 align-middle text-slate-500">
+              <td class="py-4 text-center align-middle text-slate-500">
                 {{ formatDate(row.milestone.deadline) }}
               </td>
 
