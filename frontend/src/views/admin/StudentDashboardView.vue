@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 
 import DashboardActionCard from '@/components/admin/DashboardActionCard.vue'
 import ImportFileModal from '@/components/admin/ImportFileModal.vue'
+import PaginationControls from '@/components/common/PaginationControls.vue'
 import StudentOverview from '@/components/student/StudentOverview.vue'
 import SummaryCard from '@/components/student/SummaryCard.vue'
 import { useLanguage } from '@/composables/useLanguage'
@@ -28,13 +29,6 @@ const filterOptions = ref<StudentPaginationResult['filterOptions']>({
   degrees: [],
   plans: [],
   statuses: [],
-})
-const paginationItems = computed<Array<number | 'ellipsis'>>(() => {
-  const total = pagination.value.totalPages
-  if (total <= 5) return Array.from({ length: total }, (_, index) => index + 1)
-  if (page.value <= 3) return [1, 2, 3, 4, 'ellipsis']
-  if (page.value >= total - 2) return ['ellipsis', total - 3, total - 2, total - 1, total]
-  return ['ellipsis', page.value - 1, page.value, page.value + 1, 'ellipsis']
 })
 const filters = ref<StudentFiltersState>({
   semester: 'all',
@@ -162,6 +156,9 @@ function shortenImportMessage(text: string) {
 
 function formatStudentImportError(error: unknown) {
   const text = shortenImportMessage(removeRowPrefix(error instanceof Error ? error.message : ''))
+  if (text.includes('กรุณากรอกสถานะสำเร็จการศึกษาให้ถูกต้อง')) {
+    return 'กรุณากรอกสถานะสำเร็จการศึกษาให้ถูกต้อง'
+  }
   if (/\b(missing|required)\b/i.test(text)) {
     return isThai.value ? 'กรุณากรอกข้อมูลให้ครบถ้วน' : 'Please complete all required fields.'
   }
@@ -408,50 +405,13 @@ useAutoRefresh(() => loadStudents({ silent: true }), {
       </template>
     </StudentOverview>
 
-    <nav v-if="pagination.totalPages > 1" class="mt-5 flex justify-end" aria-label="Student pages">
-      <div
-        class="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
-      >
-        <button
-          type="button"
-          class="flex size-8 items-center justify-center border-r border-slate-200 text-xs text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
-          :disabled="page === 1"
-          aria-label="Previous page"
-          @click="changePage(page - 1)"
-        >
-          ‹
-        </button>
-        <template v-for="(item, index) in paginationItems" :key="`${item}-${index}`">
-          <span
-            v-if="item === 'ellipsis'"
-            class="flex size-8 items-center justify-center border-r border-slate-200 text-xs text-slate-400"
-            >…</span
-          >
-          <button
-            v-else
-            type="button"
-            class="flex size-8 items-center justify-center border-r border-slate-200 text-xs font-medium transition-colors"
-            :class="
-              item === page ? 'bg-[#f7c9cf] text-[#a13a34]' : 'text-slate-700 hover:bg-[#fdf1f3]'
-            "
-            :aria-current="item === page ? 'page' : undefined"
-            :aria-label="`Page ${item}`"
-            @click="changePage(item)"
-          >
-            {{ item }}
-          </button>
-        </template>
-        <button
-          type="button"
-          class="flex size-8 items-center justify-center text-xs text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
-          :disabled="page === pagination.totalPages"
-          aria-label="Next page"
-          @click="changePage(page + 1)"
-        >
-          ›
-        </button>
-      </div>
-    </nav>
+    <PaginationControls
+      class="mt-5"
+      :current-page="page"
+      :total-pages="pagination.totalPages"
+      :pagination-label="t('dashboard.studentPages')"
+      @change="changePage"
+    />
 
     <ImportFileModal
       v-if="isImportModalOpen"

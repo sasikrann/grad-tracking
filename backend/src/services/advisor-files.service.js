@@ -4,6 +4,7 @@ import { Readable } from 'node:stream'
 import { ApiError } from '../errors/api-error.js'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const organizationEmailPattern = /^[^\s@]+@mfu\.ac\.th$/i
 const importRequiredFields = [
   { key: 'advisorId', label: 'Advisor ID' },
   { key: 'fullName', label: 'Full Name' },
@@ -23,6 +24,9 @@ function requiredText(value, field) {
 function requiredEmail(value) {
   const email = requiredText(normalizeEmailText(value), 'email').toLowerCase()
   if (!emailPattern.test(email)) throw new ApiError(400, 'A valid email is required')
+  if (!organizationEmailPattern.test(email)) {
+    throw new ApiError(400, 'กรุณากรอกอีเมลในองค์กรเท่านั้น')
+  }
   return email
 }
 
@@ -53,11 +57,24 @@ export function normalizeAdvisor(body, { advisorId } = {}) {
 }
 
 function cellValue(row, headerMap, names) {
-  const key = names.find((name) => headerMap.has(name.toLowerCase()))
+  const key = names.find((name) => headerMap.has(normalizeHeader(name)))
   if (!key) return ''
 
-  const value = row.getCell(headerMap.get(key.toLowerCase())).value
+  const value = row.getCell(headerMap.get(normalizeHeader(key))).value
   return normalizeCellText(value)
+}
+
+function emailCellValue(row, headerMap, names) {
+  const key = names.find((name) => headerMap.has(normalizeHeader(name)))
+  if (!key) return ''
+
+  return normalizeEmailText(row.getCell(headerMap.get(normalizeHeader(key))).value)
+}
+
+function normalizeHeader(value) {
+  return normalizeCellText(value)
+    .toLowerCase()
+    .replace(/[\s_.\-/()]+/g, '')
 }
 
 function normalizeCellText(value) {
@@ -102,8 +119,16 @@ export async function readAdvisorImportFile(file) {
 
   const headerMap = new Map()
   sheet.getRow(1).eachCell((cell, column) => {
-    headerMap.set(String(cell.value ?? '').trim().toLowerCase(), column)
+    headerMap.set(normalizeHeader(cell.value), column)
   })
+
+  const headerTexts = sheet.getRow(1).values.slice(1).map(normalizeCellText).filter(Boolean)
+  if (headerTexts.length > 0 && headerTexts.every((header) => /^[?\s_-]+$/.test(header))) {
+    throw new ApiError(
+      400,
+      'The CSV text encoding is corrupted and Thai characters were replaced with ?. Please export or save the original file as UTF-8 CSV and import it again.',
+    )
+  }
 
   const records = []
   const validationErrors = new Set()
@@ -114,8 +139,16 @@ export async function readAdvisorImportFile(file) {
 
     const rawAdvisor = {
       advisorId: cellValue(row, headerMap, ['advisorid', 'advisor id', 'รหัสอาจารย์']),
-      fullName: cellValue(row, headerMap, ['fullname', 'full name', 'name', 'advisor name']),
-      email: cellValue(row, headerMap, ['email', 'advisor email']),
+      fullName: cellValue(row, headerMap, [
+        'fullname',
+        'full name',
+        'name',
+        'advisor name',
+        'ชื่อ-สกุล',
+        'ชื่อ นามสกุล',
+        'ชื่ออาจารย์',
+      ]),
+      email: emailCellValue(row, headerMap, ['email', 'advisor email', 'อีเมล', 'อีเมล์']),
     }
     const rowMissingFields = importRequiredFields
       .filter((field) => !optionalText(rawAdvisor[field.key]))
@@ -139,7 +172,13 @@ export async function readAdvisorImportFile(file) {
   ].filter(Boolean)
 
   if (allValidationErrors.length) {
-    throw new ApiError(400, allValidationErrors.join('; '))
+    const organizationEmailError = allValidationErrors.find(
+      (message) => message === 'กรุณากรอกอีเมลในองค์กรเท่านั้น',
+    )
+    throw new ApiError(
+      400,
+      organizationEmailError ?? 'Please complete all required fields and import the file again.',
+    )
   }
 
   if (!records.length) throw new ApiError(400, 'No data found.')

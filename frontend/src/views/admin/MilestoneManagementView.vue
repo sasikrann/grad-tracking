@@ -18,7 +18,7 @@ import type { EducationPlan, Milestone, MilestoneInput, MilestoneProgram } from 
 import type { Student } from '@/types/student'
 const milestones = ref<Milestone[]>([])
 const students = ref<Student[]>([])
-const { language, t } = useLanguage()
+const { isThai, language, t } = useLanguage()
 const isLoading = ref(false)
 const message = ref('')
 const errorMessage = ref('')
@@ -237,6 +237,7 @@ async function saveMilestone(input: MilestoneInput) {
   errorMessage.value = ''
   try {
     if (!input.title.trim()) throw new Error('title is required')
+    if (!input.description.trim()) throw new Error('description is required')
     if (!input.sequenceOrder || input.sequenceOrder < 1)
       throw new Error('sequenceOrder is required')
     if (!input.plans.length) throw new Error('At least one plan is required')
@@ -268,8 +269,12 @@ async function saveMilestone(input: MilestoneInput) {
     selectedYear.value = normalizedInput.academicYear
     isFormOpen.value = false
   } catch (error) {
+    const isRequiredFieldError =
+      error instanceof Error && /(?:title|description|sequenceOrder).*required/i.test(error.message)
     showNotification(
-      isThai.value
+      isRequiredFieldError
+        ? t('milestone.completeRequiredFields')
+        : isThai.value
         ? t('toast.milestoneSaveFailed')
         : formatMilestoneError(error, t('toast.milestoneSaveFailed')),
       'error',
@@ -529,8 +534,8 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
           {{ t('milestone.deleteTitle') }}
         </h2>
         <p class="mt-2 text-sm text-slate-600">
-          Do you want to delete milestone
-          <span class="font-semibold text-slate-900">"{{ deletingMilestone.title }}"</span>?
+          {{ t('milestone.deleteConfirm') }}
+          <span class="font-semibold text-slate-900"> "{{ deletingMilestone.title }}"</span>
         </p>
 
         <label class="mt-5 flex items-center gap-3 text-sm text-slate-700">
