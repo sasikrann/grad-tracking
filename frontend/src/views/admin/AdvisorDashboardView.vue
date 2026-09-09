@@ -19,7 +19,7 @@ import type { Advisor } from '@/types/advisor'
 import { useLanguage } from '@/composables/useLanguage'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
-const { t } = useLanguage()
+const { isThai, t } = useLanguage()
 
 const advisors = ref<Advisor[]>([])
 const search = ref('')
@@ -127,13 +127,26 @@ function closeImportModal() {
 }
 
 function showImportResult(result: AdvisorImportResult) {
+  if (!(result.createdRecords ?? 0) && !(result.updatedRecords ?? 0) && !result.failedRecords) {
+    return
+  }
   const errorText = result.errors?.length
     ? ` ${result.errors.map((error) => removeRowPrefix(error)).join('; ')}`
     : ''
+  const createdRecords = result.createdRecords ?? result.successRecords
+  const updatedRecords = result.updatedRecords ?? 0
+  const advisorLabel = (count: number) => (count === 1 ? 'advisor' : 'advisors')
+  const successText = isThai.value
+    ? `นำเข้าสำเร็จ — เพิ่มใหม่ ${createdRecords} คน${updatedRecords ? `, อัปเดต ${updatedRecords} คน` : ''}`
+    : createdRecords && updatedRecords
+      ? `Imported ${createdRecords} new ${advisorLabel(createdRecords)} and updated ${updatedRecords} ${advisorLabel(updatedRecords)} successfully.`
+      : createdRecords
+        ? `Imported ${createdRecords} new ${advisorLabel(createdRecords)} successfully.`
+        : `Updated ${updatedRecords} ${advisorLabel(updatedRecords)} successfully.`
   showNotification(
     result.failedRecords
       ? `${t('toast.advisorsImportPartial', { success: result.successRecords, total: result.totalRecords })}${isThai.value ? '' : errorText}`
-      : t('toast.advisorsImported', { count: result.successRecords }),
+      : successText,
     result.failedRecords ? 'error' : 'success',
   )
 }
@@ -144,6 +157,12 @@ function removeRowPrefix(text: string) {
 
 function advisorImportErrorMessage(error: unknown) {
   const message = removeRowPrefix(error instanceof Error ? error.message : '')
+  if (message.includes('กรุณากรอกอีเมลในองค์กรเท่านั้น')) {
+    return 'กรุณากรอกอีเมลในองค์กรเท่านั้น'
+  }
+  if (/\b(missing|required)\b/i.test(message)) {
+    return isThai.value ? 'กรุณากรอกข้อมูลให้ครบถ้วน' : 'Please complete all required fields.'
+  }
   const readableMessages: Record<string, string> = {
     'Please enter a valid email address because this email is duplicated.': duplicateAdvisorMessage,
     'Please choose one advisor for each duplicated email.':
@@ -178,7 +197,10 @@ async function handleImport(resolutions?: Record<string, string>) {
       isDuplicateEmailModalOpen.value = true
       return
     }
-    showNotification(advisorImportErrorMessage(error), 'error')
+    const text = advisorImportErrorMessage(error)
+    resetImportState()
+    isImportModalOpen.value = false
+    window.setTimeout(() => showNotification(text, 'error'), 120)
   } finally {
     isImporting.value = false
   }

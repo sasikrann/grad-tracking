@@ -40,6 +40,7 @@ export const en = {
     importAdvisor: 'Import Advisor',
     bulkStudents: 'Upload an Excel or CSV file to import students in bulk',
     bulkAdvisors: 'Upload an Excel or CSV file to import advisors in bulk',
+    studentPages: 'Student pages',
   },
   toast: {
     studentsImportFailed: 'Unable to import students.',
@@ -177,6 +178,9 @@ export const en = {
     closeNotificationDetail: 'Close notification detail',
     downloadAttachment: 'Download attachment',
     closeAttachmentPreview: 'Close attachment preview',
+    notificationsLoadFailed: 'Unable to load notifications.',
+    markAsReadFailed: 'Unable to mark the notification as read.',
+    markAllAsReadFailed: 'Unable to mark all notifications as read.',
   },
   advisor: {
     pageTitle: 'Advisor Management',
@@ -240,6 +244,7 @@ export const en = {
     add: 'Add Milestone',
     edit: 'Edit Milestone',
     fillDetails: 'Fill in detail for the new milestone.',
+    completeRequiredFields: 'Please complete all required fields.',
     titlePlaceholder: 'e.g., Research Proposal',
     descriptionPlaceholder: 'Describe this milestone...',
     evidenceCodeOptional: 'Evidence Code (Optional)',
@@ -305,5 +310,11 @@ export const en = {
     back: 'Back',
     loadingAttachment: 'Loading attachment...',
     unableOpenAttachment: 'Unable to open attachment',
+    attachmentTooLarge: 'Attachment must not exceed 10 MB.',
+    titleRequired: 'Please enter a notification title.',
+    descriptionRequired: 'Please enter a notification description.',
+    descriptionTooLong: 'Description must not exceed 5,000 characters.',
+    attachmentUploadFailed: 'Unable to upload the attachment.',
+    sendFailed: 'Unable to send the notification.',
   },
 } as const
