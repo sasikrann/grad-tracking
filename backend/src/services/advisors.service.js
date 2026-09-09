@@ -63,7 +63,7 @@ function normalizeComparableValue(value) {
 }
 
 function advisorRecordsMatch(left, right) {
-  return ['fullName', 'email'].every(
+  return ['advisorId', 'fullName', 'email'].every(
     (field) => normalizeComparableValue(left[field]) === normalizeComparableValue(right[field]),
   )
 }
@@ -125,7 +125,7 @@ async function findAdvisorImportConflicts(client, records) {
     .map((group) => {
       const fileRecords = uniqueAdvisorOptions(group.fileRecords)
       const existingAdvisors = uniqueAdvisorOptions(group.existingAdvisors)
-      const hasDuplicateFileRecords = fileRecords.length > 1
+      const hasDuplicateFileRecords = group.fileRecords.length > 1
       const hasChangedExistingRecord = existingAdvisors.some(
         (existing) => !fileRecords.some((fileRecord) => advisorRecordsMatch(existing, fileRecord)),
       )
@@ -387,9 +387,30 @@ export async function removeAdvisor(advisorId) {
       await client.query('ROLLBACK')
       return false
     }
-    await client.query('UPDATE students SET advisor_id = NULL, updated_at = NOW() WHERE advisor_id = $1', [
-      advisorId,
-    ])
+    const affectedStudents = await client.query(
+      `SELECT DISTINCT student_id
+       FROM (
+         SELECT student_id FROM students WHERE advisor_id = $1
+         UNION
+         SELECT student_id FROM student_co_advisors WHERE advisor_id = $1
+       ) affected`,
+      [advisorId],
+    )
+    const affectedStudentIds = affectedStudents.rows.map((row) => row.student_id)
+    await client.query(
+      'UPDATE students SET advisor_id = NULL, advisor_evidence_url = NULL, updated_at = NOW() WHERE advisor_id = $1',
+      [advisorId],
+    )
+    if (affectedStudentIds.length) {
+      await client.query(
+        `DELETE FROM student_milestones sm
+         USING milestone_templates mt
+         WHERE sm.milestone_id = mt.milestone_id
+           AND sm.student_id = ANY($1::varchar[])
+           AND mt.default_template_key LIKE '%advisor-appointment'`,
+        [affectedStudentIds],
+      )
+    }
     await client.query('UPDATE student_milestones SET reviewed_by = NULL WHERE reviewed_by = $1', [advisorId])
     await client.query('DELETE FROM advisors WHERE advisor_id = $1', [advisorId])
     await client.query('DELETE FROM users WHERE user_id = $1', [result.rows[0].user_id])
@@ -407,6 +428,8 @@ export async function importAdvisors(records, { fileName, importedBy, resolution
   const client = await pool.connect()
   const importId = randomUUID()
   let successRecords = 0
+  let updatedRecords = 0
+  let unchangedRecords = 0
   const errors = []
 
   try {
@@ -420,9 +443,41 @@ export async function importAdvisors(records, { fileName, importedBy, resolution
       throw error
     }
 
-    const recordsToImport = conflicts.length
+    const resolvedRecords = conflicts.length
       ? applyAdvisorImportResolutions(records, conflicts, resolutions)
       : records
+
+    const existingAdvisors = resolvedRecords.length
+      ? await client.query(
+          `SELECT ${advisorColumns}
+           FROM advisors a
+           WHERE a.advisor_id = ANY($1::varchar[])`,
+          [resolvedRecords.map((record) => record.advisorId)],
+        )
+      : { rows: [] }
+    const existingById = new Map(
+      existingAdvisors.rows.map((advisor) => [advisor.advisorId, advisor]),
+    )
+    const recordsToImport = resolvedRecords.filter((record) => {
+      const existing = existingById.get(record.advisorId)
+      if (!existing || !advisorRecordsMatch(existing, record)) return true
+      unchangedRecords += 1
+      return false
+    })
+
+    if (!recordsToImport.length) {
+      await client.query('COMMIT')
+      return {
+        importId: null,
+        totalRecords: 0,
+        successRecords: 0,
+        createdRecords: 0,
+        updatedRecords: 0,
+        unchangedRecords,
+        failedRecords: 0,
+        errors: [],
+      }
+    }
 
     await client.query(
       `INSERT INTO import_logs
@@ -437,6 +492,7 @@ export async function importAdvisors(records, { fileName, importedBy, resolution
       try {
         await upsertAdvisorWithClient(client, record)
         successRecords += 1
+        if (existingById.has(record.advisorId)) updatedRecords += 1
         await client.query(`RELEASE SAVEPOINT ${savepoint}`)
       } catch (error) {
         await client.query(`ROLLBACK TO SAVEPOINT ${savepoint}`)
@@ -458,6 +514,9 @@ export async function importAdvisors(records, { fileName, importedBy, resolution
       importId,
       totalRecords: recordsToImport.length,
       successRecords,
+      createdRecords: successRecords - updatedRecords,
+      updatedRecords,
+      unchangedRecords,
       failedRecords: errors.length,
       errors,
     }

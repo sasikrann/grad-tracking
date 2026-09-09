@@ -91,7 +91,7 @@ function normalizeMilestone(body) {
     ),
     evidenceCode: optionalText(body.evidenceCode),
     title: requiredText(body.title, 'title'),
-    description: optionalText(body.description),
+    description: requiredText(body.description, 'description'),
     references: referenceItems(body.references),
     sequenceOrder: body.sequenceOrder ? Number(body.sequenceOrder) : null,
     openDate: null,

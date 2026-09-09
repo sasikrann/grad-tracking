@@ -101,6 +101,21 @@ test('imports graduated students with their graduation semester and academic yea
   assert.equal(students[0].graduationAcademicYear, 2568)
 })
 
+test('rejects a graduated status without a semester and academic year', async () => {
+  await assert.rejects(
+    readStudentImportFile(
+      csvFile(
+        `${productionHeaders}\n6551303009,Graduated Student,School of IT,DTT,A1,สำเร็จการศึกษา`,
+      ),
+    ),
+    (error) => {
+      assert.equal(error.statusCode, 400)
+      assert.equal(error.message, 'กรุณากรอกสถานะสำเร็จการศึกษาให้ถูกต้อง')
+      return true
+    },
+  )
+})
+
 test('skips withdrawn and unregistered student statuses', async () => {
   const students = await readStudentImportFile(
     csvFile(

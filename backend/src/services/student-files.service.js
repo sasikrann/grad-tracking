@@ -461,6 +461,10 @@ export function parseStudentImportStatus(value) {
     };
   }
 
+  if (/^สำเร็จการศึกษา/i.test(statusText)) {
+    throw new ApiError(400, "กรุณากรอกสถานะสำเร็จการศึกษาให้ถูกต้อง");
+  }
+
   return { action: "skip" };
 }
 
@@ -501,9 +505,13 @@ export async function readStudentImportFile(file) {
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1 || !row.hasValues) return;
     const studentStatus = cellValue(row, headerMap, headerAliases.studentStatus);
-    const parsedStudentStatus = studentStatus
-      ? parseStudentImportStatus(studentStatus)
-      : null;
+    let parsedStudentStatus = null;
+    try {
+      parsedStudentStatus = studentStatus ? parseStudentImportStatus(studentStatus) : null;
+    } catch (error) {
+      validationErrors.push(`Row ${rowNumber}: ${error.message}`);
+      return;
+    }
     if (hasStudentStatusColumn && parsedStudentStatus?.action === "skip") return;
     // Skip duplicate student IDs within the same import file silently (keep first occurrence)
     const candidateId = normalizeCellText(cellValue(row, headerMap, headerAliases.studentId));
@@ -559,7 +567,15 @@ export async function readStudentImportFile(file) {
     ...validationErrors,
   ].filter(Boolean);
   if (allValidationErrors.length) {
-    throw new ApiError(400, "Please complete all required fields and import the file again.");
+    const graduationStatusError = allValidationErrors.find((message) =>
+      message.includes("กรุณากรอกสถานะสำเร็จการศึกษาให้ถูกต้อง"),
+    );
+    throw new ApiError(
+      400,
+      graduationStatusError
+        ? "กรุณากรอกสถานะสำเร็จการศึกษาให้ถูกต้อง"
+        : "Please complete all required fields and import the file again.",
+    );
   }
   // Previously we errored on duplicate IDs in-file. Per new policy, duplicates in the file
   // should be ignored (we kept the first occurrence). No error raised here.

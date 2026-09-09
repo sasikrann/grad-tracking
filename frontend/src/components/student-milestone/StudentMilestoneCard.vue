@@ -135,7 +135,11 @@ watch(
   () => void nextTick(updateMobileDescriptionLength),
 )
 watch(
-  () => [props.currentAdvisorId, ...(props.currentCoAdvisorIds ?? [])],
+  () =>
+    JSON.stringify({
+      advisorId: props.currentAdvisorId ?? '',
+      coAdvisorIds: props.currentCoAdvisorIds ?? [],
+    }),
   () => {
     selectedAdvisorId.value = props.currentAdvisorId ?? ''
     selectedCoAdvisorIds.value = [...(props.currentCoAdvisorIds ?? []), '', ''].slice(0, 2)
@@ -205,10 +209,12 @@ const showAdvisorAppointment = computed(
 const advisorOptions = computed(() => props.advisors ?? [])
 const primaryAdvisorOptions = computed(() => [
   { value: '', label: 'Select advisor' },
-  ...advisorOptions.value.map((advisor) => ({
-    value: advisor.advisorId,
-    label: `${advisor.fullName} - ${advisor.email}`,
-  })),
+  ...advisorOptions.value
+    .filter((advisor) => !selectedCoAdvisorIds.value.includes(advisor.advisorId))
+    .map((advisor) => ({
+      value: advisor.advisorId,
+      label: `${advisor.fullName} - ${advisor.email}`,
+    })),
 ])
 function coAdvisorOptions(slotIndex: number) {
   const otherId = selectedCoAdvisorIds.value[slotIndex === 0 ? 1 : 0]
