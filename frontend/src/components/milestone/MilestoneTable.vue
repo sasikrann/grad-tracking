@@ -51,7 +51,8 @@ function handleOutsideMenuClick(event: MouseEvent) {
 
 function handleMenuAction(event: MouseEvent, action: 'edit' | 'remove', milestone: Milestone) {
   ;(event.currentTarget as HTMLElement).closest('details')?.removeAttribute('open')
-  emit(action, milestone)
+  if (action === 'edit') emit('edit', milestone)
+  else emit('remove', milestone)
 }
 
 onMounted(() => {

@@ -8,6 +8,7 @@ import {
   resolveNotificationAttachmentUrl,
 } from '@/services/notifications.api'
 import type { StudentNotification } from '@/types/notification'
+import PaginationControls from '@/components/common/PaginationControls.vue'
 import { useLanguage } from '@/composables/useLanguage'
 
 const { language, t } = useLanguage()
@@ -34,9 +35,6 @@ const unreadCount = computed(
 )
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(notifications.value.length / notificationsPerPage)),
-)
-const pageNumbers = computed(() =>
-  Array.from({ length: totalPages.value }, (_, index) => index + 1),
 )
 const paginatedNotifications = computed(() => {
   const startIndex = (currentPage.value - 1) * notificationsPerPage
@@ -149,7 +147,7 @@ function closeAttachmentPreview() {
 
 async function openAttachmentPreview(value: string) {
   closeAttachmentPreview()
-  attachmentPreviewName.value = attachmentName(value) || 'Attachment'
+  attachmentPreviewName.value = attachmentName(value) || t('notification.attachment')
   isAttachmentPreviewOpen.value = true
   isLoadingAttachmentPreview.value = true
 
@@ -161,7 +159,7 @@ async function openAttachmentPreview(value: string) {
     }
 
     const response = await fetch(attachmentHref(value), { credentials: 'include' })
-    if (!response.ok) throw new Error('Unable to open attachment')
+    if (!response.ok) throw new Error(t('notification.unableOpenAttachment'))
 
     const blob = await response.blob()
     const fileName = attachmentPreviewName.value.toLowerCase()
@@ -177,9 +175,8 @@ async function openAttachmentPreview(value: string) {
 
     attachmentPreviewUrl.value = URL.createObjectURL(blob)
     attachmentPreviewType.value = isPdf ? 'pdf' : 'image'
-  } catch (error) {
-    attachmentPreviewError.value =
-      error instanceof Error ? error.message : 'Unable to open attachment'
+  } catch {
+    attachmentPreviewError.value = t('notification.unableOpenAttachment')
   } finally {
     isLoadingAttachmentPreview.value = false
   }
@@ -341,9 +338,9 @@ async function loadNotifications({ silent = false } = {}) {
         ) ?? selectedNotification.value
     }
     syncUnreadCountBadge()
-  } catch (error) {
+  } catch {
     if (!silent) {
-      errorMessage.value = error instanceof Error ? error.message : 'Unable to load notifications'
+      errorMessage.value = t('studentPortal.notificationsLoadFailed')
     }
   } finally {
     if (!silent) {
@@ -371,9 +368,8 @@ async function markOneAsRead(notification: StudentNotification) {
   try {
     const result = await markNotificationAsRead(notification.notificationId)
     updateNotificationReadStatus(notification.notificationId, result.readAt)
-  } catch (error) {
-    errorMessage.value =
-      error instanceof Error ? error.message : 'Unable to mark notification as read'
+  } catch {
+    errorMessage.value = t('studentPortal.markAsReadFailed')
   } finally {
     markingNotificationId.value = null
   }
@@ -394,9 +390,8 @@ async function markAllAsRead() {
       readAt: notification.readAt ?? readAt,
     }))
     syncUnreadCountBadge()
-  } catch (error) {
-    errorMessage.value =
-      error instanceof Error ? error.message : 'Unable to mark all notifications as read'
+  } catch {
+    errorMessage.value = t('studentPortal.markAllAsReadFailed')
   } finally {
     isMarkingAll.value = false
   }
@@ -598,7 +593,7 @@ watch(totalPages, (nextTotalPages) => {
         </article>
 
         <div
-          class="flex flex-col gap-3 px-1 pt-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-0 sm:pt-4 sm:text-sm"
+          class="px-1 pt-2 text-xs text-slate-500 sm:px-0 sm:pt-4 sm:text-sm"
         >
           <p>
             {{
@@ -610,30 +605,18 @@ watch(totalPages, (nextTotalPages) => {
             }}
           </p>
 
-          <nav
-            v-if="totalPages > 1"
-            class="flex flex-wrap items-center gap-1"
-            :aria-label="t('studentPortal.notificationPages')"
-          >
-            <button
-              v-for="page in pageNumbers"
-              :key="page"
-              type="button"
-              class="flex size-8 items-center justify-center rounded-lg border text-sm font-semibold transition-colors"
-              :class="
-                page === currentPage
-                  ? 'border-[#8b2a23] bg-[#8b2a23] text-white'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-[#d7b2ad] hover:text-[#8b2a23]'
-              "
-              :aria-current="page === currentPage ? 'page' : undefined"
-              @click="goToPage(page)"
-            >
-              {{ page }}
-            </button>
-          </nav>
         </div>
       </template>
     </section>
+
+    <PaginationControls
+      v-if="!isLoading && notifications.length"
+      class="mt-5"
+      :current-page="currentPage"
+      :total-pages="totalPages"
+      :pagination-label="t('studentPortal.notificationPages')"
+      @change="goToPage"
+    />
 
     <div
       v-if="isDetailOpen && selectedNotification"

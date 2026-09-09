@@ -28,6 +28,9 @@ export interface AdvisorImportConflict {
 export interface AdvisorImportResult {
   totalRecords: number
   successRecords: number
+  createdRecords?: number
+  updatedRecords?: number
+  unchangedRecords?: number
   failedRecords: number
   errors: string[]
 }

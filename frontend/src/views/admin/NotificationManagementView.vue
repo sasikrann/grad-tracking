@@ -7,6 +7,7 @@ import {
   resolveNotificationAttachmentUrl,
   uploadNotificationAttachment,
 } from '@/services/notifications.api'
+import PaginationControls from '@/components/common/PaginationControls.vue'
 import type {
   Notification,
   NotificationInput,
@@ -157,9 +158,6 @@ const toastMessage = computed(() => errorMessage.value || successMessage.value)
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(notifications.value.length / notificationsPerPage)),
 )
-const pageNumbers = computed(() =>
-  Array.from({ length: totalPages.value }, (_, index) => index + 1),
-)
 const paginatedNotifications = computed(() => {
   const startIndex = (currentPage.value - 1) * notificationsPerPage
   return notifications.value.slice(startIndex, startIndex + notificationsPerPage)
@@ -264,9 +262,8 @@ async function openAttachmentPreview(value: string) {
 
     attachmentPreviewUrl.value = URL.createObjectURL(blob)
     attachmentPreviewType.value = isPdf ? 'pdf' : 'image'
-  } catch (error) {
-    attachmentPreviewError.value =
-      error instanceof Error ? error.message : t('notification.unableOpenAttachment')
+  } catch {
+    attachmentPreviewError.value = t('notification.unableOpenAttachment')
   } finally {
     isLoadingAttachmentPreview.value = false
   }
@@ -453,16 +450,9 @@ async function loadNotifications({ silent = false } = {}) {
       selectedFilter.value === 'all' ? undefined : selectedFilter.value,
     )
     currentPage.value = Math.min(currentPage.value, totalPages.value)
-  } catch (error) {
+  } catch {
     notifications.value = []
-    showToast(
-      isThai.value && error instanceof Error
-        ? t('toast.notificationsLoadFailed')
-        : error instanceof Error
-          ? error.message
-          : t('toast.notificationsLoadFailed'),
-      'error',
-    )
+    showToast(t('toast.notificationsLoadFailed'), 'error')
   } finally {
     if (!silent) isLoading.value = false
   }
@@ -508,7 +498,7 @@ function updateAttachment(event: Event) {
   const file = input.files?.[0] ?? null
 
   if (file && file.size > 10 * 1024 * 1024) {
-    formError.value = 'Attachment must not exceed 10 MB'
+    formError.value = t('notification.attachmentTooLarge')
     input.value = ''
     attachmentFile.value = null
     return
@@ -525,17 +515,17 @@ async function submitNotification() {
   const trimmedPlainMessage = plainNotificationMessage(trimmedMessage)
 
   if (!trimmedTitle) {
-    formError.value = 'Title is required'
+    formError.value = t('notification.titleRequired')
     return
   }
 
   if (!trimmedPlainMessage) {
-    formError.value = 'Description is required'
+    formError.value = t('notification.descriptionRequired')
     return
   }
 
   if (trimmedPlainMessage.length > 5000) {
-    formError.value = 'Description must not exceed 5000 characters'
+    formError.value = t('notification.descriptionTooLong')
     return
   }
 
@@ -548,7 +538,7 @@ async function submitNotification() {
       : null
 
     if (attachmentFile.value && !uploadedAttachment?.url) {
-      throw new Error('Attachment upload did not return a file URL')
+      throw new Error(t('notification.attachmentUploadFailed'))
     }
 
     const input: NotificationInput = {
@@ -564,8 +554,8 @@ async function submitNotification() {
     resetForm()
     showToast(t('toast.notificationSent'))
     await loadNotifications()
-  } catch (error) {
-    formError.value = error instanceof Error ? error.message : 'Unable to send notification'
+  } catch {
+    formError.value = t('notification.sendFailed')
   } finally {
     isSubmitting.value = false
   }
@@ -720,7 +710,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
 
       <div class="mt-5 space-y-3 sm:hidden">
         <p v-if="isLoading" class="py-8 text-center text-sm text-slate-500">
-          Loading notifications...
+          {{ t('studentPortal.loadingNotifications') }}
         </p>
 
         <p v-else-if="!notifications.length" class="py-8 text-center text-sm text-slate-500">
@@ -803,7 +793,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
           <tbody>
             <tr v-if="isLoading">
               <td colspan="4" class="px-1 py-8 text-center text-sm text-slate-500">
-                Loading notifications...
+                {{ t('studentPortal.loadingNotifications') }}
               </td>
             </tr>
             <tr v-else-if="!notifications.length">
@@ -860,7 +850,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
 
       <div
         v-if="!isLoading && notifications.length"
-        class="mt-4 flex flex-col gap-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:text-sm"
+        class="mt-4 text-xs text-slate-500 sm:text-sm"
       >
         <p>
           {{
@@ -872,29 +862,17 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
           }}
         </p>
 
-        <nav
-          v-if="totalPages > 1"
-          class="flex flex-wrap items-center gap-1"
-          :aria-label="t('notification.pagesLabel')"
-        >
-          <button
-            v-for="page in pageNumbers"
-            :key="page"
-            type="button"
-            class="flex size-8 items-center justify-center rounded-lg border text-sm font-semibold transition-colors"
-            :class="
-              page === currentPage
-                ? 'border-[#8b2a23] bg-[#8b2a23] text-white'
-                : 'border-slate-200 bg-white text-slate-600 hover:border-[#d7b2ad] hover:text-[#8b2a23]'
-            "
-            :aria-current="page === currentPage ? 'page' : undefined"
-            @click="goToPage(page)"
-          >
-            {{ page }}
-          </button>
-        </nav>
       </div>
     </section>
+
+    <PaginationControls
+      v-if="!isLoading && notifications.length"
+      class="mt-5"
+      :current-page="currentPage"
+      :total-pages="totalPages"
+      :pagination-label="t('notification.pagesLabel')"
+      @change="goToPage"
+    />
 
     <div
       v-if="isPanelOpen"
@@ -905,20 +883,20 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
 
     <aside
       v-if="isPanelOpen"
-      class="fixed inset-3 z-50 flex max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden rounded-2xl bg-white px-4 py-5 shadow-2xl sm:inset-y-4 sm:left-auto sm:right-4 sm:max-h-[calc(100dvh-2rem)] sm:w-[34rem] sm:max-w-[calc(100vw-2rem)] sm:rounded-[18px] sm:px-6 sm:py-7"
+      class="fixed inset-3 z-50 flex max-h-[calc(100dvh-1.5rem)] min-w-0 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl bg-white px-4 py-5 shadow-2xl sm:inset-y-4 sm:left-auto sm:right-4 sm:max-h-[calc(100dvh-2rem)] sm:w-[34rem] sm:max-w-[calc(100vw-2rem)] sm:rounded-[18px] sm:px-6 sm:py-7"
       role="dialog"
       aria-modal="true"
       aria-labelledby="send-notification-title"
     >
-      <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+      <div class="min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto pr-1">
         <h2 id="send-notification-title" class="text-base font-semibold text-slate-950 sm:text-lg">
           {{ t('notification.send') }}
         </h2>
         <p class="mt-2 text-sm text-slate-500">{{ t('notification.createDescription') }}</p>
 
-        <form class="mt-5" @submit.prevent="submitNotification">
-          <fieldset :disabled="isSubmitting" class="space-y-5">
-            <section>
+        <form class="mt-5 min-w-0 max-w-full overflow-x-hidden" @submit.prevent="submitNotification">
+          <fieldset :disabled="isSubmitting" class="min-w-0 max-w-full space-y-5 overflow-x-hidden">
+            <section class="min-w-0 max-w-full overflow-x-hidden">
               <h3 class="text-base font-semibold text-slate-950 sm:text-lg">
                 {{ t('notification.basicInformation') }}
               </h3>
@@ -940,7 +918,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
               >
                 {{ t('common.description') }} <span class="text-[#8b2a23]">*</span>
               </label>
-              <div class="mt-1 overflow-hidden rounded-md border border-slate-200">
+              <div class="mt-1 min-w-0 max-w-full overflow-hidden rounded-md border border-slate-200">
                 <div
                   class="flex h-8 items-center gap-1.5 border-b border-slate-100 px-3 text-xs font-semibold text-slate-600"
                 >
@@ -1028,7 +1006,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
                 <div
                   id="notification-message"
                   ref="messageEditor"
-                  class="h-32 w-full overflow-y-auto px-4 py-3 text-sm outline-none empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)]"
+                  class="notification-message-editor h-32 w-full min-w-0 max-w-full overflow-x-hidden overflow-y-auto whitespace-pre-wrap break-words px-4 py-3 text-sm outline-none [overflow-wrap:anywhere] empty:before:text-slate-400 empty:before:content-[attr(data-placeholder)]"
                   :data-placeholder="t('notification.enterDescription')"
                   contenteditable="true"
                   role="textbox"
@@ -1344,7 +1322,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
       @click.self="closeDetail"
     >
       <section
-        class="relative w-full max-w-[480px] overflow-hidden rounded-[18px] bg-white shadow-xl"
+        class="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-[480px] flex-col overflow-hidden rounded-[18px] bg-white shadow-xl"
       >
         <button
           type="button"
@@ -1424,10 +1402,10 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
           </div>
         </div>
 
-        <div class="px-6 pb-6 pt-0">
+        <div class="min-w-0 overflow-x-hidden overflow-y-auto px-6 pb-6 pt-0">
           <p class="text-xs font-semibold text-black">{{ t('common.description') }}</p>
           <div
-            class="mt-2 break-words text-xs leading-5 text-slate-900 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+            class="mt-2 min-w-0 break-words text-xs leading-5 text-slate-900 [overflow-wrap:anywhere] [&_*]:max-w-full [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
             v-html="
               formattedNotificationMessage(notificationDescription(selectedNotification.message))
             "
@@ -1599,3 +1577,13 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
     </div>
   </div>
 </template>
+
+<style scoped>
+.notification-message-editor,
+.notification-message-editor :deep(*) {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+</style>
