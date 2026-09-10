@@ -9,6 +9,10 @@
     "dev:users": "npm --prefix backend run dev:users",
     "db:audit": "npm --prefix backend run db:audit",
     "build": "npm --prefix frontend run build",
-    "test": "npm --prefix backend test && npm --prefix frontend run test:unit"
+    "test": "npm --prefix backend test && npm --prefix frontend run test:unit",
+    "test:e2e:infra": "docker compose -p grad-tracking-e2e -f docker-compose.e2e.yml up -d --build --wait",
+    "test:e2e": "npm run test:e2e:infra && npm --prefix frontend run test:e2e",
+    "test:e2e:report": "npm --prefix frontend run test:e2e:report",
+    "test:e2e:down": "docker compose -p grad-tracking-e2e -f docker-compose.e2e.yml down"
   }
 }

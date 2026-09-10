@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
-    "dev:users": "node src/scripts/create-dev-users.js",
+    "bootstrap:admin": "node src/scripts/bootstrap-admin.js",
+    "dev:users": "npm run bootstrap:admin",
+    "test:e2e:seed": "node test/e2e/seed-e2e.js",
     "db:audit": "node src/scripts/audit-database.js",
     "start": "node src/index.js",
     "test": "node --test"

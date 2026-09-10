@@ -1,4 +1,11 @@
 {
   "extends": "@tsconfig/node24/tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2024", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "types": ["node", "@playwright/test"]
+  },
   "include": ["./**/*"]
 }
