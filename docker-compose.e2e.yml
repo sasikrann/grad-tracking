@@ -12,10 +12,24 @@ services:
       interval: 2s
       timeout: 3s
       retries: 20
-    tmpfs:
-      - /var/lib/postgresql/data
     volumes:
+      - e2e_db_data:/var/lib/postgresql/data
       - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+
+  e2e-seed:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    depends_on:
+      e2e-db:
+        condition: service_healthy
+    entrypoint: ["node", "test/e2e/seed-e2e.js"]
+    environment:
+      DATABASE_URL: postgresql://postgres:e2e-only-password@e2e-db:5432/grad_tracking_e2e
+      BOOTSTRAP_ADMIN_EMAIL: ${E2E_ADMIN_EMAIL:-automation-test@lamduan.mfu.ac.th}
+      BOOTSTRAP_ADMIN_NAME: Automation Test Administrator
+      E2E_STUDENT_EMAIL: ${E2E_STUDENT_EMAIL:-automation-student@lamduan.mfu.ac.th}
+      E2E_ALLOW_RESET: "true"
 
   e2e-backend:
     build:
@@ -24,6 +38,8 @@ services:
     depends_on:
       e2e-db:
         condition: service_healthy
+      e2e-seed:
+        condition: service_completed_successfully
     environment:
       NODE_ENV: development
       PORT: 3000
@@ -60,3 +76,6 @@ services:
       interval: 2s
       timeout: 3s
       retries: 20
+
+volumes:
+  e2e_db_data:
