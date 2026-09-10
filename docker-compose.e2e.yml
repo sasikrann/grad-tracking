@@ -1,0 +1,62 @@
+services:
+  e2e-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: grad_tracking_e2e
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: e2e-only-password
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d grad_tracking_e2e"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+
+  e2e-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    depends_on:
+      e2e-db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:e2e-only-password@e2e-db:5432/grad_tracking_e2e
+      BOOTSTRAP_ADMIN_EMAIL: ${E2E_ADMIN_EMAIL:-automation-test@lamduan.mfu.ac.th}
+      BOOTSTRAP_ADMIN_NAME: Automation Test Administrator
+      ENABLE_DEV_LOGIN: "true"
+      ENABLE_DOCKER_DEV_LOGIN: "true"
+      FRONTEND_ORIGIN: http://localhost:5174
+      GOOGLE_CLIENT_ID: e2e-client-id.apps.googleusercontent.com
+      JWT_SECRET: e2e-only-jwt-secret-that-is-not-used-outside-the-test-stack
+      AUTH_COOKIE_SAME_SITE: lax
+      TZ: Asia/Bangkok
+    ports:
+      - "127.0.0.1:3001:3000"
+    tmpfs:
+      - /app/uploads
+
+  e2e-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.e2e
+    depends_on:
+      e2e-backend:
+        condition: service_started
+    environment:
+      VITE_API_URL: http://localhost:3001
+      VITE_ENABLE_DEV_LOGIN: "true"
+      VITE_GOOGLE_CLIENT_ID: e2e-client-id.apps.googleusercontent.com
+    ports:
+      - "127.0.0.1:5174:5174"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:5174/login"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
