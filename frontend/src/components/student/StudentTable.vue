@@ -299,7 +299,7 @@ function planLabel(plan: string) {
                   :style="{ width: `${student.progress}%` }"
                 ></div>
               </div>
-              <span class="w-10 text-left text-xs font-semibold tabular-nums">
+              <span class="w-10 text-left text-xs font-normal">
                 {{ student.progress }}%
               </span>
             </div>
