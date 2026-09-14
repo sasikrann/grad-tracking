@@ -23,10 +23,6 @@ export function updateMilestone(milestoneId: string, input: MilestoneInput, scop
   })
 }
 
-export function deleteMilestone(milestoneId: string) {
-  return request<null>(`/api/milestones/${milestoneId}`, { method: 'DELETE' })
-}
-
 export function setMilestoneEnabled(milestoneId: string, isEnabled: boolean) {
   return request<Milestone>(`/api/milestones/${milestoneId}/enabled`, {
     method: 'PATCH',

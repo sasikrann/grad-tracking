@@ -1,5 +1,4 @@
-// Controller สำหรับจัดการ Milestone
-// เอาไว้ให้ Admin สร้าง แก้ไข ลบ เปิด-ปิด เรียงลำดับ และคัดลอก milestone
+// Controller สำหรับให้ Admin สร้าง แก้ไข เปิด-ปิด เรียงลำดับ และคัดลอก Milestone
 import { ApiError } from '../errors/api-error.js'
 import {
   copyMilestones,
@@ -8,7 +7,6 @@ import {
   findMilestoneById,
   moveMilestone,
   nextSequenceOrder,
-  removeMilestone,
   setMilestoneEnabled,
   updateMilestone,
   updateMilestoneForPlan,
@@ -141,13 +139,6 @@ export async function editMilestone(request, response) {
     : await updateMilestone(request.params.milestoneId, input)
   if (!milestone) throw new ApiError(404, 'Milestone not found')
   response.json({ data: milestone })
-}
-
-export async function deleteMilestone(request, response) {
-  if (!(await removeMilestone(request.params.milestoneId))) {
-    throw new ApiError(404, 'Milestone not found')
-  }
-  response.status(204).send()
 }
 
 export async function toggleMilestone(request, response) {

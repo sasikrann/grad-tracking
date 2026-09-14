@@ -3,7 +3,6 @@ import { Router } from 'express'
 import {
   addMilestone,
   copyMilestoneSet,
-  deleteMilestone,
   editMilestone,
   getMilestone,
   getMilestones,
@@ -20,7 +19,6 @@ router.post('/', addMilestone)
 router.post('/copy', copyMilestoneSet)
 router.get('/:milestoneId', getMilestone)
 router.put('/:milestoneId', editMilestone)
-router.delete('/:milestoneId', deleteMilestone)
 router.patch('/:milestoneId/enabled', toggleMilestone)
 router.patch('/:milestoneId/order', reorderMilestone)
 

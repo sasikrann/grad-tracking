@@ -10,6 +10,15 @@ import {
 import type { StudentNotification } from '@/types/notification'
 import PaginationControls from '@/components/common/PaginationControls.vue'
 import { useLanguage } from '@/composables/useLanguage'
+import {
+  formatNotificationDate,
+  formatNotificationDateTime as formatLocalizedNotificationDateTime,
+  notificationDisplayDeadline,
+  notificationDisplayDescription,
+  notificationDisplayFooter,
+  notificationDisplayMessage,
+  notificationDisplayTitle,
+} from '@/utils/notification-display'
 
 const { language, t } = useLanguage()
 
@@ -95,19 +104,7 @@ function formatNotificationTime(value: string | null) {
 }
 
 function formatDateTime(value: string | null) {
-  if (!value) return '-'
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '-'
-
-  return new Intl.DateTimeFormat(language.value === 'th' ? 'th-TH' : 'en-GB', {
-    calendar: language.value === 'th' ? 'buddhist' : 'gregory',
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date)
+  return formatLocalizedNotificationDateTime(value, language.value)
 }
 
 function attachmentName(value: string | null) {
@@ -221,50 +218,8 @@ function formattedNotificationMessage(value: string) {
     .replace(/\n/g, '<br>')
 }
 
-function notificationDeadline(value: string) {
-  return (
-    plainNotificationMessage(value).match(/\bDeadline:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\.?/i)?.[1] ??
-    ''
-  )
-}
-
 function formatNotificationDeadline(value: string) {
-  if (!value) return ''
-  const date = new Date(`${value}T00:00:00`)
-  if (Number.isNaN(date.getTime())) return value
-
-  return new Intl.DateTimeFormat(language.value === 'th' ? 'th-TH' : 'en-GB', {
-    calendar: language.value === 'th' ? 'buddhist' : 'gregory',
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(date)
-}
-
-function notificationFooterNotice(value: string) {
-  const message = plainNotificationMessage(value)
-  if (message.includes('Please review the milestone details and prepare the required documents.')) {
-    return 'Please review the milestone details and prepare the required documents.'
-  }
-
-  if (message.includes('Please review your progress and prepare your submission.')) {
-    return 'Please review your progress and prepare your submission.'
-  }
-
-  if (message.includes('Please complete the required work before the deadline.')) {
-    return 'Please review your progress and prepare your submission.'
-  }
-
-  return ''
-}
-
-function notificationDescription(value: string) {
-  return value
-    .replace(/\s*Please review the milestone details and prepare the required documents\.?/gi, '')
-    .replace(/\s*Please review your progress and prepare your submission\.?/gi, '')
-    .replace(/\s*Please complete the required work before the deadline\.?/gi, '')
-    .replace(/\s*Deadline:\s*[0-9]{4}-[0-9]{2}-[0-9]{2}\.?/gi, '')
-    .trim()
+  return formatNotificationDate(value, language.value)
 }
 
 async function downloadAttachment(value: string) {
@@ -559,15 +514,15 @@ watch(totalPages, (nextTotalPages) => {
             >
               <div class="min-w-0">
                 <h2
-                  class="line-clamp-2 pr-3 text-sm font-semibold leading-snug text-slate-950 sm:truncate sm:pr-0 sm:font-medium"
+                  class="line-clamp-2 py-0.5 pr-3 text-sm font-semibold leading-relaxed text-slate-950 sm:truncate sm:pr-0 sm:font-medium"
                 >
-                  {{ notification.title }}
+                  {{ notificationDisplayTitle(notification, t) }}
                 </h2>
 
                 <p
                   class="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500 sm:truncate sm:leading-snug"
                 >
-                  {{ plainNotificationMessage(notification.message) }}
+                  {{ plainNotificationMessage(notificationDisplayMessage(notification, t)) }}
                 </p>
               </div>
 
@@ -667,9 +622,9 @@ watch(totalPages, (nextTotalPages) => {
           <div class="min-w-0">
             <h2
               id="notification-detail-title"
-              class="break-words text-base font-semibold leading-tight text-slate-950"
+              class="break-words py-0.5 text-base font-semibold leading-relaxed text-slate-950"
             >
-              {{ selectedNotification.title }}
+              {{ notificationDisplayTitle(selectedNotification, t) }}
             </h2>
             <p class="mt-0.5 inline-flex max-w-full items-center gap-1.5 text-xs text-slate-500">
               <svg
@@ -693,15 +648,17 @@ watch(totalPages, (nextTotalPages) => {
           <div
             class="mt-2 break-words text-xs leading-5 text-slate-900 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
             v-html="
-              formattedNotificationMessage(notificationDescription(selectedNotification.message))
+              formattedNotificationMessage(
+                notificationDisplayDescription(selectedNotification, t),
+              )
             "
           ></div>
 
-          <div v-if="notificationDeadline(selectedNotification.message)" class="mt-5">
+          <div v-if="notificationDisplayDeadline(selectedNotification)" class="mt-5">
             <p class="text-xs font-semibold text-black">
               {{ t('common.deadline') }}:
               <span class="ml-2 font-medium text-slate-900">
-                {{ formatNotificationDeadline(notificationDeadline(selectedNotification.message)) }}
+                {{ formatNotificationDeadline(notificationDisplayDeadline(selectedNotification)) }}
               </span>
             </p>
           </div>
@@ -784,10 +741,10 @@ watch(totalPages, (nextTotalPages) => {
           </div>
 
           <p
-            v-if="notificationFooterNotice(selectedNotification.message)"
+            v-if="notificationDisplayFooter(selectedNotification, t)"
             class="mt-5 text-xs font-semibold leading-5 text-red-600"
           >
-            {{ notificationFooterNotice(selectedNotification.message) }}
+            {{ notificationDisplayFooter(selectedNotification, t) }}
           </p>
         </div>
       </section>

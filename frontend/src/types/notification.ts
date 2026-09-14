@@ -14,6 +14,8 @@ export interface Notification {
   createdBy: string | null
   milestoneId?: string | null
   reminderStage?: string | null
+  milestoneTitle?: string | null
+  milestoneDeadline?: string | null
   createdAt: string
   sentAt: string | null
 }

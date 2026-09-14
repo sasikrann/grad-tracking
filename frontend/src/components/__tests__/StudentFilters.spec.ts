@@ -60,7 +60,7 @@ describe('StudentFilters', () => {
     await planButton?.trigger('click')
 
     const visibleLabels = wrapper.findAll('button').map((button) => button.text())
-    expect(visibleLabels).toContain('ก1')
+    expect(visibleLabels).toContain('แผน ก1')
     expect(visibleLabels).not.toContain('2.1')
     expect(visibleLabels).not.toContain('2.2')
   })

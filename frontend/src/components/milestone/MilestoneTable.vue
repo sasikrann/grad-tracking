@@ -14,7 +14,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   edit: [milestone: Milestone]
-  remove: [milestone: Milestone]
   setEnabled: [milestone: Milestone, isEnabled: boolean]
   move: [milestoneId: string, direction: 'up' | 'down']
   moveTo: [milestoneId: string, targetMilestoneId: string]
@@ -49,10 +48,9 @@ function handleOutsideMenuClick(event: MouseEvent) {
   closeActionMenus()
 }
 
-function handleMenuAction(event: MouseEvent, action: 'edit' | 'remove', milestone: Milestone) {
+function handleMenuAction(event: MouseEvent, milestone: Milestone) {
   ;(event.currentTarget as HTMLElement).closest('details')?.removeAttribute('open')
-  if (action === 'edit') emit('edit', milestone)
-  else emit('remove', milestone)
+  emit('edit', milestone)
 }
 
 onMounted(() => {
@@ -299,20 +297,6 @@ function descriptionLines(description: string | null) {
   )
 }
 
-function planLabel(plan: string) {
-  const keys: Record<
-    string,
-    'common.planA1' | 'common.planA2' | 'common.planB' | 'common.plan21' | 'common.plan22'
-  > = {
-    A1: 'common.planA1',
-    A2: 'common.planA2',
-    B: 'common.planB',
-    '2.1': 'common.plan21',
-    '2.2': 'common.plan22',
-  }
-  return plan === 'All' ? t('common.allPlan') : keys[plan] ? t(keys[plan]) : plan
-}
-
 const tableRows = computed(() => {
   if (!props.groupBySemester) {
     return props.milestones.map((milestone, index) => ({
@@ -398,18 +382,6 @@ const tableRows = computed(() => {
             <span
               class="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[9px] text-[#607995]"
             >
-              {{
-                row.milestone.degreeLevel === 'Doctoral' ? t('common.doctoral') : t('common.master')
-              }}
-            </span>
-            <span
-              class="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[9px] text-[#607995]"
-            >
-              {{ row.milestone.plans.map(planLabel).join(', ') }}
-            </span>
-            <span
-              class="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[9px] text-[#607995]"
-            >
               ◫ {{ formatDate(row.milestone.deadline) }}
             </span>
           </div>
@@ -428,7 +400,7 @@ const tableRows = computed(() => {
             <button
               type="button"
               class="flex w-full items-center gap-2 rounded px-2 py-2 text-left hover:bg-slate-50"
-              @click="handleMenuAction($event, 'edit', row.milestone)"
+              @click="handleMenuAction($event, row.milestone)"
             >
               <svg
                 class="size-3.5"
@@ -442,26 +414,6 @@ const tableRows = computed(() => {
                 <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" />
               </svg>
               {{ t('common.edit') }}
-            </button>
-            <button
-              type="button"
-              class="flex w-full items-center gap-2 rounded px-2 py-2 text-left text-red-600 hover:bg-red-50"
-              @click="handleMenuAction($event, 'remove', row.milestone)"
-            >
-              <svg
-                class="size-3.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.7"
-                aria-hidden="true"
-              >
-                <path d="M3 6h18" />
-                <path d="M8 6V4h8v2" />
-                <path d="M19 6l-1 14H6L5 6" />
-                <path d="M10 11v5M14 11v5" />
-              </svg>
-              {{ t('common.delete') }}
             </button>
           </div>
         </details>
@@ -517,31 +469,29 @@ const tableRows = computed(() => {
   </div>
 
   <div data-reorder-scope class="mt-5 hidden overflow-x-auto md:block">
-    <table class="w-full min-w-[1120px] table-fixed border-collapse text-left">
+    <table class="w-full min-w-[1040px] table-fixed border-collapse text-left">
       <thead>
         <tr class="border-b border-slate-200 text-xs whitespace-nowrap">
-          <th class="w-[10%] py-3 font-semibold">{{ t('common.order') }}</th>
-          <th class="w-[22.5%] py-3 font-semibold">{{ t('common.title') }}</th>
-          <th class="w-[16%] py-3 font-semibold">{{ t('common.description') }}</th>
-          <th class="w-[13%] py-3 pl-4 font-semibold">{{ t('common.reference') }}</th>
-          <th class="w-[10%] py-3 text-center font-semibold">{{ t('common.program') }}</th>
-          <th class="w-[11%] py-3 text-center font-semibold">{{ t('common.plan') }}</th>
-          <th class="w-[9.5%] py-3 text-center font-semibold">{{ t('common.deadline') }}</th>
-          <th class="w-[210px] py-3 text-center font-semibold">
-            <span class="inline-block translate-x-2">{{ t('common.actions') }}</span>
+          <th class="w-[8%] py-3 font-semibold">{{ t('common.order') }}</th>
+          <th class="w-[25%] py-3 font-semibold">{{ t('common.title') }}</th>
+          <th class="w-[19%] py-3 font-semibold">{{ t('common.description') }}</th>
+          <th class="w-[18%] py-3 pl-[44px] font-semibold">{{ t('common.reference') }}</th>
+          <th class="w-[10%] py-3 text-center font-semibold">{{ t('common.deadline') }}</th>
+          <th class="w-[20%] py-3 text-center font-semibold">
+            <span class="inline-block translate-x-16">{{ t('common.actions') }}</span>
           </th>
         </tr>
       </thead>
 
       <tbody>
         <tr v-if="isLoading">
-          <td colspan="8" class="py-12 text-center text-sm text-slate-500">
+          <td colspan="6" class="py-12 text-center text-sm text-slate-500">
             {{ t('milestone.loading') }}
           </td>
         </tr>
 
         <tr v-else-if="milestones.length === 0">
-          <td colspan="8" class="py-12 text-center text-sm text-slate-500">
+          <td colspan="6" class="py-12 text-center text-sm text-slate-500">
             {{ t('milestone.noConfigured') }}
           </td>
         </tr>
@@ -549,7 +499,7 @@ const tableRows = computed(() => {
         <template v-else>
           <template v-for="row in tableRows" :key="row.key">
             <tr v-if="row.type === 'semester'" class="border-b border-slate-200">
-              <td colspan="8" class="pt-4 pb-2">
+              <td colspan="6" class="pt-4 pb-2">
                 <div class="rounded-lg bg-[#f8eeee] px-4 py-2 text-sm font-semibold text-[#8a2b25]">
                   Semester {{ row.semester }}
                 </div>
@@ -606,7 +556,7 @@ const tableRows = computed(() => {
                 </div>
                 <span v-else>-</span>
               </td>
-              <td class="py-4 pl-4 align-top leading-snug">
+              <td class="py-4 pl-[44px] align-top leading-snug">
                 <div v-if="row.milestone.references.length" class="space-y-1">
                   <component
                     v-for="reference in row.milestone.references"
@@ -627,26 +577,6 @@ const tableRows = computed(() => {
                   </component>
                 </div>
                 <span v-else class="text-slate-500">-</span>
-              </td>
-
-              <td class="py-4 text-center align-middle">
-                <span
-                  class="inline-flex min-w-14 items-center justify-center rounded-md border border-slate-200 px-3 py-1 leading-none"
-                >
-                  {{
-                    row.milestone.degreeLevel === 'Doctoral'
-                      ? t('common.doctoral')
-                      : t('common.master')
-                  }}
-                </span>
-              </td>
-
-              <td class="py-4 text-center align-middle">
-                <span
-                  class="inline-flex min-w-14 items-center justify-center rounded-md border border-slate-200 px-3 py-1 leading-none"
-                >
-                  {{ row.milestone.plans.map(planLabel).join(', ') }}
-                </span>
               </td>
 
               <td class="py-4 text-center align-middle text-slate-500">
@@ -700,26 +630,6 @@ const tableRows = computed(() => {
                     </svg>
                   </button>
 
-                  <button
-                    type="button"
-                    class="rounded-md border border-red-100 p-1.5 text-red-500 hover:bg-red-50"
-                    aria-label="Delete milestone"
-                    @click="$emit('remove', row.milestone)"
-                  >
-                    <svg
-                      class="size-4"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      aria-hidden="true"
-                    >
-                      <path d="M3 6h18" />
-                      <path d="M8 6V4h8v2" />
-                      <path d="M19 6l-1 14H6L5 6" />
-                      <path d="M10 11v5M14 11v5" />
-                    </svg>
-                  </button>
                 </div>
               </td>
             </tr>
