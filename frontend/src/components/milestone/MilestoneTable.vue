@@ -469,15 +469,15 @@ const tableRows = computed(() => {
   </div>
 
   <div data-reorder-scope class="mt-5 hidden overflow-x-auto md:block">
-    <table class="w-full min-w-[1040px] table-fixed border-collapse text-left">
+    <table class="w-full min-w-[1280px] table-fixed border-collapse text-left">
       <thead>
         <tr class="border-b border-slate-200 text-xs whitespace-nowrap">
           <th class="w-[8%] py-3 font-semibold">{{ t('common.order') }}</th>
-          <th class="w-[25%] py-3 font-semibold">{{ t('common.title') }}</th>
-          <th class="w-[19%] py-3 font-semibold">{{ t('common.description') }}</th>
-          <th class="w-[18%] py-3 pl-[44px] font-semibold">{{ t('common.reference') }}</th>
-          <th class="w-[10%] py-3 text-center font-semibold">{{ t('common.deadline') }}</th>
-          <th class="w-[20%] py-3 text-center font-semibold">
+          <th class="w-[22%] px-6 py-3 font-semibold">{{ t('common.title') }}</th>
+          <th class="w-[22%] px-6 py-3 font-semibold">{{ t('common.description') }}</th>
+          <th class="w-[22%] px-6 py-3 font-semibold">{{ t('common.reference') }}</th>
+          <th class="w-[10%] px-6 py-3 text-center font-semibold">{{ t('common.deadline') }}</th>
+          <th class="w-[16%] px-6 py-3 text-center font-semibold">
             <span class="inline-block translate-x-16">{{ t('common.actions') }}</span>
           </th>
         </tr>
@@ -535,12 +535,12 @@ const tableRows = computed(() => {
                 </button>
               </td>
 
-              <td class="py-4 align-top font-semibold leading-snug">
-                <div class="w-60 max-w-full break-words">
+              <td class="px-6 py-4 align-top font-semibold leading-snug">
+                <div class="w-full break-words">
                   {{ row.milestone.title }}
                 </div>
               </td>
-              <td class="py-4 align-top leading-snug text-slate-500">
+              <td class="px-6 py-4 align-top leading-snug text-slate-500">
                 <div
                   v-if="row.milestone.description"
                   class="min-w-0 space-y-0.5"
@@ -556,7 +556,7 @@ const tableRows = computed(() => {
                 </div>
                 <span v-else>-</span>
               </td>
-              <td class="py-4 pl-[44px] align-top leading-snug">
+              <td class="px-6 py-4 align-top leading-snug">
                 <div v-if="row.milestone.references.length" class="space-y-1">
                   <component
                     v-for="reference in row.milestone.references"
@@ -565,7 +565,7 @@ const tableRows = computed(() => {
                     :href="isWebReference(reference) ? reference : undefined"
                     :target="isWebReference(reference) ? '_blank' : undefined"
                     :rel="isWebReference(reference) ? 'noopener noreferrer' : undefined"
-                    class="block max-w-40 text-xs"
+                    class="block max-w-full text-xs"
                     :class="
                       isWebReference(reference)
                         ? 'truncate text-[#7D2923] underline'
@@ -579,11 +579,11 @@ const tableRows = computed(() => {
                 <span v-else class="text-slate-500">-</span>
               </td>
 
-              <td class="py-4 text-center align-middle text-slate-500">
+              <td class="px-6 py-4 text-center align-middle text-slate-500">
                 {{ formatDate(row.milestone.deadline) }}
               </td>
 
-              <td class="py-4 align-middle">
+              <td class="px-6 py-4 align-middle">
                 <div class="-mt-1 flex flex-nowrap justify-end gap-2 whitespace-nowrap">
                   <button
                     type="button"

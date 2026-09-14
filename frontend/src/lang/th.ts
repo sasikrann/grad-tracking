@@ -154,6 +154,7 @@ export const th = {
     overdueNotice:
       'ระยะเวลาการศึกษาของคุณเกินกำหนด คุณสามารถดูข้อมูลเดิมได้ แต่ผู้ดูแลระบบต้องขยายเวลาการศึกษาก่อนจึงจะส่งขั้นตอนการศึกษาได้',
     evidenceFileHelp: 'กรุณาอัปโหลดไฟล์ PNG, JPG หรือ PDF (ขนาดสูงสุด 2 MB)',
+    evidenceTooLarge: 'ไฟล์หลักฐานต้องมีขนาดไม่เกิน 2 MB',
     graduationSemester: 'ภาคการศึกษาที่สำเร็จการศึกษา',
     selectSemester: 'เลือกภาคการศึกษา',
     semesterOption: 'ภาคการศึกษาที่ {semester}',

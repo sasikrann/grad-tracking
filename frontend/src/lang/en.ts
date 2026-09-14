@@ -154,6 +154,7 @@ export const en = {
     overdueNotice:
       'Your study period is overdue. You can view existing information, but an administrator must extend your study period before you can submit milestones.',
     evidenceFileHelp: 'Please upload a PNG, JPG, or PDF file (maximum 2 MB).',
+    evidenceTooLarge: 'Milestone evidence must not exceed 2 MB.',
     graduationSemester: 'Graduation Semester',
     selectSemester: 'Select semester',
     semesterOption: 'Semester {semester}',

@@ -56,6 +56,7 @@ const mobileDescriptionMeasure = ref<HTMLElement | null>(null)
 const hasLongMobileDescription = ref(false)
 let descriptionResizeObserver: ResizeObserver | null = null
 const advisorEvidenceFile = ref<File | null>(null)
+const maxEvidenceFileSize = 2 * 1024 * 1024
 const selectedAdvisorId = ref(props.currentAdvisorId ?? '')
 const selectedCoAdvisorIds = ref([...(props.currentCoAdvisorIds ?? []), '', ''].slice(0, 2))
 const openAdvisorDropdown = ref<'advisor' | 'coAdvisor1' | 'coAdvisor2' | null>(null)
@@ -137,6 +138,7 @@ watch(
   () => {
     selectedAdvisorId.value = props.currentAdvisorId ?? ''
     selectedCoAdvisorIds.value = [...(props.currentCoAdvisorIds ?? []), '', ''].slice(0, 2)
+    advisorEvidenceFile.value = null
   },
 )
 
@@ -246,6 +248,15 @@ function submitAdvisorAppointment() {
     coAdvisorIds: selectedCoAdvisorIds.value.filter(Boolean),
     evidenceFile: advisorEvidenceFile.value ?? undefined,
   })
+}
+
+function selectAdvisorEvidenceFile(file: File) {
+  if (file.size > maxEvidenceFileSize) {
+    advisorEvidenceFile.value = null
+    emit('uploadBlocked', props.milestone.milestoneId, t('studentPortal.evidenceTooLarge'))
+    return
+  }
+  advisorEvidenceFile.value = file
 }
 
 const needsEvidence = computed(
@@ -630,7 +641,7 @@ function selectEvidenceFile(file: File) {
               :file-name="advisorEvidenceFile?.name"
               :disabled="isSavingAppointment || isLocked"
               :uploading="isSavingAppointment"
-              @select="advisorEvidenceFile = $event"
+              @select="selectAdvisorEvidenceFile"
             />
             <button
               type="button"
