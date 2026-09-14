@@ -166,6 +166,7 @@ async function appointAdvisor(input: {
   milestoneId: string
   advisorId: string
   coAdvisorIds: string[]
+  evidenceFile?: File
 }) {
   if (milestoneSubmissionLocked.value) return
   savingAppointmentMilestoneId.value = input.milestoneId

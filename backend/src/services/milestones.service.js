@@ -827,62 +827,6 @@ export async function updateMilestoneForPlan(milestoneId, scopePlan, input) {
   }
 }
 
-export async function removeMilestone(milestoneId) {
-  await ensureMilestoneSchema()
-
-  const client = await pool.connect()
-
-  try {
-    await client.query('BEGIN')
-
-    const current = await client.query(
-      'SELECT academic_year, degree_level, semester, plans FROM milestone_templates WHERE milestone_id = $1 FOR UPDATE',
-      [milestoneId],
-    )
-    const milestone = current.rows[0]
-    if (!milestone) {
-      await client.query('ROLLBACK')
-      return false
-    }
-
-    await client.query('DELETE FROM student_milestones WHERE milestone_id = $1', [milestoneId])
-    const result = await client.query('DELETE FROM milestone_templates WHERE milestone_id = $1', [
-      milestoneId,
-    ])
-
-    await client.query(
-      `
-        WITH ordered_milestones AS (
-          SELECT
-            milestone_id,
-            ROW_NUMBER() OVER (ORDER BY sequence_order, created_at) AS next_order
-          FROM milestone_templates
-          WHERE degree_level = $1
-            AND semester = $2
-            AND plans = $3
-            AND academic_year = $4
-            AND default_template_key IS NOT NULL
-        )
-        UPDATE milestone_templates mt
-        SET sequence_order = ordered_milestones.next_order,
-            updated_at = NOW()
-        FROM ordered_milestones
-        WHERE mt.milestone_id = ordered_milestones.milestone_id
-          AND mt.sequence_order <> ordered_milestones.next_order
-      `,
-      [milestone.degree_level, milestone.semester, milestone.plans, milestone.academic_year],
-    )
-
-    await client.query('COMMIT')
-    return result.rowCount > 0
-  } catch (error) {
-    await client.query('ROLLBACK')
-    throw error
-  } finally {
-    client.release()
-  }
-}
-
 export async function setMilestoneEnabled(milestoneId, isEnabled) {
   await ensureMilestoneSchema()
 

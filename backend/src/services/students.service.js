@@ -546,7 +546,13 @@ export async function updateStudentAdvisorByUserId(
   }
 }
 
-export async function appointStudentAdvisorsByUserId(userId, milestoneId, advisorId, coAdvisorIds = []) {
+export async function appointStudentAdvisorsByUserId(
+  userId,
+  milestoneId,
+  advisorId,
+  coAdvisorIds = [],
+  advisorEvidenceUrl = null,
+) {
   await ensureStudentSchema()
   await ensureMilestoneSchema()
 
@@ -572,11 +578,14 @@ export async function appointStudentAdvisorsByUserId(userId, milestoneId, adviso
   try {
     await client.query('BEGIN')
     const advisors = await client.query(
-      'SELECT advisor_id FROM advisors WHERE advisor_id = ANY($1::varchar[])',
+      `SELECT advisor_id
+       FROM advisors
+       WHERE advisor_id = ANY($1::varchar[])
+         AND status = 'active'`,
       [selectedIds],
     )
     if (advisors.rowCount !== selectedIds.length) {
-      const error = new Error('One or more selected advisors were not found')
+      const error = new Error('One or more selected advisors were not found or are inactive')
       error.statusCode = 400
       throw error
     }
@@ -613,8 +622,8 @@ export async function appointStudentAdvisorsByUserId(userId, milestoneId, adviso
 
     const studentId = student.rows[0].student_id
     await client.query(
-      'UPDATE students SET advisor_id = $2, advisor_evidence_url = NULL, updated_at = NOW() WHERE student_id = $1',
-      [studentId, selectedIds[0]],
+      'UPDATE students SET advisor_id = $2, advisor_evidence_url = $3, updated_at = NOW() WHERE student_id = $1',
+      [studentId, selectedIds[0], advisorEvidenceUrl],
     )
     await client.query('DELETE FROM student_co_advisors WHERE student_id = $1', [studentId])
     for (const [index, coAdvisorId] of normalizedCoAdvisorIds.entries()) {
@@ -626,18 +635,18 @@ export async function appointStudentAdvisorsByUserId(userId, milestoneId, adviso
     await client.query(
       `
         INSERT INTO student_milestones (
-          student_milestone_id, student_id, milestone_id, status, submitted_at, updated_at
-        ) VALUES ($1, $2, $3, 'Completed', NOW(), NOW())
+          student_milestone_id, student_id, milestone_id, status, evidence_url, submitted_at, updated_at
+        ) VALUES ($1, $2, $3, 'Completed', $4, NOW(), NOW())
         ON CONFLICT (student_id, milestone_id) DO UPDATE SET
           status = 'Completed'::milestone_status,
-          evidence_url = NULL,
+          evidence_url = EXCLUDED.evidence_url,
           advisor_comment = NULL,
           submitted_at = NOW(),
           reviewed_at = NULL,
           reviewed_by = NULL,
           updated_at = NOW()
       `,
-      [randomUUID(), studentId, milestoneId],
+      [randomUUID(), studentId, milestoneId, advisorEvidenceUrl],
     )
     await client.query('COMMIT')
     return findStudentByUserId(userId)

@@ -4,6 +4,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { createEvidencePreviewUrl } from '@/services/student-milestones.api'
 import { useLanguage } from '@/composables/useLanguage'
 import MilestoneSelectDropdown from '@/components/milestone/form/MilestoneSelectDropdown.vue'
+import EvidenceUploadControl from './EvidenceUploadControl.vue'
 import type { StudentMilestone, StudentMilestoneStatus } from '@/types/milestone'
 import type { Advisor } from '@/types/advisor'
 import { milestoneStatusColor } from '@/utils/milestone-status'
@@ -40,11 +41,10 @@ const emit = defineEmits<{
   removeEvidence: [milestoneId: string]
   approve: [milestone: StudentMilestone]
   reject: [milestone: StudentMilestone]
-  appointAdvisor: [input: { milestoneId: string; advisorId: string; coAdvisorIds: string[] }]
+  appointAdvisor: [input: { milestoneId: string; advisorId: string; coAdvisorIds: string[]; evidenceFile?: File }]
   submitGraduation: [input: { milestoneId: string; semester: string; academicYear: number }]
 }>()
 
-const fileInput = ref<HTMLInputElement | null>(null)
 const isOpeningEvidence = ref(false)
 const evidenceOpenError = ref('')
 const isEvidencePreviewOpen = ref(false)
@@ -55,13 +55,8 @@ const isMobileExpanded = ref(false)
 const mobileDescriptionMeasure = ref<HTMLElement | null>(null)
 const hasLongMobileDescription = ref(false)
 let descriptionResizeObserver: ResizeObserver | null = null
-const acceptedEvidenceTypes = new Set(['image/png', 'image/jpeg', 'application/pdf'])
-type EvidenceFileHandle = { getFile: () => Promise<File> }
-type EvidenceFilePicker = (options: {
-  types: Array<{ description: string; accept: Record<string, string[]> }>
-  excludeAcceptAllOption: boolean
-  multiple: boolean
-}) => Promise<EvidenceFileHandle[]>
+const advisorEvidenceFile = ref<File | null>(null)
+const maxEvidenceFileSize = 2 * 1024 * 1024
 const selectedAdvisorId = ref(props.currentAdvisorId ?? '')
 const selectedCoAdvisorIds = ref([...(props.currentCoAdvisorIds ?? []), '', ''].slice(0, 2))
 const openAdvisorDropdown = ref<'advisor' | 'coAdvisor1' | 'coAdvisor2' | null>(null)
@@ -143,6 +138,7 @@ watch(
   () => {
     selectedAdvisorId.value = props.currentAdvisorId ?? ''
     selectedCoAdvisorIds.value = [...(props.currentCoAdvisorIds ?? []), '', ''].slice(0, 2)
+    advisorEvidenceFile.value = null
   },
 )
 
@@ -250,7 +246,17 @@ function submitAdvisorAppointment() {
     milestoneId: props.milestone.milestoneId,
     advisorId: selectedAdvisorId.value,
     coAdvisorIds: selectedCoAdvisorIds.value.filter(Boolean),
+    evidenceFile: advisorEvidenceFile.value ?? undefined,
   })
+}
+
+function selectAdvisorEvidenceFile(file: File) {
+  if (file.size > maxEvidenceFileSize) {
+    advisorEvidenceFile.value = null
+    emit('uploadBlocked', props.milestone.milestoneId, t('studentPortal.evidenceTooLarge'))
+    return
+  }
+  advisorEvidenceFile.value = file
 }
 
 const needsEvidence = computed(
@@ -331,7 +337,7 @@ function formatDate(value: string | null) {
   }).format(new Date(value))
 }
 
-async function openUploadPicker() {
+function selectEvidenceFile(file: File) {
   if (isLocked.value) {
     return
   }
@@ -345,47 +351,7 @@ async function openUploadPicker() {
     return
   }
 
-  const showOpenFilePicker = (window as Window & { showOpenFilePicker?: EvidenceFilePicker })
-    .showOpenFilePicker
-
-  if (showOpenFilePicker) {
-    try {
-      const [fileHandle] = await showOpenFilePicker.call(window, {
-        types: [
-          {
-            description: 'PNG, JPG, or PDF files',
-            accept: {
-              'image/png': ['.png'],
-              'image/jpeg': ['.jpg', '.jpeg'],
-              'application/pdf': ['.pdf'],
-            },
-          },
-        ],
-        excludeAcceptAllOption: true,
-        multiple: false,
-      })
-      const file = await fileHandle?.getFile()
-      if (file && acceptedEvidenceTypes.has(file.type)) {
-        emit('upload', props.milestone.milestoneId, file)
-      }
-    } catch (error) {
-      if (!(error instanceof DOMException && error.name === 'AbortError')) throw error
-    }
-    return
-  }
-
-  fileInput.value?.click()
-}
-
-function handleFileChange(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-
-  if (acceptedEvidenceTypes.has(file.type)) {
-    emit('upload', props.milestone.milestoneId, file)
-  }
-  input.value = ''
+  emit('upload', props.milestone.milestoneId, file)
 }
 </script>
 
@@ -669,10 +635,17 @@ function handleFileChange(event: Event) {
             </div>
           </div>
 
-          <div class="mt-4 flex justify-end">
+          <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <EvidenceUploadControl
+              class="min-w-0 sm:flex-1"
+              :file-name="advisorEvidenceFile?.name"
+              :disabled="isSavingAppointment || isLocked"
+              :uploading="isSavingAppointment"
+              @select="selectAdvisorEvidenceFile"
+            />
             <button
               type="button"
-              class="h-9 rounded-lg bg-[#8b2a23] px-5 text-sm font-semibold text-white hover:bg-[#75201b] disabled:cursor-not-allowed disabled:opacity-60"
+              class="h-9 shrink-0 self-end rounded-lg bg-[#8b2a23] px-5 text-sm font-semibold text-white hover:bg-[#75201b] disabled:cursor-not-allowed disabled:opacity-60"
               :disabled="!selectedAdvisorId || isSavingAppointment || isLocked"
               @click="submitAdvisorAppointment"
             >
@@ -806,40 +779,14 @@ function handleFileChange(event: Event) {
           </button>
         </div>
 
-        <div v-if="showUploadEvidence" class="mt-3 flex flex-wrap items-center gap-3">
-          <input
-            ref="fileInput"
-            class="hidden"
-            type="file"
-            accept=".png,.jpg,.jpeg,.pdf,image/png,image/jpeg,application/pdf"
-            @change="handleFileChange"
-          />
-          <button
-            type="button"
-            class="inline-flex h-7 items-center gap-2 rounded border border-slate-300 bg-white px-3 text-xs font-semibold text-black shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-            :aria-disabled="!canUploadEvidence || isUploading"
-            :disabled="isUploading || isLocked"
-            @click="openUploadPicker"
-          >
-            <svg
-              class="size-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              aria-hidden="true"
-            >
-              <path d="M12 3v12M7 8l5-5 5 5" />
-              <path d="M5 15v4h14v-4" />
-            </svg>
-            {{
-              isUploading ? t('studentPortal.uploadingEvidence') : t('studentPortal.uploadEvidence')
-            }}
-          </button>
-          <p class="text-[11px] text-amber-700">
-            {{ t('studentPortal.evidenceFileHelp') }}
-          </p>
-        </div>
+        <EvidenceUploadControl
+          v-if="showUploadEvidence"
+          class="mt-3"
+          :uploading="isUploading"
+          :disabled="isUploading || isLocked"
+          :aria-disabled="!canUploadEvidence"
+          @select="selectEvidenceFile"
+        />
 
         <p
           v-if="milestone.lockedReason"

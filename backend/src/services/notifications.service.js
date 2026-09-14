@@ -20,6 +20,8 @@ const notificationColumns = `
   n.created_by AS "createdBy",
   n.milestone_id AS "milestoneId",
   n.reminder_stage AS "reminderStage",
+  (SELECT mt.title FROM milestone_templates mt WHERE mt.milestone_id = n.milestone_id) AS "milestoneTitle",
+  (SELECT mt.deadline FROM milestone_templates mt WHERE mt.milestone_id = n.milestone_id) AS "milestoneDeadline",
   n.created_at AS "createdAt",
   n.sent_at AS "sentAt"
 `

@@ -4,7 +4,6 @@ import multer from 'multer'
 import { requireRole } from '../middleware/auth.middleware.js'
 import {
   createAdvisor,
-  deleteAdvisor,
   downloadAdvisorTemplate,
   exportAdvisors,
   getAdvisor,
@@ -47,7 +46,6 @@ router.patch('/:advisorId/status', adminOnly, patchAdvisorStatus)
 router.get('/:advisorId/milestone-summary', getAdvisorMilestoneSummaryReport)
 router.get('/:advisorId', getAdvisor)
 router.put('/:advisorId', adminOnly, updateAdvisor)
-router.delete('/:advisorId', adminOnly, deleteAdvisor)
 router.get('/:advisorId/students', getAdvisorStudents)
 router.patch('/students/:studentId/milestones/:milestoneId/review', reviewAdvisorStudentMilestone)
 

@@ -49,15 +49,6 @@ const advisorColumns = `
   a.status,
   a.created_at AS "createdAt"
 `
-const duplicateAdvisorEmailMessage =
-  'Some advisor emails already exist. Please choose which advisor record to keep before importing.'
-const unresolvedAdvisorConflictMessage =
-  'Please choose one advisor record for each duplicated email.'
-
-function advisorConflictKey({ email }) {
-  return String(email ?? '').trim().toLowerCase()
-}
-
 function normalizeComparableValue(value) {
   return value === null || value === undefined ? '' : String(value).trim().toLowerCase()
 }
@@ -66,118 +57,6 @@ function advisorRecordsMatch(left, right) {
   return ['advisorId', 'fullName', 'email'].every(
     (field) => normalizeComparableValue(left[field]) === normalizeComparableValue(right[field]),
   )
-}
-
-function uniqueAdvisorOptions(options) {
-  const unique = []
-
-  for (const option of options) {
-    if (!unique.some((current) => advisorRecordsMatch(current, option))) {
-      unique.push(option)
-    }
-  }
-
-  return unique
-}
-
-async function findAdvisorImportConflicts(client, records) {
-  const groups = new Map()
-
-  records.forEach((record, index) => {
-    const key = advisorConflictKey(record)
-    const group = groups.get(key) ?? {
-      key,
-      fullName: record.fullName,
-      email: record.email,
-      fileRecords: [],
-      existingAdvisors: [],
-    }
-    group.fileRecords.push({
-      optionId: `file:${index}`,
-      rowNumber: index + 2,
-      advisorId: record.advisorId || null,
-      fullName: record.fullName,
-      email: record.email,
-    })
-    groups.set(key, group)
-  })
-
-  for (const group of groups.values()) {
-    const existing = await client.query(
-      `
-        SELECT ${advisorColumns}
-        FROM advisors a
-        INNER JOIN users u ON u.user_id = a.user_id AND u.role = 'advisor'
-        WHERE LOWER(a.email) = LOWER($1)
-        ORDER BY a.advisor_id
-      `,
-      [group.email],
-    )
-    group.existingAdvisors = existing.rows.map((advisor) => ({
-      optionId: `existing:${advisor.advisorId}`,
-      advisorId: advisor.advisorId,
-      fullName: advisor.fullName,
-      email: advisor.email,
-    }))
-  }
-
-  return Array.from(groups.values())
-    .map((group) => {
-      const fileRecords = uniqueAdvisorOptions(group.fileRecords)
-      const existingAdvisors = uniqueAdvisorOptions(group.existingAdvisors)
-      const hasDuplicateFileRecords = group.fileRecords.length > 1
-      const hasChangedExistingRecord = existingAdvisors.some(
-        (existing) => !fileRecords.some((fileRecord) => advisorRecordsMatch(existing, fileRecord)),
-      )
-
-      return {
-        ...group,
-        fileRecords,
-        existingAdvisors,
-        hasConflict: hasDuplicateFileRecords || hasChangedExistingRecord,
-      }
-    })
-    .filter((group) => group.hasConflict)
-    .map((group) => ({
-      key: group.key,
-      fullName: group.fullName,
-      email: group.email,
-      options: [
-        ...group.existingAdvisors.map((advisor) => ({ ...advisor, source: 'existing' })),
-        ...group.fileRecords.map((record) => ({ ...record, source: 'file' })),
-      ],
-    }))
-}
-
-function applyAdvisorImportResolutions(records, conflicts, resolutions = {}) {
-  const conflictByKey = new Map(conflicts.map((conflict) => [conflict.key, conflict]))
-  const selectedFileRows = new Set()
-  const skippedKeys = new Set()
-
-  for (const conflict of conflicts) {
-    const selectedOptionId = resolutions[conflict.key]
-    const selectedOption = conflict.options.find((option) => option.optionId === selectedOptionId)
-
-    if (!selectedOption) {
-      const error = new Error(unresolvedAdvisorConflictMessage)
-      error.statusCode = 409
-      error.conflicts = conflicts
-      throw error
-    }
-
-    if (selectedOption.source === 'file') {
-      selectedFileRows.add(selectedOption.rowNumber)
-    } else {
-      skippedKeys.add(conflict.key)
-    }
-  }
-
-  return records.filter((record, index) => {
-    const key = advisorConflictKey(record)
-    if (!conflictByKey.has(key)) return true
-    if (skippedKeys.has(key)) return false
-    return selectedFileRows.has(index + 2)
-  })
 }
 
 export async function findAllAdvisors({ activeOnly = false } = {}) {
@@ -255,7 +134,7 @@ async function upsertAdvisorWithClient(client, input) {
   const email = String(input.email ?? '').trim().toLowerCase()
   const fullName = String(input.fullName ?? '').trim()
   const existingAdvisorByEmail = await client.query(
-    'SELECT advisor_id, user_id FROM advisors WHERE LOWER(email) = $1',
+    'SELECT advisor_id, user_id FROM advisors WHERE LOWER(TRIM(email)) = $1',
     [email],
   )
   if (!requestedAdvisorId) {
@@ -264,12 +143,18 @@ async function upsertAdvisorWithClient(client, input) {
     throw error
   }
   const advisorId = requestedAdvisorId
+  const emailOwner = existingAdvisorByEmail.rows.find((advisor) => advisor.advisor_id !== advisorId)
+  if (emailOwner) {
+    const error = new Error(`Email ${email} is already assigned to advisor ${emailOwner.advisor_id}; please correct the email for advisor ${advisorId}.`)
+    error.statusCode = 409
+    throw error
+  }
 
   const existingAdvisor = await client.query('SELECT user_id FROM advisors WHERE advisor_id = $1', [
     advisorId,
   ])
-  const existingUser = await client.query('SELECT user_id, role FROM users WHERE email = $1', [email])
-  const advisorUserId = existingAdvisor.rows[0]?.user_id || existingAdvisorByEmail.rows[0]?.user_id
+  const existingUser = await client.query('SELECT user_id, role FROM users WHERE LOWER(TRIM(email)) = $1', [email])
+  const advisorUserId = existingAdvisor.rows[0]?.user_id
   const emailUser = existingUser.rows[0]
 
   if (emailUser && emailUser.role !== 'advisor') {
@@ -375,56 +260,7 @@ export async function updateAdvisorStatus(advisorId, status) {
   return result.rowCount ? findAdvisorById(advisorId) : null
 }
 
-export async function removeAdvisor(advisorId) {
-  const client = await pool.connect()
-
-  try {
-    await client.query('BEGIN')
-    const result = await client.query('SELECT user_id FROM advisors WHERE advisor_id = $1 FOR UPDATE', [
-      advisorId,
-    ])
-    if (!result.rowCount) {
-      await client.query('ROLLBACK')
-      return false
-    }
-    const affectedStudents = await client.query(
-      `SELECT DISTINCT student_id
-       FROM (
-         SELECT student_id FROM students WHERE advisor_id = $1
-         UNION
-         SELECT student_id FROM student_co_advisors WHERE advisor_id = $1
-       ) affected`,
-      [advisorId],
-    )
-    const affectedStudentIds = affectedStudents.rows.map((row) => row.student_id)
-    await client.query(
-      'UPDATE students SET advisor_id = NULL, advisor_evidence_url = NULL, updated_at = NOW() WHERE advisor_id = $1',
-      [advisorId],
-    )
-    if (affectedStudentIds.length) {
-      await client.query(
-        `DELETE FROM student_milestones sm
-         USING milestone_templates mt
-         WHERE sm.milestone_id = mt.milestone_id
-           AND sm.student_id = ANY($1::varchar[])
-           AND mt.default_template_key LIKE '%advisor-appointment'`,
-        [affectedStudentIds],
-      )
-    }
-    await client.query('UPDATE student_milestones SET reviewed_by = NULL WHERE reviewed_by = $1', [advisorId])
-    await client.query('DELETE FROM advisors WHERE advisor_id = $1', [advisorId])
-    await client.query('DELETE FROM users WHERE user_id = $1', [result.rows[0].user_id])
-    await client.query('COMMIT')
-    return true
-  } catch (error) {
-    await client.query('ROLLBACK')
-    throw error
-  } finally {
-    client.release()
-  }
-}
-
-export async function importAdvisors(records, { fileName, importedBy, resolutions } = {}) {
+export async function importAdvisors(records, { fileName, importedBy } = {}) {
   const client = await pool.connect()
   const importId = randomUUID()
   let successRecords = 0
@@ -434,31 +270,18 @@ export async function importAdvisors(records, { fileName, importedBy, resolution
 
   try {
     await client.query('BEGIN')
-    const conflicts = await findAdvisorImportConflicts(client, records)
-
-    if (conflicts.length && !resolutions) {
-      const error = new Error(duplicateAdvisorEmailMessage)
-      error.statusCode = 409
-      error.conflicts = conflicts
-      throw error
-    }
-
-    const resolvedRecords = conflicts.length
-      ? applyAdvisorImportResolutions(records, conflicts, resolutions)
-      : records
-
-    const existingAdvisors = resolvedRecords.length
+    const existingAdvisors = records.length
       ? await client.query(
           `SELECT ${advisorColumns}
            FROM advisors a
            WHERE a.advisor_id = ANY($1::varchar[])`,
-          [resolvedRecords.map((record) => record.advisorId)],
+          [records.map((record) => record.advisorId)],
         )
       : { rows: [] }
     const existingById = new Map(
       existingAdvisors.rows.map((advisor) => [advisor.advisorId, advisor]),
     )
-    const recordsToImport = resolvedRecords.filter((record) => {
+    const recordsToImport = records.filter((record) => {
       const existing = existingById.get(record.advisorId)
       if (!existing || !advisorRecordsMatch(existing, record)) return true
       unchangedRecords += 1
@@ -496,7 +319,7 @@ export async function importAdvisors(records, { fileName, importedBy, resolution
         await client.query(`RELEASE SAVEPOINT ${savepoint}`)
       } catch (error) {
         await client.query(`ROLLBACK TO SAVEPOINT ${savepoint}`)
-        errors.push(`Row ${index + 2}: ${error.message}`)
+        errors.push(`Advisor ${record.advisorId}: ${error.message}`)
       }
     }
 
@@ -540,6 +363,7 @@ export async function resolveAdvisorReference(client, { advisorId, advisorEmail,
         FROM advisors a
         INNER JOIN users u ON u.user_id = a.user_id AND u.role = 'advisor'
         WHERE a.advisor_id = $1
+          AND a.status = 'active'
       `,
       [normalizedAdvisorId],
     )
@@ -558,6 +382,7 @@ export async function resolveAdvisorReference(client, { advisorId, advisorEmail,
         FROM advisors a
         INNER JOIN users u ON u.user_id = a.user_id AND u.role = 'advisor'
         WHERE LOWER(a.email) = $1
+          AND a.status = 'active'
       `,
       [normalizedEmail],
     )
@@ -576,6 +401,7 @@ export async function resolveAdvisorReference(client, { advisorId, advisorEmail,
         FROM advisors a
         INNER JOIN users u ON u.user_id = a.user_id AND u.role = 'advisor'
         WHERE LOWER(a.full_name) = LOWER($1)
+          AND a.status = 'active'
       `,
       [normalizedName],
     )

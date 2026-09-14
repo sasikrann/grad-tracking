@@ -1,4 +1,4 @@
-// Controller for advisor CRUD, import/export, and advised student lists.
+// Controller for advisor management, import/export, and advised student lists.
 import { ApiError } from '../errors/api-error.js'
 import {
   createAdvisorExportBuffer,
@@ -13,7 +13,6 @@ import {
   getAdvisorMilestoneSummary,
   importAdvisors,
   insertAdvisor,
-  removeAdvisor,
   replaceAdvisor,
   updateAdvisorStatus,
 } from '../services/advisors.service.js'
@@ -64,41 +63,13 @@ export async function patchAdvisorStatus(request, response) {
   response.json({ data: advisor })
 }
 
-export async function deleteAdvisor(request, response) {
-  if (!(await removeAdvisor(request.params.advisorId))) {
-    throw new ApiError(404, 'Advisor not found')
-  }
-  response.status(204).send()
-}
-
 export async function importAdvisorFile(request, response) {
   if (!request.file) throw new ApiError(400, 'A CSV or XLSX file is required')
   const records = await readAdvisorImportFile(request.file)
-  let resolutions
-  try {
-    resolutions = request.body.resolutions ? JSON.parse(request.body.resolutions) : undefined
-  } catch (_error) {
-    throw new ApiError(400, 'Invalid advisor import resolutions')
-  }
-  let result
-
-  try {
-    result = await importAdvisors(records, {
-      fileName: request.file.originalname,
-      importedBy: request.user.userId,
-      resolutions,
-    })
-  } catch (error) {
-    if (error.statusCode === 409 && Array.isArray(error.conflicts)) {
-      response.status(409).json({
-        status: 'error',
-        message: error.message,
-        conflicts: error.conflicts,
-      })
-      return
-    }
-    throw error
-  }
+  const result = await importAdvisors(records, {
+    fileName: request.file.originalname,
+    importedBy: request.user.userId,
+  })
 
   response.status(201).json({ data: result })
 }
