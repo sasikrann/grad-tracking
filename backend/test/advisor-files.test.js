@@ -69,3 +69,15 @@ test('reports corrupted question-mark CSV encoding clearly', async () => {
     /Thai characters were replaced with \?/,
   )
 })
+
+test('rejects duplicate IDs even with different email addresses', async () => {
+  await assert.rejects(readAdvisorImportFile(csvFile(
+    'Advisor ID,Full Name,Email\nA001,First,first@mfu.ac.th\na001,Second,second@mfu.ac.th',
+  )), /Duplicate Advisor ID/)
+})
+
+test('rejects duplicate normalized emails and identifies both advisor IDs', async () => {
+  await assert.rejects(readAdvisorImportFile(csvFile(
+    'Advisor ID,Full Name,Email\nA001,First,Same@MFU.AC.TH\nA002,Second,same@mfu.ac.th',
+  )), /Email same@mfu.ac.th.*A001 and A002/)
+})

@@ -6,15 +6,15 @@ import DashboardActionCard from '@/components/admin/DashboardActionCard.vue'
 import ExportConfirmModal from '@/components/admin/ExportConfirmModal.vue'
 import ImportFileModal from '@/components/admin/ImportFileModal.vue'
 import {
-  AdvisorImportConflictError,
   downloadAdvisorTemplate,
   exportAdvisors,
   getAdvisorsPage,
   importAdvisors,
   updateAdvisorStatus,
 } from '@/services/advisors.api'
-import type { AdvisorImportConflict, AdvisorImportResult } from '@/services/advisors.api'
+import type { AdvisorImportResult } from '@/services/advisors.api'
 import type { Advisor } from '@/types/advisor'
+import { advisorImportMessage } from '@/services/advisor-import-messages'
 import { useLanguage } from '@/composables/useLanguage'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 
@@ -32,9 +32,6 @@ const notificationType = ref<'success' | 'error'>('success')
 const selectedImportFile = ref<File | null>(null)
 const isImportModalOpen = ref(false)
 const isExportModalOpen = ref(false)
-const isDuplicateEmailModalOpen = ref(false)
-const importConflicts = ref<AdvisorImportConflict[]>([])
-const importResolutions = ref<Record<string, string>>({})
 const isImporting = ref(false)
 const isExporting = ref(false)
 let messageTimer: ReturnType<typeof setTimeout> | undefined
@@ -49,12 +46,6 @@ const paginationItems = computed<Array<number | 'ellipsis'>>(() => {
   if (page.value >= total - 2) return ['ellipsis', total - 3, total - 2, total - 1, total]
   return ['ellipsis', page.value - 1, page.value, page.value + 1, 'ellipsis']
 })
-const hasResolvedImportConflicts = computed(() =>
-  importConflicts.value.every((conflict) => Boolean(importResolutions.value[conflict.key])),
-)
-const duplicateAdvisorMessage =
-  'Some advisor emails already exist. Please choose which advisor record to keep before importing.'
-
 function advisorStatusLabel(status: Advisor['status']) {
   return status === 'active' ? t('advisor.active') : t('advisor.inactive')
 }
@@ -103,15 +94,8 @@ function changePage(nextPage: number) {
   void loadAdvisors()
 }
 
-function resetImportConflicts() {
-  importConflicts.value = []
-  importResolutions.value = {}
-  isDuplicateEmailModalOpen.value = false
-}
-
 function resetImportState() {
   selectedImportFile.value = null
-  resetImportConflicts()
 }
 
 function openImportModal() {
@@ -127,16 +111,19 @@ function closeImportModal() {
 
 function showImportResult(result: AdvisorImportResult) {
   if (!(result.createdRecords ?? 0) && !(result.updatedRecords ?? 0) && !result.failedRecords) {
+    showNotification(isThai.value ? 'นำเข้าข้อมูลเดิมไม่มีการเปลี่ยนแปลง' : `No changes. Skipped ${result.unchangedRecords ?? 0} unchanged records.`)
     return
   }
   const errorText = result.errors?.length
-    ? ` ${result.errors.map((error) => removeRowPrefix(error)).join('; ')}`
+    ? ` ${result.errors.map((error) => advisorImportMessage(error, isThai.value)).join('; ')}`
     : ''
   const createdRecords = result.createdRecords ?? result.successRecords
   const updatedRecords = result.updatedRecords ?? 0
   const advisorLabel = (count: number) => (count === 1 ? 'advisor' : 'advisors')
   const successText = isThai.value
-    ? `นำเข้าสำเร็จ — เพิ่มใหม่ ${createdRecords} คน${updatedRecords ? `, อัปเดต ${updatedRecords} คน` : ''}`
+    ? createdRecords
+      ? `นำเข้าสำเร็จ — เพิ่มใหม่ ${createdRecords} คน${updatedRecords ? `, อัปเดต ${updatedRecords} คน` : ''}`
+      : `นำเข้าสำเร็จ อัปเดตใหม่ ${updatedRecords} รายการ`
     : createdRecords && updatedRecords
       ? `Imported ${createdRecords} new ${advisorLabel(createdRecords)} and updated ${updatedRecords} ${advisorLabel(updatedRecords)} successfully.`
       : createdRecords
@@ -144,32 +131,14 @@ function showImportResult(result: AdvisorImportResult) {
         : `Updated ${updatedRecords} ${advisorLabel(updatedRecords)} successfully.`
   showNotification(
     result.failedRecords
-      ? `${t('toast.advisorsImportPartial', { success: result.successRecords, total: result.totalRecords })}${isThai.value ? '' : errorText}`
+      ? `${t('toast.advisorsImportPartial', { success: result.successRecords, total: result.totalRecords })}${errorText}`
       : successText,
     result.failedRecords ? 'error' : 'success',
   )
 }
 
-function removeRowPrefix(text: string) {
-  return text.replace(/\bRow\s+\d+:\s*/gi, '')
-}
-
 function advisorImportErrorMessage(error: unknown) {
-  const message = removeRowPrefix(error instanceof Error ? error.message : '')
-  if (message.includes('กรุณากรอกอีเมลในองค์กรเท่านั้น')) {
-    return 'กรุณากรอกอีเมลในองค์กรเท่านั้น'
-  }
-  if (/\b(missing|required)\b/i.test(message)) {
-    return isThai.value ? 'กรุณากรอกข้อมูลให้ครบถ้วน' : 'Please complete all required fields.'
-  }
-  const readableMessages: Record<string, string> = {
-    'Please enter a valid email address because this email is duplicated.': duplicateAdvisorMessage,
-    'Please choose one advisor for each duplicated email.':
-      'Please choose one advisor record for each duplicated email.',
-  }
-
-  if (isThai.value) return t('toast.advisorsImportFailed')
-  return (readableMessages[message] ?? message) || t('toast.advisorsImportFailed')
+  return advisorImportMessage(error instanceof Error ? error.message : '', isThai.value)
 }
 
 async function finishImport(result: AdvisorImportResult) {
@@ -179,7 +148,7 @@ async function finishImport(result: AdvisorImportResult) {
   isImportModalOpen.value = false
 }
 
-async function handleImport(resolutions?: Record<string, string>) {
+async function handleImport() {
   const file = selectedImportFile.value
   if (!file) return
 
@@ -187,15 +156,9 @@ async function handleImport(resolutions?: Record<string, string>) {
   errorMessage.value = ''
   isImporting.value = true
   try {
-    const result = await importAdvisors(file, resolutions)
+    const result = await importAdvisors(file)
     await finishImport(result)
   } catch (error) {
-    if (error instanceof AdvisorImportConflictError) {
-      importConflicts.value = error.conflicts
-      importResolutions.value = {}
-      isDuplicateEmailModalOpen.value = true
-      return
-    }
     const text = advisorImportErrorMessage(error)
     resetImportState()
     isImportModalOpen.value = false
@@ -205,18 +168,8 @@ async function handleImport(resolutions?: Record<string, string>) {
   }
 }
 
-async function handleImportConflictConfirm() {
-  if (!hasResolvedImportConflicts.value) return
-  await handleImport(importResolutions.value)
-}
-
 function handleImportFileSelect(file: File | null) {
   selectedImportFile.value = file
-  resetImportConflicts()
-}
-
-function closeDuplicateEmailModal() {
-  isDuplicateEmailModalOpen.value = false
 }
 
 async function handleExport() {
@@ -270,7 +223,6 @@ useAutoRefresh(() => loadAdvisors({ silent: true }), {
   canRefresh: () =>
     !isImportModalOpen.value &&
     !isExportModalOpen.value &&
-    !isDuplicateEmailModalOpen.value &&
     !isImporting.value &&
     !isExporting.value,
 })
@@ -373,7 +325,7 @@ useAutoRefresh(() => loadAdvisors({ silent: true }), {
     </nav>
 
     <ImportFileModal
-      v-if="isImportModalOpen && !isDuplicateEmailModalOpen"
+      v-if="isImportModalOpen"
       :title="t('dashboard.importAdvisor')"
       :description="t('dashboard.bulkAdvisors')"
       :selected-file="selectedImportFile"
@@ -382,82 +334,6 @@ useAutoRefresh(() => loadAdvisors({ silent: true }), {
       @close="closeImportModal"
       @import="handleImport"
     />
-
-    <div
-      v-if="isDuplicateEmailModalOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="duplicate-email-title"
-    >
-      <section class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
-        <h2 id="duplicate-email-title" class="text-base font-semibold text-slate-900">
-          Duplicate email
-        </h2>
-        <p class="mt-2 text-sm text-slate-600">
-          {{ duplicateAdvisorMessage }}
-        </p>
-
-        <div class="mt-4 max-h-[55vh] space-y-4 overflow-y-auto pr-1">
-          <fieldset
-            v-for="conflict in importConflicts"
-            :key="conflict.key"
-            class="rounded-lg border border-slate-200 p-4"
-          >
-            <legend class="px-1 text-sm font-semibold text-slate-900">
-              {{ conflict.email }}
-            </legend>
-
-            <div class="mt-3 space-y-2">
-              <label
-                v-for="option in conflict.options"
-                :key="option.optionId"
-                class="flex cursor-pointer items-start gap-3 rounded border border-slate-200 p-3 text-sm transition hover:border-[#8b2a23] hover:bg-red-50/40"
-                :class="
-                  importResolutions[conflict.key] === option.optionId
-                    ? 'border-[#8b2a23] bg-red-50/60'
-                    : ''
-                "
-              >
-                <input
-                  v-model="importResolutions[conflict.key]"
-                  class="mt-1 accent-[#8b2a23]"
-                  type="radio"
-                  :name="`advisor-conflict-${conflict.key}`"
-                  :value="option.optionId"
-                />
-                <span class="min-w-0">
-                  <span class="block font-medium text-slate-900">
-                    {{ option.fullName }}
-                  </span>
-                  <span class="mt-1 block text-xs text-slate-500">
-                    {{ option.source === 'existing' ? 'Existing data' : 'New data' }}
-                  </span>
-                </span>
-              </label>
-            </div>
-          </fieldset>
-        </div>
-
-        <div class="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            class="rounded border border-slate-200 px-3 py-2 text-xs font-medium hover:bg-slate-50"
-            @click="closeDuplicateEmailModal"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            :disabled="!hasResolvedImportConflicts || isImporting"
-            class="rounded bg-[#8b2a23] px-3 py-2 text-xs font-medium text-white hover:bg-[#7a211c] disabled:cursor-not-allowed disabled:opacity-60"
-            @click="handleImportConflictConfirm"
-          >
-            {{ isImporting ? 'Importing...' : 'Import Selected Advisor' }}
-          </button>
-        </div>
-      </section>
-    </div>
 
     <ExportConfirmModal
       v-if="isExportModalOpen"

@@ -190,6 +190,15 @@ export async function readAdvisorImportFile(file) {
     throw new ApiError(400, 'Duplicate Advisor ID found in the import file.')
   }
 
+  const emailOwners = new Map()
+  for (const record of records) {
+    const owner = emailOwners.get(record.email)
+    if (owner) {
+      throw new ApiError(400, `Email ${record.email} is duplicated in the import file for advisors ${owner} and ${record.advisorId}. Please correct the email and import again.`)
+    }
+    emailOwners.set(record.email, record.advisorId)
+  }
+
   return records
 }
 
