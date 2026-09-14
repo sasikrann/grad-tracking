@@ -51,11 +51,11 @@ export async function findAdvisorStudentMilestones(advisorUserId, studentId) {
         ON (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
         AND mt.academic_year = s.enrollment_academic_year
         AND (mt.plans @> ARRAY['All']::VARCHAR[] OR s.education_plan IS NULL OR s.education_plan = ANY(mt.plans))
-        AND mt.is_enabled = TRUE
       LEFT JOIN student_milestones sm
         ON sm.student_id = s.student_id
         AND sm.milestone_id = mt.milestone_id
       WHERE a.user_id = $1
+        AND (mt.is_enabled = TRUE OR sm.student_milestone_id IS NOT NULL)
         AND (
           s.advisor_id = a.advisor_id
           OR EXISTS (
@@ -166,5 +166,4 @@ export async function findAdvisorMilestoneSubmissions(advisorUserId) {
 
   return result.rows
 }
-
 

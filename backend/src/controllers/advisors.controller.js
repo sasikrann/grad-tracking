@@ -1,4 +1,4 @@
-// Controller for advisor CRUD, import/export, and advised student lists.
+// Controller for advisor management, import/export, and advised student lists.
 import { ApiError } from '../errors/api-error.js'
 import {
   createAdvisorExportBuffer,
@@ -13,7 +13,6 @@ import {
   getAdvisorMilestoneSummary,
   importAdvisors,
   insertAdvisor,
-  removeAdvisor,
   replaceAdvisor,
   updateAdvisorStatus,
 } from '../services/advisors.service.js'
@@ -62,13 +61,6 @@ export async function patchAdvisorStatus(request, response) {
   const advisor = await updateAdvisorStatus(request.params.advisorId, String(request.body.status ?? '').trim())
   if (!advisor) throw new ApiError(404, 'Advisor not found')
   response.json({ data: advisor })
-}
-
-export async function deleteAdvisor(request, response) {
-  if (!(await removeAdvisor(request.params.advisorId))) {
-    throw new ApiError(404, 'Advisor not found')
-  }
-  response.status(204).send()
 }
 
 export async function importAdvisorFile(request, response) {

@@ -7,7 +7,6 @@ import ExportConfirmModal from '@/components/admin/ExportConfirmModal.vue'
 import ImportFileModal from '@/components/admin/ImportFileModal.vue'
 import {
   AdvisorImportConflictError,
-  deleteAdvisor,
   downloadAdvisorTemplate,
   exportAdvisors,
   getAdvisorsPage,
@@ -261,23 +260,6 @@ async function handleStatusChange(advisorId: string, status: Advisor['status']) 
   }
 }
 
-async function handleDelete(advisorId: string) {
-  try {
-    await deleteAdvisor(advisorId)
-    await loadAdvisors()
-    showNotification(t('toast.advisorDeleted'))
-  } catch (error) {
-    showNotification(
-      isThai.value && error instanceof Error
-        ? t('toast.advisorDeleteFailed')
-        : error instanceof Error
-          ? error.message
-          : t('toast.advisorDeleteFailed'),
-      'error',
-    )
-  }
-}
-
 onMounted(loadAdvisors)
 onBeforeUnmount(() => {
   if (messageTimer) clearTimeout(messageTimer)
@@ -343,7 +325,6 @@ useAutoRefresh(() => loadAdvisors({ silent: true }), {
       :is-loading="isLoading"
       :error="loadError"
       @status="handleStatusChange"
-      @delete="handleDelete"
     />
 
     <nav v-if="pagination.totalPages > 1" class="mt-5 flex justify-end" aria-label="Advisor pages">

@@ -375,55 +375,6 @@ export async function updateAdvisorStatus(advisorId, status) {
   return result.rowCount ? findAdvisorById(advisorId) : null
 }
 
-export async function removeAdvisor(advisorId) {
-  const client = await pool.connect()
-
-  try {
-    await client.query('BEGIN')
-    const result = await client.query('SELECT user_id FROM advisors WHERE advisor_id = $1 FOR UPDATE', [
-      advisorId,
-    ])
-    if (!result.rowCount) {
-      await client.query('ROLLBACK')
-      return false
-    }
-    const affectedStudents = await client.query(
-      `SELECT DISTINCT student_id
-       FROM (
-         SELECT student_id FROM students WHERE advisor_id = $1
-         UNION
-         SELECT student_id FROM student_co_advisors WHERE advisor_id = $1
-       ) affected`,
-      [advisorId],
-    )
-    const affectedStudentIds = affectedStudents.rows.map((row) => row.student_id)
-    await client.query(
-      'UPDATE students SET advisor_id = NULL, advisor_evidence_url = NULL, updated_at = NOW() WHERE advisor_id = $1',
-      [advisorId],
-    )
-    if (affectedStudentIds.length) {
-      await client.query(
-        `DELETE FROM student_milestones sm
-         USING milestone_templates mt
-         WHERE sm.milestone_id = mt.milestone_id
-           AND sm.student_id = ANY($1::varchar[])
-           AND mt.default_template_key LIKE '%advisor-appointment'`,
-        [affectedStudentIds],
-      )
-    }
-    await client.query('UPDATE student_milestones SET reviewed_by = NULL WHERE reviewed_by = $1', [advisorId])
-    await client.query('DELETE FROM advisors WHERE advisor_id = $1', [advisorId])
-    await client.query('DELETE FROM users WHERE user_id = $1', [result.rows[0].user_id])
-    await client.query('COMMIT')
-    return true
-  } catch (error) {
-    await client.query('ROLLBACK')
-    throw error
-  } finally {
-    client.release()
-  }
-}
-
 export async function importAdvisors(records, { fileName, importedBy, resolutions } = {}) {
   const client = await pool.connect()
   const importId = randomUUID()
@@ -540,6 +491,7 @@ export async function resolveAdvisorReference(client, { advisorId, advisorEmail,
         FROM advisors a
         INNER JOIN users u ON u.user_id = a.user_id AND u.role = 'advisor'
         WHERE a.advisor_id = $1
+          AND a.status = 'active'
       `,
       [normalizedAdvisorId],
     )
@@ -558,6 +510,7 @@ export async function resolveAdvisorReference(client, { advisorId, advisorEmail,
         FROM advisors a
         INNER JOIN users u ON u.user_id = a.user_id AND u.role = 'advisor'
         WHERE LOWER(a.email) = $1
+          AND a.status = 'active'
       `,
       [normalizedEmail],
     )
@@ -576,6 +529,7 @@ export async function resolveAdvisorReference(client, { advisorId, advisorEmail,
         FROM advisors a
         INNER JOIN users u ON u.user_id = a.user_id AND u.role = 'advisor'
         WHERE LOWER(a.full_name) = LOWER($1)
+          AND a.status = 'active'
       `,
       [normalizedName],
     )

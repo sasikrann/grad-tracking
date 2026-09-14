@@ -572,11 +572,14 @@ export async function appointStudentAdvisorsByUserId(userId, milestoneId, adviso
   try {
     await client.query('BEGIN')
     const advisors = await client.query(
-      'SELECT advisor_id FROM advisors WHERE advisor_id = ANY($1::varchar[])',
+      `SELECT advisor_id
+       FROM advisors
+       WHERE advisor_id = ANY($1::varchar[])
+         AND status = 'active'`,
       [selectedIds],
     )
     if (advisors.rowCount !== selectedIds.length) {
-      const error = new Error('One or more selected advisors were not found')
+      const error = new Error('One or more selected advisors were not found or are inactive')
       error.statusCode = 400
       throw error
     }

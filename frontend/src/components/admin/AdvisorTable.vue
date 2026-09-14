@@ -13,7 +13,6 @@ const search = defineModel<string>('search', { required: true })
 
 defineEmits<{
   status: [advisorId: string, status: Advisor['status']]
-  delete: [advisorId: string]
 }>()
 
 function initials(name: string) {
@@ -105,27 +104,7 @@ function statusLabel(status: Advisor['status']) {
             <p class="mt-1 text-xs text-[#858585]">{{ advisor.advisorId }}</p>
             <p class="mt-1 truncate text-[11px] text-[#7690a5]">{{ advisor.email }}</p>
           </div>
-          <div class="flex min-h-16 shrink-0 flex-col items-end justify-between">
-            <button
-              type="button"
-              class="shrink-0 rounded-md border border-red-100 p-1.5 text-red-500 hover:bg-red-50"
-              :aria-label="`${t('common.delete')} ${advisor.fullName}`"
-              @click="$emit('delete', advisor.advisorId)"
-            >
-              <svg
-                class="size-3.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.7"
-                aria-hidden="true"
-              >
-                <path d="M3 6h18" />
-                <path d="M8 6V4h8v2" />
-                <path d="M19 6l-1 14H6L5 6" />
-                <path d="M10 11v5M14 11v5" />
-              </svg>
-            </button>
+          <div class="flex min-h-16 shrink-0 items-end">
             <div class="flex gap-1.5">
               <button
                 v-for="status in ['active', 'inactive'] as const"
@@ -208,26 +187,6 @@ function statusLabel(status: Advisor['status']) {
                   @click="$emit('status', advisor.advisorId, status)"
                 >
                   {{ statusLabel(status) }}
-                </button>
-                <button
-                  type="button"
-                  class="shrink-0 rounded-md border border-red-100 p-1.5 text-red-500 hover:bg-red-50"
-                  :aria-label="`${t('common.delete')} ${advisor.fullName}`"
-                  @click="$emit('delete', advisor.advisorId)"
-                >
-                  <svg
-                    class="size-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    aria-hidden="true"
-                  >
-                    <path d="M3 6h18" />
-                    <path d="M8 6V4h8v2" />
-                    <path d="M19 6l-1 14H6L5 6" />
-                    <path d="M10 11v5M14 11v5" />
-                  </svg>
                 </button>
               </div>
             </td>
