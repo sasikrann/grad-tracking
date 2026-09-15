@@ -470,15 +470,31 @@ const tableRows = computed(() => {
 
   <div data-reorder-scope class="mt-5 hidden overflow-x-auto md:block">
     <table class="w-full min-w-[1280px] table-fixed border-collapse text-left">
+      <colgroup>
+        <col class="w-[calc(8%_-_5rem)]" />
+        <col class="w-[22%]" />
+        <col class="w-[22%]" />
+        <col class="w-[22%]" />
+        <col class="w-[10%]" />
+        <col class="w-[calc(16%_+_5rem)]" />
+      </colgroup>
       <thead>
-        <tr class="border-b border-slate-200 text-xs whitespace-nowrap">
-          <th class="w-[8%] py-3 font-semibold">{{ t('common.order') }}</th>
-          <th class="w-[22%] px-6 py-3 font-semibold">{{ t('common.title') }}</th>
-          <th class="w-[22%] px-6 py-3 font-semibold">{{ t('common.description') }}</th>
-          <th class="w-[22%] px-6 py-3 font-semibold">{{ t('common.reference') }}</th>
-          <th class="w-[10%] px-6 py-3 text-center font-semibold">{{ t('common.deadline') }}</th>
-          <th class="w-[16%] px-6 py-3 text-center font-semibold">
-            <span class="inline-block translate-x-16">{{ t('common.actions') }}</span>
+        <tr class="milestone-header-row text-xs whitespace-nowrap">
+          <th class="py-3 font-semibold">{{ t('common.order') }}</th>
+          <th class="px-6 py-3 font-semibold">
+            <span class="inline-block -translate-x-24">{{ t('common.title') }}</span>
+          </th>
+          <th class="px-6 py-3 font-semibold">
+            <span class="inline-block -translate-x-24">{{ t('common.description') }}</span>
+          </th>
+          <th class="px-6 py-3 font-semibold">
+            <span class="inline-block -translate-x-24">{{ t('common.reference') }}</span>
+          </th>
+          <th class="px-6 py-3 text-center font-semibold">
+            <span class="inline-block -translate-x-24">{{ t('common.deadline') }}</span>
+          </th>
+          <th class="px-6 py-3 text-right font-semibold">
+            <span class="inline-block -translate-x-8">{{ t('common.actions') }}</span>
           </th>
         </tr>
       </thead>
@@ -509,7 +525,7 @@ const tableRows = computed(() => {
             <tr
               v-else
               :data-reorder-milestone-id="row.milestone.milestoneId"
-              class="border-b border-slate-200 text-xs transition-colors"
+              class="milestone-data-row text-xs transition-colors"
               :class="{
                 'bg-red-50/70 shadow-[0_8px_20px_rgba(0,0,0,0.12)]':
                   draggingMilestoneId === row.milestone.milestoneId,
@@ -536,14 +552,14 @@ const tableRows = computed(() => {
               </td>
 
               <td class="px-6 py-4 align-top font-semibold leading-snug">
-                <div class="w-full break-words">
+                <div class="w-full -translate-x-24 break-words">
                   {{ row.milestone.title }}
                 </div>
               </td>
               <td class="px-6 py-4 align-top leading-snug text-slate-500">
                 <div
                   v-if="row.milestone.description"
-                  class="min-w-0 space-y-0.5"
+                  class="min-w-0 -translate-x-24 space-y-0.5"
                   :title="row.milestone.description"
                 >
                   <div
@@ -554,10 +570,13 @@ const tableRows = computed(() => {
                     {{ line }}
                   </div>
                 </div>
-                <span v-else>-</span>
+                <span v-else class="inline-block -translate-x-24">-</span>
               </td>
               <td class="px-6 py-4 align-top leading-snug">
-                <div v-if="row.milestone.references.length" class="space-y-1">
+                <div
+                  v-if="row.milestone.references.length"
+                  class="-translate-x-24 space-y-1"
+                >
                   <component
                     v-for="reference in row.milestone.references"
                     :key="reference"
@@ -576,15 +595,17 @@ const tableRows = computed(() => {
                     {{ reference }}
                   </component>
                 </div>
-                <span v-else class="text-slate-500">-</span>
+                <span v-else class="inline-block -translate-x-24 text-slate-500">-</span>
               </td>
 
               <td class="px-6 py-4 text-center align-middle text-slate-500">
-                {{ formatDate(row.milestone.deadline) }}
+                <span class="inline-block -translate-x-24">
+                  {{ formatDate(row.milestone.deadline) }}
+                </span>
               </td>
 
               <td class="px-6 py-4 align-middle">
-                <div class="-mt-1 flex flex-nowrap justify-end gap-2 whitespace-nowrap">
+                <div class="-mt-1 flex -translate-x-8 flex-nowrap justify-end gap-2 whitespace-nowrap">
                   <button
                     type="button"
                     class="rounded-md border px-3 py-1 text-[11px]"
@@ -639,3 +660,13 @@ const tableRows = computed(() => {
     </table>
   </div>
 </template>
+
+<style scoped>
+.milestone-header-row,
+.milestone-data-row {
+  background-image: linear-gradient(#e2e8f0, #e2e8f0);
+  background-position: left bottom;
+  background-size: calc(100% - 3.5rem) 1px;
+  background-repeat: no-repeat;
+}
+</style>
