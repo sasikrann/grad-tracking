@@ -189,7 +189,7 @@ function planLabel(plan: string) {
 
   <div class="relative mt-6 hidden min-h-36 overflow-x-auto md:block" :aria-busy="isLoading">
     <table
-      class="w-full min-w-225 table-fixed border-collapse text-left transition-opacity duration-150"
+      class="w-full min-w-[66rem] table-fixed border-collapse text-left transition-opacity duration-150"
       :class="{ 'pointer-events-none opacity-60': isLoading }"
     >
       <thead>

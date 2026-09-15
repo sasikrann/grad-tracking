@@ -70,7 +70,11 @@ describe('Navbar', () => {
       global: { stubs: { RouterLink: RouterLinkStub } },
     })
 
-    await wrapper.get('[aria-label="Text size"]').trigger('click')
+    const textSizeButton = wrapper.get('[aria-label="Text size"]')
+    expect(textSizeButton.text()).toBe('AA')
+    await textSizeButton.trigger('click')
+    expect(wrapper.get('[aria-label="Decrease text size"]').text()).toBe('Aa−')
+    expect(wrapper.get('[aria-label="Increase text size"]').text()).toBe('Aa+')
     const increaseButton = wrapper.get('[aria-label="Increase text size"]')
     await increaseButton.trigger('click')
     await increaseButton.trigger('click')

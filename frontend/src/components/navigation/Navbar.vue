@@ -245,48 +245,44 @@ watch(
       <div class="relative ml-1" @click.stop>
         <button
           type="button"
-          class="flex size-8 items-center justify-center rounded-lg hover:bg-[#720008]"
+          class="flex size-[26px] items-center justify-center rounded-md bg-white text-[#7D2923] hover:bg-white/90"
           :aria-label="t('nav.textSize')"
           :aria-expanded="isFontSizeMenuOpen"
           aria-controls="mobile-font-size-menu"
           @click="isFontSizeMenuOpen = !isFontSizeMenuOpen"
         >
-          <svg
-            class="size-5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
+          <span
+            class="inline-flex items-baseline leading-none"
+            style="font-family: 'Inter App', sans-serif"
             aria-hidden="true"
           >
-            <circle cx="10" cy="10" r="6" />
-            <path d="M14.5 14.5 21 21M7 10h6M10 7v6" />
-          </svg>
+            <span class="text-[11px] font-semibold">A</span><span class="text-[7px] font-semibold">A</span>
+          </span>
         </button>
         <div
           v-if="isFontSizeMenuOpen"
           id="mobile-font-size-menu"
-          class="absolute right-0 top-10 z-50 flex overflow-hidden rounded-lg border border-gray-200 bg-white p-1 text-gray-700 shadow-lg"
+          class="absolute right-0 top-10 z-50 flex overflow-hidden rounded-lg border border-gray-200 bg-white p-0.5 text-gray-700 shadow-lg"
           role="group"
           :aria-label="t('nav.textSize')"
         >
           <button
             type="button"
-            class="flex size-9 items-center justify-center rounded-md text-xl hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-35"
+            class="flex h-7 w-12 items-center justify-center text-sm font-semibold hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-35"
             :aria-label="t('nav.decreaseTextSize')"
             :disabled="fontSizeLevel === 0"
             @click="changeFontSize(-20)"
           >
-            −
+            Aa−
           </button>
           <button
             type="button"
-            class="flex size-9 items-center justify-center rounded-md text-xl hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-35"
+            class="flex h-7 w-12 items-center justify-center border-l border-gray-200 text-sm font-semibold hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-35"
             :aria-label="t('nav.increaseTextSize')"
             :disabled="fontSizeLevel === 100"
             @click="changeFontSize(20)"
           >
-            +
+            Aa+
           </button>
         </div>
       </div>
