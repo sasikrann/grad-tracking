@@ -98,22 +98,36 @@ export async function updateMyAdvisor(request, response) {
 }
 
 export async function appointMyAdvisors(request, response) {
-  await requireMilestoneSubmissionAccess(request.user.userId)
-  if (!(await areStudentMilestonePrerequisitesComplete(request.user.userId, request.params.milestoneId))) {
-    throw new ApiError(409, 'Please complete all prerequisite milestones first')
+  try {
+    await requireMilestoneSubmissionAccess(request.user.userId)
+    if (!(await areStudentMilestonePrerequisitesComplete(request.user.userId, request.params.milestoneId))) {
+      throw new ApiError(409, 'Please complete all prerequisite milestones first')
+    }
+
+    let coAdvisorIds = request.body.coAdvisorIds ?? []
+    if (typeof coAdvisorIds === 'string') {
+      try {
+        coAdvisorIds = JSON.parse(coAdvisorIds)
+      } catch {
+        throw new ApiError(400, 'coAdvisorIds must be an array')
+      }
+    }
+    if (!Array.isArray(coAdvisorIds)) throw new ApiError(400, 'coAdvisorIds must be an array')
+
+    const evidenceUrl = request.file ? `/uploads/evidence/${request.file.filename}` : null
+    const student = await appointStudentAdvisorsByUserId(
+      request.user.userId,
+      request.params.milestoneId,
+      requiredText(request.body.advisorId, 'advisorId'),
+      coAdvisorIds,
+      evidenceUrl,
+    )
+    if (!student) throw new ApiError(404, 'Student profile not found')
+    response.json({ data: student })
+  } catch (error) {
+    await removeUploadedFile(request.file)
+    throw error
   }
-  const coAdvisorIds = request.body.coAdvisorIds ?? []
-  if (!Array.isArray(coAdvisorIds)) {
-    throw new ApiError(400, 'coAdvisorIds must be an array')
-  }
-  const student = await appointStudentAdvisorsByUserId(
-    request.user.userId,
-    request.params.milestoneId,
-    requiredText(request.body.advisorId, 'advisorId'),
-    coAdvisorIds,
-  )
-  if (!student) throw new ApiError(404, 'Student profile not found')
-  response.json({ data: student })
 }
 
 export async function submitMyGraduation(request, response) {

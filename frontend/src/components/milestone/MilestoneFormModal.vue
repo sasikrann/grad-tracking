@@ -200,18 +200,20 @@ onBeforeUnmount(() => {
 
       <form class="mt-5 space-y-3" novalidate @submit.prevent="saveForm">
         <label class="block text-xs font-semibold">
-          {{ t('common.title') }}
+          {{ t('common.title') }} <span class="text-red-600" aria-hidden="true">*</span>
           <input
             v-model="form.title"
+            required
             :placeholder="t('milestone.titlePlaceholder')"
             class="mt-1 h-10 w-full rounded-md border border-[#c9827c] px-3 text-xs outline-none focus:border-[#7D2923]"
           />
         </label>
 
         <label class="block text-xs font-semibold">
-          {{ t('common.description') }}
+          {{ t('common.description') }} <span class="text-red-600" aria-hidden="true">*</span>
           <textarea
             v-model="form.description"
+            required
             rows="6"
             :placeholder="t('milestone.descriptionPlaceholder')"
             class="mt-1 w-full rounded-md border border-[#c9827c] px-3 py-2 text-xs outline-none focus:border-[#7D2923]"
@@ -238,6 +240,7 @@ onBeforeUnmount(() => {
             :model-value="form.degreeLevel"
             :options="programOptions"
             :open="openDropdown === 'program'"
+            required
             @toggle="toggleDropdown('program')"
             @select="selectDropdown('program', $event)"
           />
@@ -245,11 +248,12 @@ onBeforeUnmount(() => {
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label class="block text-xs font-semibold">
-            {{ t('common.order') }}
+            {{ t('common.order') }} <span class="text-red-600" aria-hidden="true">*</span>
             <input
               v-model.number="form.sequenceOrder"
               type="number"
               min="1"
+              required
               class="mt-1 h-10 w-full rounded-md border border-[#c9827c] px-3 text-xs outline-none focus:border-[#7D2923]"
             />
           </label>
@@ -258,6 +262,7 @@ onBeforeUnmount(() => {
             v-model="form.plans"
             :options="planOptions"
             :open="openDropdown === 'plan'"
+            required
             @toggle="toggleDropdown('plan')"
           />
         </div>

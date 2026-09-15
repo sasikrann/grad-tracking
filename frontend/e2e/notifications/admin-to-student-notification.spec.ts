@@ -82,5 +82,16 @@ test('admin creates a persisted notification that the seeded student can open', 
   const detailDialog = studentPage.getByRole('dialog', { name: notificationTitle })
   await expect(detailDialog).toBeVisible()
   await expect(detailDialog.getByText(notificationMessage, { exact: true })).toBeVisible()
+
+  await detailDialog.getByRole('button', { name: 'Close notification detail' }).click()
+  await studentPage.getByRole('button', { name: 'TH', exact: true }).click()
+  await expect(
+    studentPage.getByRole('heading', { name: 'การแจ้งเตือน', exact: true }),
+  ).toBeVisible()
+  await expect(notificationTitleInList).toBeVisible()
+  await notificationTitleInList.click()
+  const thaiDetailDialog = studentPage.getByRole('dialog', { name: notificationTitle })
+  await expect(thaiDetailDialog.getByText(notificationMessage, { exact: true })).toBeVisible()
+  await expect(thaiDetailDialog.getByText(/2569/)).toBeVisible()
   await studentContext.close()
 })

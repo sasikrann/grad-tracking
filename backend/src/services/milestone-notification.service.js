@@ -24,45 +24,14 @@ function targetAudienceForDegreeLevel(degreeLevel) {
   return 'All Students'
 }
 
-function formatDate(value) {
-  if (!value) return null
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return null
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-export function milestoneReminderContent(milestone, reminderStage) {
-  const deadline = formatDate(milestone.deadline)
-  const title = String(milestone.title ?? '').trim()
-  const deadlineText = deadline ? ` Deadline: ${deadline}.` : ''
-
-  if (reminderStage === 'created') {
-    return {
-      title: `New Milestone Added: ${title}`,
-      message: `A new milestone "${title}" has been added.${deadlineText} Please review the milestone details and prepare the required documents.`,
-    }
-  }
-
-  if (reminderStage === 'first') {
-    return {
-      title: `First Reminder: ${title}`,
-      message: `This is the first reminder for milestone "${title}".${deadlineText} Please review your progress and prepare your submission.`,
-    }
-  }
-
-  if (reminderStage === 'deadline') {
-    return {
-      title: `Milestone Deadline: ${title}`,
-      message: `Milestone "${title}" has reached its deadline.${deadlineText} Please review the milestone and submit any outstanding evidence.`,
-    }
-  }
+export function milestoneReminderContent(_milestone, reminderStage) {
+  const stage = ['created', 'first', 'deadline', 'second'].includes(reminderStage)
+    ? reminderStage
+    : 'second'
 
   return {
-    title: `Second Reminder: ${title}`,
-    message: `This is the second reminder for milestone "${title}".${deadlineText} Please review your progress and prepare your submission.`,
+    title: `notification.milestone.${stage}.title`,
+    message: `notification.milestone.${stage}.message`,
   }
 }
 

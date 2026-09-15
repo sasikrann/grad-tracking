@@ -29,12 +29,18 @@ export async function appointMyStudentAdvisors(input: {
   milestoneId: string
   advisorId: string
   coAdvisorIds: string[]
+  evidenceFile?: File
 }) {
+  const body = new FormData()
+  body.append('advisorId', input.advisorId)
+  body.append('coAdvisorIds', JSON.stringify(input.coAdvisorIds))
+  if (input.evidenceFile) body.append('file', input.evidenceFile)
+
   return apiRequest<StudentProfile>(
     `/api/student-profile/me/milestones/${encodeURIComponent(input.milestoneId)}/advisors`,
     {
       method: 'PUT',
-      body: JSON.stringify({ advisorId: input.advisorId, coAdvisorIds: input.coAdvisorIds }),
+      body,
       errorMessage: 'Unable to save advisor appointment',
     },
   )

@@ -41,3 +41,8 @@ Google credentials or automating a real Google account.
 `notifications/admin-to-student-notification.spec.ts` verifies that an admin can
 create a persisted notification and that the seeded student can sign in, see
 the notification, and open its details.
+
+`management/disable-instead-of-delete.spec.ts` verifies that advisor and
+milestone delete controls and endpoints are unavailable, inactive advisors
+cannot be newly selected, and disabling records preserves existing advisor,
+milestone evidence, and notification history.

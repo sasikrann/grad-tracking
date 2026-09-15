@@ -292,19 +292,21 @@ function planLabel(plan: string) {
             </span>
           </td>
           <td>
-            <div class="flex items-center justify-center gap-1">
+            <div class="mx-auto grid w-40 grid-cols-[7rem_2.5rem] items-center gap-2">
               <div class="h-2 w-28 overflow-hidden rounded-full bg-[#f7c9cf]">
                 <div
                   class="h-full rounded-full bg-[#d50012]"
                   :style="{ width: `${student.progress}%` }"
                 ></div>
               </div>
-              <span class="text-xs font-semibold">{{ student.progress }}%</span>
+              <span class="w-10 text-left text-xs font-normal">
+                {{ student.progress }}%
+              </span>
             </div>
           </td>
           <td class="text-center">
             <span
-              class="inline-flex min-w-20.5 justify-center rounded-xl px-3 py-1 text-xs font-semibold text-white"
+              class="inline-flex w-28 justify-center whitespace-nowrap rounded-xl px-3 py-1 text-xs font-semibold text-white"
               :class="
                 student.status === 'Graduate'
                   ? 'bg-[#49b866]'

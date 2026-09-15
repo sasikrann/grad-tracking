@@ -17,7 +17,16 @@ import { formatAcademicYear, useLanguage } from '@/composables/useLanguage'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { getStudents } from '@/services/students.api'
 import type { Student } from '@/types/student'
-const { isThai, t } = useLanguage()
+import {
+  formatNotificationDate,
+  formatNotificationDateTime as formatLocalizedNotificationDateTime,
+  notificationDisplayDeadline,
+  notificationDisplayDescription,
+  notificationDisplayFooter,
+  notificationDisplayMessage,
+  notificationDisplayTitle,
+} from '@/utils/notification-display'
+const { language, isThai, t } = useLanguage()
 
 type AudienceFilter = NotificationTargetAudience | 'all'
 type TargetDropdown = 'program' | 'plan' | 'year'
@@ -121,13 +130,13 @@ const selectedTargetAcademicYearLabel = computed(() =>
     : formatAcademicYear(targetAcademicYear.value),
 )
 const mobileTargetProgramLabel = computed(() =>
-  isThai.value && targetProgram.value === 'all' ? 'หลักสูตร' : selectedTargetProgramLabel.value,
+  targetProgram.value === 'all' ? t('common.program') : selectedTargetProgramLabel.value,
 )
 const mobileTargetPlanLabel = computed(() =>
-  isThai.value && targetPlan.value === 'all' ? 'แผน' : selectedTargetPlanLabel.value,
+  targetPlan.value === 'all' ? t('common.plan') : selectedTargetPlanLabel.value,
 )
 const mobileTargetAcademicYearLabel = computed(() =>
-  isThai.value && targetAcademicYear.value === 'all' ? 'ปี' : selectedTargetAcademicYearLabel.value,
+  targetAcademicYear.value === 'all' ? t('common.year') : selectedTargetAcademicYearLabel.value,
 )
 
 function toggleTargetDropdown(dropdown: TargetDropdown) {
@@ -180,21 +189,13 @@ function showToast(text: string, type: 'success' | 'error' = 'success') {
 }
 
 function audienceLabel(value: NotificationTargetAudience) {
-  if (value === 'Doctoral Students') return 'Ph.D.'
-  if (value === 'Master Students') return 'Master'
+  if (value === 'Doctoral Students') return t('common.doctoral')
+  if (value === 'Master Students') return t('common.master')
   return t('notification.allProgram')
 }
 
 function formatDateTime(value: string | null) {
-  if (!value) return '-'
-
-  return new Intl.DateTimeFormat(isThai.value ? 'th-TH' : 'en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value))
+  return formatLocalizedNotificationDateTime(value, language.value)
 }
 
 function attachmentName(value: string | null) {
@@ -309,49 +310,8 @@ function formattedNotificationMessage(value: string) {
     .replace(/\n/g, '<br>')
 }
 
-function notificationDeadline(value: string) {
-  return (
-    plainNotificationMessage(value).match(/\bDeadline:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\.?/i)?.[1] ??
-    ''
-  )
-}
-
 function formatNotificationDeadline(value: string) {
-  if (!value) return ''
-  const date = new Date(`${value}T00:00:00`)
-  if (Number.isNaN(date.getTime())) return value
-
-  return new Intl.DateTimeFormat(isThai.value ? 'th-TH' : 'en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(date)
-}
-
-function notificationFooterNotice(value: string) {
-  const message = plainNotificationMessage(value)
-  if (message.includes('Please review the milestone details and prepare the required documents.')) {
-    return 'Please review the milestone details and prepare the required documents.'
-  }
-
-  if (message.includes('Please review your progress and prepare your submission.')) {
-    return 'Please review your progress and prepare your submission.'
-  }
-
-  if (message.includes('Please complete the required work before the deadline.')) {
-    return 'Please review your progress and prepare your submission.'
-  }
-
-  return ''
-}
-
-function notificationDescription(value: string) {
-  return value
-    .replace(/\s*Please review the milestone details and prepare the required documents\.?/gi, '')
-    .replace(/\s*Please review your progress and prepare your submission\.?/gi, '')
-    .replace(/\s*Please complete the required work before the deadline\.?/gi, '')
-    .replace(/\s*Deadline:\s*[0-9]{4}-[0-9]{2}-[0-9]{2}\.?/gi, '')
-    .trim()
+  return formatNotificationDate(value, language.value)
 }
 
 function sanitizeEditorHtml(html: string) {
@@ -725,11 +685,11 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
         >
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0 flex-1">
-              <h3 class="break-words text-sm font-semibold leading-snug text-slate-950">
-                {{ notification.title }}
+              <h3 class="break-words py-0.5 text-sm font-semibold leading-relaxed text-slate-950">
+                {{ notificationDisplayTitle(notification, t) }}
               </h3>
               <p class="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
-                {{ plainNotificationMessage(notification.message) }}
+                {{ plainNotificationMessage(notificationDisplayMessage(notification, t)) }}
               </p>
             </div>
 
@@ -808,9 +768,11 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
               class="border-b border-slate-100 last:border-0"
             >
               <td class="max-w-[320px] px-1 py-4">
-                <p class="truncate font-medium text-slate-950">{{ notification.title }}</p>
+                <p class="truncate py-0.5 font-medium leading-relaxed text-slate-950">
+                  {{ notificationDisplayTitle(notification, t) }}
+                </p>
                 <p class="mt-1 truncate text-xs text-slate-500">
-                  {{ plainNotificationMessage(notification.message) }}
+                  {{ plainNotificationMessage(notificationDisplayMessage(notification, t)) }}
                 </p>
               </td>
               <td class="px-1 py-4 text-center">
@@ -925,7 +887,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
                   <button
                     type="button"
                     class="flex size-6 items-center justify-center rounded hover:bg-slate-100 hover:text-[#8b2a23]"
-                    aria-label="Bold selected text"
+                    :aria-label="t('notification.boldText')"
                     @mousedown.prevent="applyMessageFormat('bold')"
                   >
                     B
@@ -933,7 +895,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
                   <button
                     type="button"
                     class="flex size-6 items-center justify-center rounded italic hover:bg-slate-100 hover:text-[#8b2a23]"
-                    aria-label="Italic selected text"
+                    :aria-label="t('notification.italicText')"
                     @mousedown.prevent="applyMessageFormat('italic')"
                   >
                     I
@@ -941,7 +903,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
                   <button
                     type="button"
                     class="flex size-6 items-center justify-center rounded underline hover:bg-slate-100 hover:text-[#8b2a23]"
-                    aria-label="Underline selected text"
+                    :aria-label="t('notification.underlineText')"
                     @mousedown.prevent="applyMessageFormat('underline')"
                   >
                     U
@@ -949,7 +911,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
                   <button
                     type="button"
                     class="flex size-6 items-center justify-center rounded line-through hover:bg-slate-100 hover:text-[#8b2a23]"
-                    aria-label="Strike through selected text"
+                    :aria-label="t('notification.strikeText')"
                     @mousedown.prevent="applyMessageFormat('strikeThrough')"
                   >
                     S
@@ -958,7 +920,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
                   <button
                     type="button"
                     class="flex size-6 items-center justify-center rounded hover:bg-slate-100 hover:text-[#8b2a23]"
-                    aria-label="Bullet list"
+                    :aria-label="t('notification.bulletList')"
                     @mousedown.prevent="applyMessageFormat('insertUnorderedList')"
                   >
                     <svg
@@ -976,7 +938,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
                   <button
                     type="button"
                     class="flex size-6 items-center justify-center rounded hover:bg-slate-100 hover:text-[#8b2a23]"
-                    aria-label="Numbered list"
+                    :aria-label="t('notification.numberedList')"
                     @mousedown.prevent="applyMessageFormat('insertOrderedList')"
                   >
                     <svg
@@ -997,7 +959,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
                   <button
                     type="button"
                     class="flex size-6 items-center justify-center rounded hover:bg-slate-100 hover:text-[#8b2a23]"
-                    aria-label="Clear formatting"
+                    :aria-label="t('notification.clearFormatting')"
                     @mousedown.prevent="applyMessageFormat('removeFormat')"
                   >
                     Tx
@@ -1327,7 +1289,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
         <button
           type="button"
           class="absolute right-5 top-5 rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-          aria-label="Close notification detail"
+          :aria-label="t('notification.closeDetail')"
           @click="closeDetail"
         >
           <svg
@@ -1362,9 +1324,9 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
           <div class="min-w-0">
             <h2
               id="notification-detail-title"
-              class="break-words text-base font-semibold leading-tight text-slate-950"
+              class="break-words py-0.5 text-base font-semibold leading-relaxed text-slate-950"
             >
-              {{ selectedNotification.title }}
+              {{ notificationDisplayTitle(selectedNotification, t) }}
             </h2>
             <div class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
               <p class="inline-flex max-w-full items-center gap-1.5 text-xs text-slate-500">
@@ -1407,15 +1369,17 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
           <div
             class="mt-2 min-w-0 break-words text-xs leading-5 text-slate-900 [overflow-wrap:anywhere] [&_*]:max-w-full [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
             v-html="
-              formattedNotificationMessage(notificationDescription(selectedNotification.message))
+              formattedNotificationMessage(
+                notificationDisplayDescription(selectedNotification, t),
+              )
             "
           ></div>
 
-          <div v-if="notificationDeadline(selectedNotification.message)" class="mt-5">
+          <div v-if="notificationDisplayDeadline(selectedNotification)" class="mt-5">
             <p class="text-xs font-semibold text-black">
-              Deadline:
+              {{ t('common.deadline') }}:
               <span class="ml-2 font-medium text-slate-900">
-                {{ formatNotificationDeadline(notificationDeadline(selectedNotification.message)) }}
+                {{ formatNotificationDeadline(notificationDisplayDeadline(selectedNotification)) }}
               </span>
             </p>
           </div>
@@ -1454,7 +1418,7 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
               <button
                 type="button"
                 class="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-[#dfcccc] hover:text-[#8b2a23]"
-                aria-label="Download attachment"
+                :aria-label="t('studentPortal.downloadAttachment')"
                 @click="downloadAttachment(selectedNotification.attachmentUrl)"
               >
                 <svg
@@ -1498,10 +1462,10 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
           </div>
 
           <p
-            v-if="notificationFooterNotice(selectedNotification.message)"
+            v-if="notificationDisplayFooter(selectedNotification, t)"
             class="mt-5 text-xs font-semibold leading-5 text-red-600"
           >
-            {{ notificationFooterNotice(selectedNotification.message) }}
+            {{ notificationDisplayFooter(selectedNotification, t) }}
           </p>
         </div>
       </section>
