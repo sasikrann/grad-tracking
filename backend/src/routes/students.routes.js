@@ -3,6 +3,7 @@ import multer from 'multer'
 
 import {
   createStudent,
+  cancelStudentStudyExtension,
   deleteStudent,
   downloadStudentTemplate,
   extendStudentStudyPeriod,
@@ -37,6 +38,7 @@ router.get('/template', downloadStudentTemplate)
 router.post('/import', upload.single('file'), importStudentFile)
 router.get('/:studentId/milestones', getStudentMilestones)
 router.patch('/:studentId/study-extension', extendStudentStudyPeriod)
+router.delete('/:studentId/study-extension', cancelStudentStudyExtension)
 router.get('/:studentId', getStudent)
 router.post('/', createStudent)
 router.put('/:studentId', updateStudent)

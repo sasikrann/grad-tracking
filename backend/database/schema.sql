@@ -75,6 +75,26 @@ CREATE TABLE students (
   )
 );
 
+CREATE TABLE student_study_extensions (
+  extension_id UUID PRIMARY KEY,
+  student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
+  extension_number SMALLINT NOT NULL CHECK (extension_number BETWEEN 1 AND 2),
+  academic_year INT NOT NULL CHECK (academic_year BETWEEN 2000 AND 2200),
+  semester VARCHAR NOT NULL CHECK (semester IN ('1', '2')),
+  starts_on DATE NOT NULL,
+  ends_on DATE NOT NULL CHECK (ends_on >= starts_on),
+  status VARCHAR NOT NULL DEFAULT 'Granted' CHECK (status IN ('Granted', 'Cancelled')),
+  granted_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  granted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  cancelled_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  cancelled_at TIMESTAMP,
+  cancellation_reason TEXT
+);
+
+CREATE UNIQUE INDEX student_study_extensions_active_round_idx
+  ON student_study_extensions (student_id, extension_number)
+  WHERE status = 'Granted';
+
 CREATE TABLE student_co_advisors (
   student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
   advisor_id VARCHAR NOT NULL REFERENCES advisors(advisor_id) ON DELETE CASCADE,

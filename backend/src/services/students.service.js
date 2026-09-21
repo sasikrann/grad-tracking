@@ -4,6 +4,12 @@ import pool from '../config/database.js'
 import { resolveAdvisorReference } from './advisors.service.js'
 import { ensureAcademicYearMilestoneTemplates } from './academic-year-milestones.service.js'
 import { ensureMilestoneSchema } from './milestones.service.js'
+import {
+  MAX_STUDY_EXTENSIONS,
+  academicTermForDate,
+  isPastNormalStudyPeriod,
+  nextAcademicTerm,
+} from './study-extension-policy.js'
 
 let studentSchemaReady
 async function ensureStudentSchema() {
@@ -14,6 +20,24 @@ async function ensureStudentSchema() {
     ALTER TABLE students ADD COLUMN IF NOT EXISTS graduation_academic_year INT;
     ALTER TABLE students ADD COLUMN IF NOT EXISTS student_status VARCHAR NOT NULL DEFAULT 'Normal';
     ALTER TABLE students ADD COLUMN IF NOT EXISTS study_extension_granted BOOLEAN NOT NULL DEFAULT FALSE;
+    CREATE TABLE IF NOT EXISTS student_study_extensions (
+      extension_id UUID PRIMARY KEY,
+      student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
+      extension_number SMALLINT NOT NULL CHECK (extension_number BETWEEN 1 AND 2),
+      academic_year INT NOT NULL CHECK (academic_year BETWEEN 2000 AND 2200),
+      semester VARCHAR NOT NULL CHECK (semester IN ('1', '2')),
+      starts_on DATE NOT NULL,
+      ends_on DATE NOT NULL CHECK (ends_on >= starts_on),
+      status VARCHAR NOT NULL DEFAULT 'Granted' CHECK (status IN ('Granted', 'Cancelled')),
+      granted_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+      granted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      cancelled_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+      cancelled_at TIMESTAMP,
+      cancellation_reason TEXT
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS student_study_extensions_active_round_idx
+      ON student_study_extensions (student_id, extension_number)
+      WHERE status = 'Granted';
     UPDATE students
     SET student_status = 'Graduate'
     WHERE graduation_semester IS NOT NULL
@@ -50,11 +74,45 @@ const studentDetailColumns = `
   s.graduation_semester AS "graduationSemester",
   s.graduation_academic_year AS "graduationAcademicYear",
   s.student_status AS "studentStatus",
-  s.study_extension_granted AS "studyExtensionGranted",
+  (SELECT COUNT(*)::INT FROM student_study_extensions e
+    WHERE e.student_id = s.student_id AND e.status = 'Granted') AS "studyExtensionCount",
+  EXISTS (SELECT 1 FROM student_study_extensions e
+    WHERE e.student_id = s.student_id AND e.status = 'Granted'
+      AND CURRENT_DATE BETWEEN e.starts_on AND e.ends_on) AS "studyExtensionGranted",
+  (SELECT e.extension_number FROM student_study_extensions e
+    WHERE e.student_id = s.student_id AND e.status = 'Granted'
+    ORDER BY e.extension_number DESC LIMIT 1) AS "latestStudyExtensionNumber",
+  (SELECT e.academic_year FROM student_study_extensions e
+    WHERE e.student_id = s.student_id AND e.status = 'Granted'
+    ORDER BY e.extension_number DESC LIMIT 1) AS "studyExtensionAcademicYear",
+  (SELECT e.semester FROM student_study_extensions e
+    WHERE e.student_id = s.student_id AND e.status = 'Granted'
+    ORDER BY e.extension_number DESC LIMIT 1) AS "studyExtensionSemester",
+  (SELECT e.starts_on FROM student_study_extensions e
+    WHERE e.student_id = s.student_id AND e.status = 'Granted'
+    ORDER BY e.extension_number DESC LIMIT 1) AS "studyExtensionStartsOn",
+  (SELECT e.ends_on FROM student_study_extensions e
+    WHERE e.student_id = s.student_id AND e.status = 'Granted'
+    ORDER BY e.extension_number DESC LIMIT 1) AS "studyExtensionEndsOn",
+  (
+    s.student_status <> 'Graduate'
+    AND (SELECT COUNT(*) FROM student_study_extensions e
+      WHERE e.student_id = s.student_id AND e.status = 'Granted') < 2
+    AND NOT EXISTS (SELECT 1 FROM student_study_extensions e
+      WHERE e.student_id = s.student_id AND e.status = 'Granted'
+        AND CURRENT_DATE <= e.ends_on)
+    AND CURRENT_DATE > CASE
+      WHEN s.semester = '2' THEN make_date(s.enrollment_academic_year + CASE WHEN s.degree_level = 'Master' THEN 4 WHEN s.education_plan = '2.2' THEN 7 ELSE 5 END, 12, 31)
+      ELSE make_date(s.enrollment_academic_year + CASE WHEN s.degree_level = 'Master' THEN 4 WHEN s.education_plan = '2.2' THEN 7 ELSE 5 END, 5, 31)
+    END
+  ) AS "canExtendStudyPeriod",
   CASE
     WHEN s.student_status = 'Graduate' THEN 'Graduate'
-    WHEN s.study_extension_granted THEN 'Extended'
-    WHEN EXTRACT(YEAR FROM CURRENT_DATE)::INT > s.enrollment_academic_year + 2 THEN 'Overdue'
+    WHEN EXISTS (SELECT 1 FROM student_study_extensions e WHERE e.student_id = s.student_id AND e.status = 'Granted' AND CURRENT_DATE BETWEEN e.starts_on AND e.ends_on) THEN 'Extended'
+    WHEN CURRENT_DATE > CASE
+      WHEN s.semester = '2' THEN make_date(s.enrollment_academic_year + CASE WHEN s.degree_level = 'Master' THEN 4 WHEN s.education_plan = '2.2' THEN 7 ELSE 5 END, 12, 31)
+      ELSE make_date(s.enrollment_academic_year + CASE WHEN s.degree_level = 'Master' THEN 4 WHEN s.education_plan = '2.2' THEN 7 ELSE 5 END, 5, 31)
+    END THEN 'Overdue'
     ELSE 'On-track'
   END AS "academicStatus",
   s.advisor_id AS "advisorId",
@@ -167,7 +225,9 @@ async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
         s.semester,
         s.enrollment_academic_year AS "year",
         s.expected_graduation_year AS "expectedGraduationYear",
-        s.study_extension_granted AS "studyExtensionGranted",
+        EXISTS (SELECT 1 FROM student_study_extensions e
+          WHERE e.student_id = s.student_id AND e.status = 'Granted'
+            AND CURRENT_DATE BETWEEN e.starts_on AND e.ends_on) AS "studyExtensionGranted",
         s.advisor_id AS "advisorId",
         a.full_name AS "advisorName",
         EXISTS (
@@ -191,13 +251,13 @@ async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
           WHEN s.student_status = 'Graduate'
             OR (s.graduation_semester IS NOT NULL
               AND s.graduation_academic_year IS NOT NULL) THEN 'Graduate'
-          WHEN s.study_extension_granted THEN 'Extended'
-          WHEN EXTRACT(YEAR FROM CURRENT_DATE)::INT >
-            s.enrollment_academic_year + CASE
-              WHEN s.study_extension_granted AND s.degree_level = 'Master' THEN 4
-              WHEN s.study_extension_granted AND s.degree_level = 'Doctoral' THEN 5
-              ELSE 2
-            END THEN 'Overdue'
+          WHEN EXISTS (SELECT 1 FROM student_study_extensions e
+            WHERE e.student_id = s.student_id AND e.status = 'Granted'
+              AND CURRENT_DATE BETWEEN e.starts_on AND e.ends_on) THEN 'Extended'
+          WHEN CURRENT_DATE > CASE
+            WHEN s.semester = '2' THEN make_date(s.enrollment_academic_year + CASE WHEN s.degree_level = 'Master' THEN 4 WHEN s.education_plan = '2.2' THEN 7 ELSE 5 END, 12, 31)
+            ELSE make_date(s.enrollment_academic_year + CASE WHEN s.degree_level = 'Master' THEN 4 WHEN s.education_plan = '2.2' THEN 7 ELSE 5 END, 5, 31)
+          END THEN 'Overdue'
           ELSE 'On-track'
         END AS status
       FROM students s
@@ -224,7 +284,6 @@ async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
         s.graduation_semester,
         s.graduation_academic_year,
         s.student_status,
-        s.study_extension_granted,
         s.advisor_id,
         a.full_name
       )
@@ -266,24 +325,80 @@ export function findStudentsByAdvisorId(advisorId) {
   return findStudents({ advisorId })
 }
 
-export async function grantStudentStudyExtension(studentId) {
+export async function grantStudentStudyExtension(studentId, grantedBy = null) {
+  await ensureStudentSchema()
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const studentResult = await client.query(
+      `SELECT student_id AS "studentId", degree_level AS "degreeLevel",
+              education_plan AS "educationPlan", enrollment_academic_year AS "enrollmentAcademicYear",
+              semester, graduation_semester AS "graduationSemester",
+              graduation_academic_year AS "graduationAcademicYear", CURRENT_DATE::text AS "currentDate"
+       FROM students WHERE student_id = $1 FOR UPDATE`,
+      [studentId],
+    )
+    const student = studentResult.rows[0]
+    if (!student || student.graduationSemester || student.graduationAcademicYear ||
+        !isPastNormalStudyPeriod(student, student.currentDate)) {
+      await client.query('ROLLBACK')
+      return null
+    }
+
+    const extensionResult = await client.query(
+      `SELECT extension_number AS "extensionNumber", academic_year AS "academicYear", semester,
+              starts_on::text AS "startsOn", ends_on::text AS "endsOn"
+       FROM student_study_extensions
+       WHERE student_id = $1 AND status = 'Granted'
+       ORDER BY extension_number`,
+      [studentId],
+    )
+    if (extensionResult.rows.length >= MAX_STUDY_EXTENSIONS) {
+      await client.query('ROLLBACK')
+      return null
+    }
+
+    const lastExtension = extensionResult.rows.at(-1)
+    if (lastExtension && student.currentDate <= lastExtension.endsOn) {
+      await client.query('ROLLBACK')
+      return null
+    }
+    const term = lastExtension
+      ? nextAcademicTerm(lastExtension)
+      : academicTermForDate(student.currentDate)
+    const extensionNumber = extensionResult.rows.length + 1
+    const result = await client.query(
+      `INSERT INTO student_study_extensions
+        (extension_id, student_id, extension_number, academic_year, semester, starts_on, ends_on, granted_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING extension_number AS "extensionNumber", academic_year AS "academicYear", semester,
+                 starts_on AS "startsOn", ends_on AS "endsOn"`,
+      [randomUUID(), studentId, extensionNumber, term.academicYear, term.semester,
+        term.startsOn, term.endsOn, grantedBy],
+    )
+    await client.query('UPDATE students SET updated_at = NOW() WHERE student_id = $1', [studentId])
+    await client.query('COMMIT')
+    return { ...result.rows[0], studyExtensionCount: extensionNumber }
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
+export async function cancelLatestStudentStudyExtension(studentId, cancelledBy = null, reason = null) {
   await ensureStudentSchema()
   const result = await pool.query(
-    `
-      UPDATE students
-      SET study_extension_granted = TRUE, updated_at = NOW()
-      WHERE student_id = $1
-        AND study_extension_granted = FALSE
-        AND graduation_semester IS NULL
-        AND graduation_academic_year IS NULL
-        AND EXTRACT(YEAR FROM CURRENT_DATE)::INT > enrollment_academic_year + 2
-        AND EXTRACT(YEAR FROM CURRENT_DATE)::INT <= enrollment_academic_year + CASE
-          WHEN degree_level = 'Master' THEN 4
-          WHEN degree_level = 'Doctoral' THEN 5
-        END
-      RETURNING student_id AS "studentId", study_extension_granted AS "studyExtensionGranted"
-    `,
-    [studentId],
+    `UPDATE student_study_extensions
+     SET status = 'Cancelled', cancelled_by = $2, cancelled_at = NOW(), cancellation_reason = $3
+     WHERE extension_id = (
+       SELECT extension_id FROM student_study_extensions
+       WHERE student_id = $1 AND status = 'Granted'
+       ORDER BY extension_number DESC LIMIT 1
+     )
+     RETURNING extension_number AS "extensionNumber"`,
+    [studentId, cancelledBy, reason],
   )
   return result.rows[0] || null
 }
@@ -487,8 +602,15 @@ export async function canStudentSubmitMilestones(userId) {
       SELECT (
         student_status <> 'Graduate'
         AND (
-          study_extension_granted = TRUE
-          OR EXTRACT(YEAR FROM CURRENT_DATE)::INT <= enrollment_academic_year + 2
+          EXISTS (
+            SELECT 1 FROM student_study_extensions e
+            WHERE e.student_id = students.student_id AND e.status = 'Granted'
+              AND CURRENT_DATE BETWEEN e.starts_on AND e.ends_on
+          )
+          OR CURRENT_DATE <= CASE
+            WHEN semester = '2' THEN make_date(enrollment_academic_year + CASE WHEN degree_level = 'Master' THEN 4 WHEN education_plan = '2.2' THEN 7 ELSE 5 END, 12, 31)
+            ELSE make_date(enrollment_academic_year + CASE WHEN degree_level = 'Master' THEN 4 WHEN education_plan = '2.2' THEN 7 ELSE 5 END, 5, 31)
+          END
         )
       ) AS "canSubmit"
       FROM students
