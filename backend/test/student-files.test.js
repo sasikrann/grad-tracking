@@ -25,6 +25,7 @@ test('parses the six-column production import and derives data from the student 
     studentId: '6551303009',
     email: '6551303009@lamduan.mfu.ac.th',
     fullName: 'Test Student',
+    fullNameThai: null,
     schoolName: 'School of IT',
     program: 'DTT',
     educationPlan: 'A1',
@@ -41,12 +42,20 @@ test('parses the six-column production import and derives data from the student 
   })
 })
 
-test('creates an import template with exactly the six production columns', async () => {
+test('creates an import template with the seven bilingual production columns', async () => {
   const workbook = new ExcelJS.Workbook()
   await workbook.xlsx.load(await createStudentTemplateBuffer())
   const headers = workbook.worksheets[0].getRow(1).values.slice(1)
 
-  assert.deepEqual(headers, ['Student ID', 'Full Name', 'School', 'Program', 'Plan', 'Status'])
+  assert.deepEqual(headers, [
+    'รหัสนักศึกษา',
+    'ชื่อ-สกุล (ภาษาอังกฤษ)',
+    'ชื่อ-สกุล (ภาษาไทย)',
+    'สำนักวิชา',
+    'สาขาวิชา',
+    'สถานะ',
+    'แผนการเรียน',
+  ])
 })
 
 test('accepts the six real Thai column names', async () => {
@@ -56,7 +65,8 @@ test('accepts the six real Thai column names', async () => {
     ),
   )
 
-  assert.equal(student.fullName, 'นักศึกษา ทดสอบ')
+  assert.equal(student.fullName, null)
+  assert.equal(student.fullNameThai, 'นักศึกษา ทดสอบ')
   assert.equal(student.schoolName, 'สำนักวิชาเทคโนโลยีสารสนเทศ')
   assert.equal(student.educationPlan, 'A1')
 })

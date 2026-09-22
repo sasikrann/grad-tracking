@@ -112,6 +112,7 @@ export async function importStudentFile(request, response) {
   const result = await importStudents(records, {
     fileName: request.file.originalname,
     importedBy: request.user.userId,
+    ...(records.importMetadata ?? {}),
   })
 
   response.status(201).json({ data: result })

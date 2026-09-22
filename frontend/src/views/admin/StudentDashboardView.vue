@@ -189,7 +189,13 @@ function resetImportState() {
 }
 
 function showImportResult(result: StudentImportResult) {
-  if (!(result.createdRecords ?? 0) && !(result.updatedRecords ?? 0) && !result.failedRecords) {
+  const skippedRecords = result.skippedRecords ?? 0
+  if (
+    !(result.createdRecords ?? 0) &&
+    !(result.updatedRecords ?? 0) &&
+    !result.failedRecords &&
+    !skippedRecords
+  ) {
     return
   }
 
@@ -206,9 +212,24 @@ function showImportResult(result: StudentImportResult) {
       : createdRecords
         ? `Imported ${createdRecords} new ${importedStudentLabel} successfully.`
         : `Updated ${updatedRecords} ${updatedStudentLabel} successfully.`
-  const successText = isThai.value
-    ? `นำเข้าสำเร็จ — เพิ่มใหม่ ${createdRecords} คน${updatedRecords ? `, อัปเดต ${updatedRecords} คน` : ''}`
-    : englishSuccessText
+  const skippedText = skippedRecords
+    ? isThai.value
+      ? ` ข้าม ${skippedRecords} รายการ เนื่องจากสถานะยังไม่รองรับการนำเข้า`
+      : ` Skipped ${skippedRecords} records because their statuses are not supported for import.`
+    : ''
+  const successText = `${
+    isThai.value
+      ? createdRecords && updatedRecords
+        ? `นำเข้าสำเร็จ — เพิ่มใหม่ ${createdRecords} คน, อัปเดต ${updatedRecords} คน`
+        : createdRecords
+          ? `นำเข้าสำเร็จ — เพิ่มใหม่ ${createdRecords} คน`
+          : updatedRecords
+            ? `นำเข้าสำเร็จ — อัปเดต ${updatedRecords} คน`
+            : 'ไม่มีรายการที่นำเข้า'
+      : createdRecords || updatedRecords
+        ? englishSuccessText
+        : 'No records were imported.'
+  }${skippedText}`
   const hasMissingRequiredFields = result.errors?.some((error) =>
     /\b(missing|required)\b/i.test(error),
   )
@@ -217,8 +238,8 @@ function showImportResult(result: StudentImportResult) {
       ? 'กรุณากรอกข้อมูลให้ครบถ้วน'
       : 'Please complete all required fields.'
     : isThai.value
-      ? `นำเข้าสำเร็จ ${result.successRecords} จาก ${result.totalRecords} คน แต่มีบางรายการไม่สำเร็จ${errorText}`
-      : `Import completed. ${result.successRecords} of ${result.totalRecords} students were imported successfully, but some records could not be imported.${errorText}`
+      ? `นำเข้าสำเร็จ ${result.successRecords} จาก ${result.totalRecords} คน แต่มีบางรายการไม่สำเร็จ${errorText}${skippedText}`
+      : `Import completed. ${result.successRecords} of ${result.totalRecords} students were imported successfully, but some records could not be imported.${errorText}${skippedText}`
 
   showNotificationAfterImportModalCloses(
     result.failedRecords ? partialSuccessText : successText,

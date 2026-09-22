@@ -54,6 +54,7 @@ CREATE TABLE students (
   student_id VARCHAR PRIMARY KEY CHECK (student_id ~ '^[0-9]{10}$'),
   user_id UUID UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
   full_name VARCHAR NOT NULL,
+  full_name_thai VARCHAR,
   school_name VARCHAR,
   program VARCHAR NOT NULL,
   education_plan VARCHAR,

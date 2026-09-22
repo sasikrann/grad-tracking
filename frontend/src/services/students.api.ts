@@ -6,6 +6,7 @@ import type { StudentMilestone } from '@/types/milestone'
 interface StudentApiResponse {
   studentId: string
   fullName: string
+  fullNameThai?: string | null
   schoolName: string | null
   program: string
   educationPlan?: string | null
@@ -57,6 +58,8 @@ export interface StudentImportResult {
   createdRecords?: number
   updatedRecords?: number
   unchangedRecords?: number
+  skippedRecords?: number
+  skippedReasons?: Array<{ reason: string; count: number }>
 }
 
 export interface AdminStudentMilestones {
@@ -289,6 +292,11 @@ export async function importStudents(file: File) {
           successRecords: number
           failedRecords: number
           errors: string[]
+          createdRecords?: number
+          updatedRecords?: number
+          unchangedRecords?: number
+          skippedRecords?: number
+          skippedReasons?: Array<{ reason: string; count: number }>
         }
       })
   >(response)
