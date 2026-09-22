@@ -30,7 +30,7 @@ export async function findStudentMilestonesByUserId(userId) {
         mt.deadline,
         mt.first_reminder_date AS "firstReminderDate",
         mt.second_reminder_date AS "secondReminderDate",
-        (
+        COALESCE(sm.status NOT IN ('Completed', 'Approved'), TRUE) AND (
           (mt.semester <> 'all' AND mt.semester::int > s.semester::int)
           OR mt.open_date > CURRENT_DATE
           OR EXISTS (
@@ -114,7 +114,12 @@ export async function areStudentMilestonePrerequisitesComplete(userId, milestone
 
   const result = await pool.query(
     `
-      SELECT NOT EXISTS (
+      SELECT EXISTS (
+        SELECT 1 FROM student_milestones completed
+        WHERE completed.student_id = s.student_id
+          AND completed.milestone_id = mt.milestone_id
+          AND completed.status IN ('Completed', 'Approved')
+      ) OR NOT EXISTS (
         SELECT 1
         FROM unnest(mt.prerequisite_milestone_ids) AS prerequisite(milestone_id)
         LEFT JOIN student_milestones prerequisite_status

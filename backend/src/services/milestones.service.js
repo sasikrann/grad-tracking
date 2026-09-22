@@ -337,6 +337,29 @@ async function splitSharedAcademicYearTemplates() {
   }
 }
 
+// Update only legacy DGC labels; preserve URLs, custom references and student records.
+async function backfillDgcReferenceLabels() {
+  const replacements = new Map()
+  for (const template of defaultMilestoneTemplates) {
+    for (const reference of template.references) {
+      const match = reference.match(/^(DGC\d+) - .+? \((.+)\)$/)
+      if (!match) continue
+      replacements.set(`${match[1]} – ${match[2]}`, reference)
+      replacements.set(`${match[1]} - ${match[2]}`, reference)
+    }
+  }
+  for (const [legacyLabel, label] of replacements) {
+    await pool.query(
+      `
+        UPDATE milestone_templates
+        SET reference_urls = array_replace(reference_urls, $1::TEXT, $2::TEXT)
+        WHERE $1::TEXT = ANY(reference_urls)
+      `,
+      [legacyLabel, label],
+    )
+  }
+}
+
 async function backfillMilestoneEvidenceCodes() {
   const result = await pool.query(`
     SELECT milestone_id, default_template_key, title, sequence_order
@@ -421,7 +444,7 @@ export async function ensureMilestoneSchema() {
       SET student_status = 'Graduate'
       WHERE graduation_semester IS NOT NULL
         AND graduation_academic_year IS NOT NULL
-        AND student_status <> 'Graduate'
+        AND student_status = 'Normal'
     `))
     .then(() => pool.query(`
       ALTER TABLE student_milestones
@@ -431,6 +454,7 @@ export async function ensureMilestoneSchema() {
       if (!['42710', '42P07'].includes(error.code)) throw error
     }))
     .then(() => seedDefaultMilestoneTemplates())
+    .then(() => backfillDgcReferenceLabels())
     .then(() => backfillMilestoneEvidenceCodes())
     .then(() => splitSharedAcademicYearTemplates())
     .then(() => pool.query(`

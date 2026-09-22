@@ -14,13 +14,14 @@ export interface StudentProfile {
   expectedGraduationYear: number
   graduationSemester: string | null
   graduationAcademicYear: number | null
-  academicStatus: 'On-track' | 'Overdue' | 'Extended' | 'Graduate'
+  academicStatus: 'On-track' | 'Overdue' | 'Extended' | 'Graduate' | 'Resigned' | 'Dismissed'
   studyExtensionGranted: boolean
   advisorId: string | null
   advisorName: string | null
+  advisorNameThai?: string | null
   advisorEmail: string | null
   advisorEvidenceUrl: string | null
-  coAdvisors: Array<{ advisorId: string; fullName: string; email: string }>
+  coAdvisors: Array<{ advisorId: string; fullName: string; fullNameThai?: string | null; email: string }>
   createdAt: string
   updatedAt: string
 }

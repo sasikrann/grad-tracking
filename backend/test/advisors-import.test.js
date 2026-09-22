@@ -43,7 +43,7 @@ test('identical ID and details skip all writes', async t => {
   const { writes } = mockDatabase(t)
   const result = await importAdvisors([original])
   assert.equal(result.unchangedRecords, 1)
-  assert.equal(result.totalRecords, 0)
+  assert.equal(result.totalRecords, 1)
   assert.equal(writes.length, 0)
 })
 

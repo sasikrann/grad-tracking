@@ -64,9 +64,10 @@ export async function importAdvisors(file: File) {
   const result = await readJson<{
     data?: AdvisorImportResult
     message?: string
+    errors?: string[]
   }>(response)
   if (!response.ok) {
-    throw new Error(result?.message ?? `Unable to import advisors (${response.status})`)
+    throw new Error(result?.errors?.join('\n') || result?.message || `Unable to import advisors (${response.status})`)
   }
   if (!result?.data) throw new Error('Unable to import advisors: invalid server response')
   return result.data

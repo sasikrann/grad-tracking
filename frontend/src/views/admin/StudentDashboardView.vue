@@ -6,12 +6,18 @@ import DashboardActionCard from '@/components/admin/DashboardActionCard.vue'
 import ImportFileModal from '@/components/admin/ImportFileModal.vue'
 import PaginationControls from '@/components/common/PaginationControls.vue'
 import StudentOverview from '@/components/student/StudentOverview.vue'
+import StudentExitStatusModal from '@/components/student/StudentExitStatusModal.vue'
 import SummaryCard from '@/components/student/SummaryCard.vue'
 import { useLanguage } from '@/composables/useLanguage'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
-import { exportStudents, getStudentsPage, importStudents } from '@/services/students.api'
+import {
+  exportStudents,
+  getStudentsPage,
+  importStudents,
+  updateStudentExitStatus,
+} from '@/services/students.api'
 import type { StudentImportResult, StudentPaginationResult } from '@/services/students.api'
-import type { Student, StudentFiltersState } from '@/types/student'
+import type { Student, StudentFiltersState, StudentTableItem } from '@/types/student'
 
 const router = useRouter()
 const { isThai, t } = useLanguage()
@@ -107,6 +113,9 @@ const isImporting = ref(false)
 const isExporting = ref(false)
 const isImportModalOpen = ref(false)
 const selectedImportFile = ref<File | null>(null)
+const selectedExitStudent = ref<StudentTableItem | null>(null)
+const isSavingExitStatus = ref(false)
+const exitStatusError = ref('')
 let messageTimer: ReturnType<typeof setTimeout> | undefined
 
 const notificationText = computed(() => errorMessage.value || message.value)
@@ -315,13 +324,47 @@ function viewStudentMilestones(studentId: string) {
   void router.push({ name: 'admin-student-milestones', params: { studentId } })
 }
 
+function openExitStatusModal(student: StudentTableItem) {
+  selectedExitStudent.value = student
+  exitStatusError.value = ''
+}
+
+function closeExitStatusModal() {
+  if (isSavingExitStatus.value) return
+  selectedExitStudent.value = null
+  exitStatusError.value = ''
+}
+
+async function confirmExitStatus(status: 'Resigned' | 'Dismissed') {
+  const student = selectedExitStudent.value
+  if (!student) return
+
+  isSavingExitStatus.value = true
+  exitStatusError.value = ''
+  try {
+    await updateStudentExitStatus(student.studentId, status)
+    selectedExitStudent.value = null
+    await loadStudents()
+    showNotification(t('dashboard.studentExitSuccess'))
+  } catch (error) {
+    exitStatusError.value =
+      error instanceof Error ? error.message : t('dashboard.studentExitFailed')
+  } finally {
+    isSavingExitStatus.value = false
+  }
+}
+
 onBeforeUnmount(() => {
   if (messageTimer) clearTimeout(messageTimer)
   if (searchTimer) clearTimeout(searchTimer)
 })
 
 useAutoRefresh(() => loadStudents({ silent: true }), {
-  canRefresh: () => !isImportModalOpen.value && !isImporting.value,
+  canRefresh: () =>
+    !isImportModalOpen.value &&
+    !isImporting.value &&
+    !selectedExitStudent.value &&
+    !isSavingExitStatus.value,
 })
 </script>
 
@@ -389,7 +432,9 @@ useAutoRefresh(() => loadStudents({ silent: true }), {
       :filter-options="filterOptions"
       :buddhist-year="isThai"
       advisor-mode="all-only"
+      allow-exit-action
       @view="viewStudentMilestones"
+      @exit="openExitStatusModal"
     >
       <template #action>
         <DashboardActionCard
@@ -423,6 +468,15 @@ useAutoRefresh(() => loadStudents({ silent: true }), {
       @select-file="handleImportFileSelect"
       @close="closeImportModal"
       @import="handleImport"
+    />
+
+    <StudentExitStatusModal
+      v-if="selectedExitStudent"
+      :student="selectedExitStudent"
+      :is-saving="isSavingExitStatus"
+      :error="exitStatusError"
+      @close="closeExitStatusModal"
+      @confirm="confirmExitStatus"
     />
 
     <div

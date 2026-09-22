@@ -51,7 +51,9 @@ const progressPercentage = computed(() => {
 })
 const hasAdvisor = computed(() => Boolean(profile.value?.advisorId))
 const milestoneSubmissionLocked = computed(() =>
-  ['Overdue', 'Graduate'].includes(profile.value?.academicStatus ?? ''),
+  ['Overdue', 'Graduate', 'Resigned', 'Dismissed'].includes(
+    profile.value?.academicStatus ?? '',
+  ),
 )
 const advisorAppointmentIndex = computed(() =>
   milestones.value.findIndex((milestone) => milestone.templateKey?.endsWith('advisor-appointment')),
@@ -126,6 +128,7 @@ function formatMilestoneNumbers(milestoneIds: string[]) {
 
 const visibleMilestones = computed(() =>
   milestones.value.map((milestone) => {
+    const isComplete = ['Completed', 'Approved'].includes(milestone.status)
     const prerequisiteIds = prerequisiteIdsFor(milestone)
     const incompletePrerequisiteIds = prerequisiteIds.filter(
       (milestoneId) => !completedMilestoneIds.value.has(milestoneId),
@@ -135,8 +138,8 @@ const visibleMilestones = computed(() =>
 
     return {
       ...milestone,
-      isLocked: milestone.isLocked || incompletePrerequisiteIds.length > 0,
-      lockedReason: hasPrerequisites
+      isLocked: !isComplete && (milestone.isLocked || incompletePrerequisiteIds.length > 0),
+      lockedReason: !isComplete && hasPrerequisites
         ? incompleteMilestoneNumbers
           ? `Complete milestone ${incompleteMilestoneNumbers} first.`
           : undefined

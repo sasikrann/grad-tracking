@@ -144,7 +144,7 @@ const studentImportColumns = [
 function studentExportColumns(language) {
   return [
     ...studentTemplateColumns,
-    { header: "Advisor Name", key: "advisorName", width: 28 },
+    { header: "Advisor Name", key: "advisorName", width: 70 },
     {
       header: language === "th" ? "รายงานภาพรวม" : "Milestone Status",
       key: "milestoneStatus",
@@ -590,6 +590,7 @@ export async function createStudentExportBuffer(students, { language = "en" } = 
   worksheet.addRows(
     students.map((student) => ({
       ...student,
+      advisorName: language === "th" ? student.advisorNameThai || student.advisorName : student.advisorName,
       graduationTerm: formatGraduationTerm(student, language),
       milestoneStatus: formatMilestoneReport(student.milestoneReport),
     })),

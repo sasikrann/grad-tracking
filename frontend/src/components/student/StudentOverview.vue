@@ -16,6 +16,7 @@ withDefaults(
     advisorMode?: 'default' | 'all-only'
     buddhistYear?: boolean
     colorProgramBadges?: boolean
+    allowExitAction?: boolean
     filterOptions?: {
       semesters: Array<string | number>
       years: Array<string | number>
@@ -33,6 +34,7 @@ withDefaults(
 
 const emit = defineEmits<{
   view: [studentId: string]
+  exit: [student: StudentTableItem]
 }>()
 
 const search = defineModel<string>('search', { required: true })
@@ -69,7 +71,9 @@ const filters = defineModel<StudentFiltersState>('filters', { required: true })
       :use-doctoral-label="advisorMode === 'all-only'"
       :buddhist-year="buddhistYear"
       :color-program-badges="colorProgramBadges"
+      :allow-exit-action="allowExitAction"
       @view="emit('view', $event)"
+      @exit="emit('exit', $event)"
     />
   </section>
 </template>

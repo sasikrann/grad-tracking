@@ -31,6 +31,25 @@ function clearSession() {
   hasInitialized = true
 }
 
+export async function refreshCurrentUser() {
+  const response = await fetch(`${apiUrl}/api/auth/me`, {
+    credentials: 'include',
+    cache: 'no-store',
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) clearSession()
+    return null
+  }
+
+  const result = (await response.json()) as { data?: unknown }
+  if (!isCurrentUser(result.data)) return null
+
+  currentUser.value = result.data
+  hasInitialized = true
+  return result.data
+}
+
 export async function logout() {
   try {
     await fetch(`${apiUrl}/api/auth/logout`, {

@@ -18,6 +18,7 @@ import {
   insertStudent,
   removeStudent,
   replaceStudent,
+  setStudentExitStatus,
 } from '../services/students.service.js'
 
 export async function getStudents(request, response) {
@@ -84,6 +85,15 @@ export async function updateStudent(request, response) {
   const student = await replaceStudent(
     request.params.studentId,
     normalizeStudent(request.body, { studentId: request.params.studentId }),
+  )
+  if (!student) throw new ApiError(404, 'Student not found')
+  response.json({ data: student })
+}
+
+export async function updateStudentExitStatus(request, response) {
+  const student = await setStudentExitStatus(
+    request.params.studentId,
+    String(request.body.status ?? '').trim(),
   )
   if (!student) throw new ApiError(404, 'Student not found')
   response.json({ data: student })

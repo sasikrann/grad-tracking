@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import pool from '../config/database.js'
-import { resolveAdvisorReference } from './advisors.service.js'
+import { resolveAdvisorReference, ensureAdvisorSchema } from './advisors.service.js'
 import { ensureAcademicYearMilestoneTemplates } from './academic-year-milestones.service.js'
 import { ensureMilestoneSchema } from './milestones.service.js'
 import {
@@ -13,6 +13,7 @@ import {
 
 let studentSchemaReady
 async function ensureStudentSchema() {
+  await ensureAdvisorSchema()
   studentSchemaReady ??= pool.query(`
     ALTER TABLE students ADD COLUMN IF NOT EXISTS education_plan VARCHAR;
     ALTER TABLE students ADD COLUMN IF NOT EXISTS school_name VARCHAR;
@@ -41,10 +42,11 @@ async function ensureStudentSchema() {
     UPDATE students
     SET student_status = 'Graduate'
     WHERE graduation_semester IS NOT NULL
-      AND graduation_academic_year IS NOT NULL;
+      AND graduation_academic_year IS NOT NULL
+      AND student_status = 'Normal';
     ALTER TABLE students DROP CONSTRAINT IF EXISTS students_student_status_check;
     ALTER TABLE students ADD CONSTRAINT students_student_status_check
-      CHECK (student_status IN ('Normal', 'Graduate'));
+      CHECK (student_status IN ('Normal', 'Graduate', 'Resigned', 'Dismissed'));
     ALTER TABLE students DROP CONSTRAINT IF EXISTS students_graduation_semester_check;
     ALTER TABLE students ADD CONSTRAINT students_graduation_semester_check
       CHECK (graduation_semester IN ('1', '2'));
@@ -95,7 +97,7 @@ const studentDetailColumns = `
     WHERE e.student_id = s.student_id AND e.status = 'Granted'
     ORDER BY e.extension_number DESC LIMIT 1) AS "studyExtensionEndsOn",
   (
-    s.student_status <> 'Graduate'
+    s.student_status = 'Normal'
     AND (SELECT COUNT(*) FROM student_study_extensions e
       WHERE e.student_id = s.student_id AND e.status = 'Granted') < 2
     AND NOT EXISTS (SELECT 1 FROM student_study_extensions e
@@ -107,6 +109,8 @@ const studentDetailColumns = `
     END
   ) AS "canExtendStudyPeriod",
   CASE
+    WHEN s.student_status = 'Resigned' THEN 'Resigned'
+    WHEN s.student_status = 'Dismissed' THEN 'Dismissed'
     WHEN s.student_status = 'Graduate' THEN 'Graduate'
     WHEN EXISTS (SELECT 1 FROM student_study_extensions e WHERE e.student_id = s.student_id AND e.status = 'Granted' AND CURRENT_DATE BETWEEN e.starts_on AND e.ends_on) THEN 'Extended'
     WHEN CURRENT_DATE > CASE
@@ -117,11 +121,13 @@ const studentDetailColumns = `
   END AS "academicStatus",
   s.advisor_id AS "advisorId",
   a.full_name AS "advisorName",
+  a.full_name_thai AS "advisorNameThai",
   a.email AS "advisorEmail",
   COALESCE((
     SELECT json_agg(json_build_object(
       'advisorId', ca.advisor_id,
       'fullName', ca.full_name,
+      'fullNameThai', ca.full_name_thai,
       'email', ca.email
     ) ORDER BY sca.position)
     FROM student_co_advisors sca
@@ -230,6 +236,7 @@ async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
             AND CURRENT_DATE BETWEEN e.starts_on AND e.ends_on) AS "studyExtensionGranted",
         s.advisor_id AS "advisorId",
         a.full_name AS "advisorName",
+        a.full_name_thai AS "advisorNameThai",
         EXISTS (
           SELECT 1
           FROM student_co_advisors sca
@@ -248,6 +255,8 @@ async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
           )::INT
         END AS progress,
         CASE
+          WHEN s.student_status = 'Resigned' THEN 'Resigned'
+          WHEN s.student_status = 'Dismissed' THEN 'Dismissed'
           WHEN s.student_status = 'Graduate'
             OR (s.graduation_semester IS NOT NULL
               AND s.graduation_academic_year IS NOT NULL) THEN 'Graduate'
@@ -285,7 +294,8 @@ async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
         s.graduation_academic_year,
         s.student_status,
         s.advisor_id,
-        a.full_name
+        a.full_name,
+        a.full_name_thai
       )
       SELECT ${paginationSelect}
       FROM students_with_status
@@ -323,6 +333,24 @@ export function findStudentsPage(pagination) {
 
 export function findStudentsByAdvisorId(advisorId) {
   return findStudents({ advisorId })
+}
+
+export async function setStudentExitStatus(studentId, status) {
+  await ensureStudentSchema()
+  if (!['Resigned', 'Dismissed'].includes(status)) {
+    const error = new Error('Status must be Resigned or Dismissed')
+    error.statusCode = 400
+    throw error
+  }
+
+  const result = await pool.query(
+    `UPDATE students
+     SET student_status = $2, updated_at = NOW()
+     WHERE student_id = $1
+     RETURNING student_id`,
+    [studentId, status],
+  )
+  return result.rowCount ? findStudentById(studentId) : null
 }
 
 export async function grantStudentStudyExtension(studentId, grantedBy = null) {
@@ -497,15 +525,18 @@ async function upsertStudentWithClient(client, input) {
           advisor_id = EXCLUDED.advisor_id,
           education_plan = EXCLUDED.education_plan,
           student_status = CASE
-            WHEN students.student_status = 'Graduate' THEN 'Graduate'
+            WHEN students.student_status IN ('Graduate', 'Resigned', 'Dismissed')
+              THEN students.student_status
             ELSE EXCLUDED.student_status
           END,
           graduation_semester = CASE
-            WHEN students.student_status = 'Graduate' THEN students.graduation_semester
+            WHEN students.student_status IN ('Graduate', 'Resigned', 'Dismissed')
+              THEN students.graduation_semester
             ELSE EXCLUDED.graduation_semester
           END,
           graduation_academic_year = CASE
-            WHEN students.student_status = 'Graduate' THEN students.graduation_academic_year
+            WHEN students.student_status IN ('Graduate', 'Resigned', 'Dismissed')
+              THEN students.graduation_academic_year
             ELSE EXCLUDED.graduation_academic_year
           END,
           updated_at = NOW()
@@ -600,7 +631,7 @@ export async function canStudentSubmitMilestones(userId) {
   const result = await pool.query(
     `
       SELECT (
-        student_status <> 'Graduate'
+        student_status = 'Normal'
         AND (
           EXISTS (
             SELECT 1 FROM student_study_extensions e
@@ -1007,13 +1038,15 @@ export async function importStudents(records, { fileName, importedBy } = {}) {
         advisorId: record.advisorId || existing.advisorId,
         advisorName: record.advisorName || existing.advisorName,
         advisorEmail: record.advisorEmail || existing.advisorEmail,
-        studentStatus: existing.studentStatus === 'Graduate' ? 'Graduate' : record.studentStatus,
+        studentStatus: ['Graduate', 'Resigned', 'Dismissed'].includes(existing.studentStatus)
+          ? existing.studentStatus
+          : record.studentStatus,
         graduationSemester:
-          existing.studentStatus === 'Graduate'
+          ['Graduate', 'Resigned', 'Dismissed'].includes(existing.studentStatus)
             ? existing.graduationSemester
             : record.graduationSemester,
         graduationAcademicYear:
-          existing.studentStatus === 'Graduate'
+          ['Graduate', 'Resigned', 'Dismissed'].includes(existing.studentStatus)
             ? existing.graduationAcademicYear
             : record.graduationAcademicYear,
       }

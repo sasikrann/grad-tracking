@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { advisorDisplayName } from '@/utils/advisor-name'
 import type { StudentProfile } from '@/services/student-profile.api'
 import { useLanguage } from '@/composables/useLanguage'
 
-const { t } = useLanguage()
+const { t, isThai } = useLanguage()
 
 defineProps<{ profile: StudentProfile }>()
 </script>
@@ -30,8 +31,8 @@ defineProps<{ profile: StudentProfile }>()
     <div class="mt-4 rounded-xl border border-[#eadedd] bg-[#faf7f7] p-3.5 sm:rounded-lg sm:p-4">
       <p class="text-[11px] text-slate-500 sm:text-xs">{{ t('studentPortal.currentAdvisor') }}</p>
       <template v-if="profile.advisorId">
-        <p class="mt-1 text-xs font-semibold text-slate-900 sm:text-sm">
-          {{ profile.advisorName }}
+        <p class="mt-1 break-words text-xs font-semibold text-slate-900 sm:text-sm">
+          {{ advisorDisplayName({ fullName: profile.advisorName, fullNameThai: profile.advisorNameThai }, isThai) }}
         </p>
         <p class="mt-1 break-all text-[11px] leading-4 text-slate-500 sm:text-xs sm:leading-5">
           {{ profile.advisorEmail }}

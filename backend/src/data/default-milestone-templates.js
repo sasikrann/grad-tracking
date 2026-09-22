@@ -4,7 +4,27 @@ const formsUrl = 'https://postgrads.mfu.ac.th'
 const ethicsUrl = 'https://gradethic.mfu.ac.th'
 const registrationUrl = 'https://reg.mfu.ac.th'
 
-const form = (code, name) => [`${code} – ${name}`, formsUrl]
+const dgcEnglishNames = {
+  DGC01: 'Educational Level Changes',
+  DGC02: 'Publishing Grant',
+  DGC03: 'Research Grant',
+  DGC05: 'Qualifying / Comprehensive Examination',
+  DGC06: 'Advisor Appointment',
+  DGC07: 'Proposal Examination',
+  DGC08: 'Proposal Examination Report',
+  DGC09: 'Defense Examination',
+  DGC10: 'Thesis Defense Examination Report',
+  DGC11: 'Request for Format Checking',
+  DGC12: 'Final Thesis Submission Procedures',
+  DGC14: 'Research Publishing',
+  DGC15: 'Advisor Changing',
+  DGC24: 'English Test',
+}
+
+const form = (code, name) => [
+  `${code} - ${dgcEnglishNames[code]} (${name})`,
+  formsUrl,
+]
 const bilingualDescription = (english, thai) => `${english}\n(${thai})`
 
 function createPlanTemplates(prefix, degreeLevel, plans, definitions) {

@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { advisorDisplayName } from '@/utils/advisor-name'
 import { useLanguage } from '@/composables/useLanguage'
 
-const { t } = useLanguage()
+const { t, isThai } = useLanguage()
 
 defineProps<{
-  coAdvisors: Array<{ advisorId: string; fullName: string; email: string }>
+  coAdvisors: Array<{ advisorId: string; fullName: string; fullNameThai?: string | null; email: string }>
 }>()
 </script>
 
@@ -47,8 +48,8 @@ defineProps<{
         <p class="text-[11px] text-slate-500 sm:text-xs">
           {{ t('studentPortal.currentCoAdvisor') }}{{ coAdvisors.length > 1 ? ` ${index + 1}` : '' }}
         </p>
-        <p class="mt-1 text-xs font-semibold text-slate-900 sm:text-sm">
-          {{ coAdvisor.fullName }}
+        <p class="mt-1 break-words text-xs font-semibold text-slate-900 sm:text-sm">
+          {{ advisorDisplayName(coAdvisor, isThai) }}
         </p>
         <p class="mt-1 break-all text-[11px] leading-4 text-slate-500 sm:text-xs sm:leading-5">
           {{ coAdvisor.email }}

@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { advisorDisplayName } from '@/utils/advisor-name'
 import type { Advisor } from '@/types/advisor'
 import { useLanguage } from '@/composables/useLanguage'
-const { t } = useLanguage()
+const { t, isThai } = useLanguage()
 
 defineProps<{
   advisors: Advisor[]
@@ -33,14 +34,6 @@ function initials(name: string) {
   const initialNames = lastName && lastName !== firstName ? [firstName, lastName] : [firstName]
 
   return initialNames.map((part) => part.charAt(0).toUpperCase()).join('')
-}
-
-function assistantProfessorTitle(name: string) {
-  return name.match(/^Asst\.?\s*Prof\.?/i)?.[0] ?? ''
-}
-
-function nameWithoutAssistantProfessorTitle(name: string) {
-  return name.replace(/^Asst\.?\s*Prof\.?\s*/i, '')
 }
 
 function statusLabel(status: Advisor['status']) {
@@ -87,19 +80,15 @@ function statusLabel(status: Advisor['status']) {
         :key="advisor.advisorId"
         class="rounded-lg border border-[#eeeeee] bg-white p-3 shadow-sm"
       >
-        <div class="flex min-h-16 items-center gap-3">
+        <div class="flex min-h-16 flex-wrap items-center gap-3">
           <span
             class="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#fde7e9] text-sm font-semibold text-[#d64b59]"
           >
-            {{ initials(advisor.fullName) }}
+            {{ initials(advisorDisplayName(advisor, isThai)) }}
           </span>
           <div class="min-w-0 flex-1 leading-tight">
             <p class="break-words text-sm font-semibold">
-              <template v-if="assistantProfessorTitle(advisor.fullName)">
-                <span class="block">{{ assistantProfessorTitle(advisor.fullName) }}</span>
-                <span class="block">{{ nameWithoutAssistantProfessorTitle(advisor.fullName) }}</span>
-              </template>
-              <template v-else>{{ advisor.fullName }}</template>
+              {{ advisorDisplayName(advisor, isThai) }}
             </p>
             <p class="mt-1 text-xs text-[#858585]">{{ advisor.advisorId }}</p>
             <p class="mt-1 truncate text-[11px] text-[#7690a5]">{{ advisor.email }}</p>
@@ -111,7 +100,7 @@ function statusLabel(status: Advisor['status']) {
                 :key="status"
                 type="button"
                 :disabled="advisor.status === status"
-                :aria-label="`Set ${advisor.fullName} status to ${statusLabel(status)}`"
+                :aria-label="`Set ${advisorDisplayName(advisor, isThai)} status to ${statusLabel(status)}`"
                 class="min-w-14 rounded-md border px-3 py-1.5 text-[11px] font-medium disabled:cursor-default"
                 :class="
                   advisor.status === status
@@ -157,10 +146,10 @@ function statusLabel(status: Advisor['status']) {
                 <span
                   class="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f4e7e7] text-xs font-semibold text-[#a33a3a]"
                 >
-                  {{ initials(advisor.fullName) }}
+                  {{ initials(advisorDisplayName(advisor, isThai)) }}
                 </span>
-                <div class="leading-tight">
-                  <p class="font-semibold">{{ advisor.fullName }}</p>
+                <div class="min-w-0 flex-1 leading-tight">
+                  <p class="break-words font-semibold">{{ advisorDisplayName(advisor, isThai) }}</p>
                   <p class="mt-1 text-xs font-normal text-[#858585]">{{ advisor.advisorId }}</p>
                 </div>
               </div>
@@ -175,7 +164,7 @@ function statusLabel(status: Advisor['status']) {
                   :key="status"
                   type="button"
                   :disabled="advisor.status === status"
-                  :aria-label="`Set ${advisor.fullName} status to ${statusLabel(status)}`"
+                  :aria-label="`Set ${advisorDisplayName(advisor, isThai)} status to ${statusLabel(status)}`"
                   class="rounded-md border px-3 py-1 text-[11px] disabled:cursor-default"
                   :class="
                     advisor.status === status

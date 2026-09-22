@@ -12,16 +12,19 @@ withDefaults(
     useDoctoralLabel?: boolean
     buddhistYear?: boolean
     colorProgramBadges?: boolean
+    allowExitAction?: boolean
   }>(),
   {
     useDoctoralLabel: false,
     buddhistYear: false,
     colorProgramBadges: false,
+    allowExitAction: false,
   },
 )
 
 defineEmits<{
   view: [studentId: string]
+  exit: [student: StudentTableItem]
 }>()
 
 function displayYear(year: string) {
@@ -30,10 +33,24 @@ function displayYear(year: string) {
 }
 
 function statusLabel(status: StudentTableItem['status']) {
+  if (status === 'Resigned') return t('dashboard.resigned')
+  if (status === 'Dismissed') return t('dashboard.dismissed')
   if (status === 'Graduate') return t('dashboard.graduate')
   if (status === 'Extended') return t('dashboard.extended')
   if (status === 'Overdue') return t('dashboard.overdue')
   return t('dashboard.onTrack')
+}
+
+function hasExited(status: StudentTableItem['status']) {
+  return status === 'Resigned' || status === 'Dismissed'
+}
+
+function statusColorClass(status: StudentTableItem['status']) {
+  if (hasExited(status)) return 'bg-[#c9565d]'
+  if (status === 'Graduate') return 'bg-[#49b866]'
+  if (status === 'Extended') return 'bg-[#ffb51b]'
+  if (status === 'Overdue') return 'bg-orange-500'
+  return 'bg-sky-400'
 }
 
 function degreeLabel(degree: string) {
@@ -62,8 +79,12 @@ function planLabel(plan: string) {
     <article
       v-for="student in students"
       :key="student.studentId"
-      class="rounded-lg border border-[#eeeeee] bg-white p-3 shadow-sm transition-opacity duration-150"
-      :class="{ 'pointer-events-none opacity-60': isLoading }"
+      class="rounded-lg border p-3 shadow-sm transition-opacity duration-150"
+      :class="{
+        'pointer-events-none opacity-60': isLoading,
+        'border-[#eeeeee] bg-[#fdf5f5]': hasExited(student.status),
+        'border-[#eeeeee] bg-white': !hasExited(student.status),
+      }"
     >
       <div class="flex items-start justify-between gap-2">
         <div class="flex min-w-0 items-center gap-2">
@@ -86,11 +107,12 @@ function planLabel(plan: string) {
             <p class="mt-1 text-[10px] text-[#7690a5]">{{ student.studentId }}</p>
           </div>
         </div>
-        <button
-          type="button"
-          class="flex shrink-0 items-center gap-1 py-1 text-[11px] font-semibold text-blue-600"
-          @click="$emit('view', student.studentId)"
-        >
+        <div class="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            class="flex items-center gap-1 py-1 text-[11px] font-semibold text-blue-600"
+            @click="$emit('view', student.studentId)"
+          >
           <svg
             class="size-3.5"
             viewBox="0 0 24 24"
@@ -101,8 +123,34 @@ function planLabel(plan: string) {
             <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
             <circle cx="12" cy="12" r="2.5" />
           </svg>
-          {{ t('common.viewDetails') }}
-        </button>
+            {{ t('common.viewDetails') }}
+          </button>
+          <button
+            v-if="allowExitAction"
+            type="button"
+            class="flex size-5 items-center justify-center rounded border bg-white leading-none focus:outline-none focus:ring-2"
+            :class="
+              hasExited(student.status)
+                ? 'cursor-not-allowed border-slate-200 text-slate-300 shadow-none'
+                : 'border-slate-200 text-red-500 hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus:ring-red-300'
+            "
+            :disabled="hasExited(student.status)"
+            :aria-label="`${t('dashboard.studentExitTitle')}: ${student.name}`"
+            @click="$emit('exit', student)"
+          >
+            <svg
+              class="size-3"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.6"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
       </div>
       <div class="mt-2 flex gap-1.5">
         <span
@@ -119,15 +167,7 @@ function planLabel(plan: string) {
         }}</span>
         <span
           class="rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
-          :class="
-            student.status === 'Graduate'
-              ? 'bg-[#49b866]'
-              : student.status === 'Extended'
-                ? 'bg-orange-500'
-                : student.status === 'Overdue'
-                  ? 'bg-[#d90012]'
-                  : 'bg-[#ffb51b]'
-          "
+          :class="statusColorClass(student.status)"
           >{{ statusLabel(student.status) }}</span
         >
       </div>
@@ -194,28 +234,28 @@ function planLabel(plan: string) {
     >
       <thead>
         <tr class="border-b border-[#dddddd] text-xs">
-          <th class="w-[25%] pt-1 pb-3 leading-5 font-semibold">{{ t('student.student') }}</th>
-          <th class="w-[13%] pt-1 pb-3 text-center leading-5 font-semibold">
+          <th class="w-[22%] pt-1 pb-3 leading-5 font-semibold">{{ t('student.student') }}</th>
+          <th class="w-[12%] pt-1 pb-3 text-center leading-5 font-semibold">
             {{ t('common.program') }}
           </th>
-          <th class="w-[10%] -translate-x-2 pt-1 pb-3 text-center leading-5 font-semibold">
+          <th class="w-[8%] -translate-x-2 pt-1 pb-3 text-center leading-5 font-semibold">
             {{ t('common.plan') }}
           </th>
           <th
-            class="w-[15%] -translate-x-2 whitespace-nowrap pt-1 pb-3 text-center leading-5 font-semibold"
+            class="w-[12%] -translate-x-2 whitespace-nowrap pt-1 pb-3 text-center leading-5 font-semibold"
           >
             {{ t('common.semester') }}
           </th>
-          <th class="w-[12%] pt-1 pb-3 text-center leading-5 font-semibold">
+          <th class="w-[10%] pt-1 pb-3 text-center leading-5 font-semibold">
             {{ t('common.enrollmentYear') }}
           </th>
-          <th class="w-[19%] pt-1 pb-3 text-center leading-5 font-semibold">
+          <th class="w-[15%] pt-1 pb-3 text-center leading-5 font-semibold">
             {{ t('student.progress') }}
           </th>
-          <th class="w-[14%] pt-1 pb-3 text-center leading-5 font-semibold">
+          <th class="w-[11%] pt-1 pb-3 text-center leading-5 font-semibold">
             {{ t('common.status') }}
           </th>
-          <th class="w-[8%] pt-1 pb-3 text-center leading-5 font-semibold">
+          <th class="w-[10%] pt-1 pb-3 text-center leading-5 font-semibold">
             {{ t('common.actions') }}
           </th>
         </tr>
@@ -224,7 +264,8 @@ function planLabel(plan: string) {
         <tr
           v-for="student in students"
           :key="student.studentId"
-          class="h-14.5 border-b border-[#dddddd]"
+          class="h-14 border-b border-[#dddddd]"
+          :class="{ 'bg-red-50': hasExited(student.status) }"
         >
           <td>
             <div class="flex items-center gap-3 pl-1">
@@ -307,26 +348,19 @@ function planLabel(plan: string) {
           <td class="text-center">
             <span
               class="inline-flex w-28 justify-center whitespace-nowrap rounded-xl px-3 py-1 text-xs font-semibold text-white"
-              :class="
-                student.status === 'Graduate'
-                  ? 'bg-[#49b866]'
-                  : student.status === 'Extended'
-                    ? 'bg-orange-500'
-                    : student.status === 'Overdue'
-                      ? 'bg-[#d90012]'
-                      : 'bg-[#ffb51b]'
-              "
+              :class="statusColorClass(student.status)"
             >
               {{ statusLabel(student.status) }}
             </span>
           </td>
-          <td class="text-center">
-            <button
-              type="button"
-              class="inline-flex items-center gap-1.5 rounded-md px-1 py-2 text-xs font-semibold text-sky-500 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-300"
-              :aria-label="`View ${student.name}`"
-              @click="$emit('view', student.studentId)"
-            >
+          <td class="h-14 text-center align-middle">
+            <div class="inline-flex h-14 items-center justify-center gap-1">
+              <button
+                type="button"
+                class="inline-flex items-center gap-1.5 rounded-md px-1 py-2 text-xs font-semibold text-sky-500 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-300"
+                :aria-label="`View ${student.name}`"
+                @click="$emit('view', student.studentId)"
+              >
               <svg
                 class="size-4"
                 viewBox="0 0 24 24"
@@ -338,8 +372,34 @@ function planLabel(plan: string) {
                 <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
                 <circle cx="12" cy="12" r="2.5" />
               </svg>
-              {{ t('common.view') }}
-            </button>
+                {{ t('common.view') }}
+              </button>
+              <button
+                v-if="allowExitAction"
+                type="button"
+                class="inline-flex size-5 items-center justify-center rounded border bg-white font-normal leading-none focus:outline-none focus:ring-2"
+                :class="
+                  hasExited(student.status)
+                    ? 'cursor-not-allowed border-slate-200 text-slate-300 shadow-none'
+                    : 'border-slate-200 text-red-500 hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus:ring-red-300'
+                "
+                :disabled="hasExited(student.status)"
+                :aria-label="`${t('dashboard.studentExitTitle')}: ${student.name}`"
+                @click="$emit('exit', student)"
+              >
+                <svg
+                  class="size-3"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.6"
+                  stroke-linecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+              </button>
+            </div>
           </td>
         </tr>
         <tr v-if="!isLoading && error">

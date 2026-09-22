@@ -4,8 +4,11 @@ import pool from '../config/database.js'
 import { ensureMilestoneSchema } from './milestones.service.js'
 
 let advisorSchemaReady
-async function ensureAdvisorSchema() {
+export async function ensureAdvisorSchema() {
   advisorSchemaReady ??= pool.query(`
+    ALTER TABLE advisors ADD COLUMN IF NOT EXISTS full_name_thai VARCHAR;
+    CREATE UNIQUE INDEX IF NOT EXISTS users_email_normalized_unique ON users (LOWER(TRIM(email)));
+    CREATE UNIQUE INDEX IF NOT EXISTS advisors_email_normalized_unique ON advisors (LOWER(TRIM(email)));
     ALTER TABLE advisors ADD COLUMN IF NOT EXISTS status VARCHAR NOT NULL DEFAULT 'active';
 
     DO $$
@@ -45,18 +48,25 @@ const advisorColumns = `
   a.advisor_id AS "advisorId",
   a.user_id AS "userId",
   a.full_name AS "fullName",
+  a.full_name_thai AS "fullNameThai",
   a.email,
   a.status,
   a.created_at AS "createdAt"
 `
 function normalizeComparableValue(value) {
-  return value === null || value === undefined ? '' : String(value).trim().toLowerCase()
+  return value === null || value === undefined ? '' : String(value).trim()
 }
 
 function advisorRecordsMatch(left, right) {
-  return ['advisorId', 'fullName', 'email'].every(
-    (field) => normalizeComparableValue(left[field]) === normalizeComparableValue(right[field]),
-  )
+  const sameThaiName = right.fullNameThai === undefined ||
+    normalizeComparableValue(left.fullNameThai) === normalizeComparableValue(right.fullNameThai)
+  return sameThaiName && ['advisorId', 'fullName', 'email'].every((field) => {
+    const leftValue = normalizeComparableValue(left[field])
+    const rightValue = normalizeComparableValue(right[field])
+    return field === 'email'
+      ? leftValue.toLowerCase() === rightValue.toLowerCase()
+      : leftValue === rightValue
+  })
 }
 
 export async function findAllAdvisors({ activeOnly = false } = {}) {
@@ -81,7 +91,7 @@ export async function findAdvisorsPage({ page = 1, limit = 10, search = '' } = {
   const keyword = String(search).trim()
   const values = keyword ? [`%${keyword}%`] : []
   const where = keyword
-    ? `WHERE LOWER(a.full_name) LIKE LOWER($1) OR LOWER(a.advisor_id) LIKE LOWER($1)`
+    ? `WHERE LOWER(a.full_name) LIKE LOWER($1) OR LOWER(a.full_name_thai) LIKE LOWER($1) OR LOWER(a.advisor_id) LIKE LOWER($1)`
     : ''
   const countResult = await pool.query(
     `SELECT COUNT(*)::INT AS total
@@ -163,13 +173,13 @@ async function upsertAdvisorWithClient(client, input) {
     throw error
   }
 
-  if (advisorUserId && emailUser?.user_id && advisorUserId !== emailUser.user_id) {
+  if (emailUser?.user_id && advisorUserId !== emailUser.user_id) {
     const error = new Error(`Email ${email} belongs to another user`)
     error.statusCode = 409
     throw error
   }
 
-  const userId = advisorUserId || emailUser?.user_id || randomUUID()
+  const userId = advisorUserId || randomUUID()
 
   const linkedAdvisor = await client.query(
     'SELECT advisor_id FROM advisors WHERE user_id = $1 AND advisor_id <> $2',
@@ -196,14 +206,15 @@ async function upsertAdvisorWithClient(client, input) {
 
   await client.query(
     `
-      INSERT INTO advisors (advisor_id, user_id, full_name, email)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO advisors (advisor_id, user_id, full_name, email, full_name_thai)
+      VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (advisor_id) DO UPDATE SET
         user_id = EXCLUDED.user_id,
         full_name = EXCLUDED.full_name,
+        full_name_thai = CASE WHEN $6 THEN EXCLUDED.full_name_thai ELSE advisors.full_name_thai END,
         email = EXCLUDED.email
     `,
-    [advisorId, userId, fullName, email],
+    [advisorId, userId, fullName, email, String(input.fullNameThai ?? '').trim() || null, input.fullNameThai !== undefined],
   )
 
   return advisorId
@@ -261,6 +272,7 @@ export async function updateAdvisorStatus(advisorId, status) {
 }
 
 export async function importAdvisors(records, { fileName, importedBy } = {}) {
+  await ensureAdvisorSchema()
   const client = await pool.connect()
   const importId = randomUUID()
   let successRecords = 0
@@ -292,7 +304,7 @@ export async function importAdvisors(records, { fileName, importedBy } = {}) {
       await client.query('COMMIT')
       return {
         importId: null,
-        totalRecords: 0,
+        totalRecords: records.length,
         successRecords: 0,
         createdRecords: 0,
         updatedRecords: 0,
@@ -319,7 +331,13 @@ export async function importAdvisors(records, { fileName, importedBy } = {}) {
         await client.query(`RELEASE SAVEPOINT ${savepoint}`)
       } catch (error) {
         await client.query(`ROLLBACK TO SAVEPOINT ${savepoint}`)
-        errors.push(`Advisor ${record.advisorId}: ${error.message}`)
+        const reason = error.code === '23505'
+          ? 'Advisor ID or email is already in use. Please refresh and try again.'
+          : [400, 409].includes(error.statusCode)
+            ? error.message
+            : 'Unable to save this advisor. Please try again.'
+        errors.push(`Advisor ${record.advisorId}: ${reason}`)
+        await client.query(`RELEASE SAVEPOINT ${savepoint}`)
       }
     }
 
@@ -335,7 +353,7 @@ export async function importAdvisors(records, { fileName, importedBy } = {}) {
 
     return {
       importId,
-      totalRecords: recordsToImport.length,
+      totalRecords: records.length,
       successRecords,
       createdRecords: successRecords - updatedRecords,
       updatedRecords,

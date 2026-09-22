@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { advisorSidebarInitials, advisorSidebarName } from '@/utils/advisor-name'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import LanguageSwitch from './LanguageSwitch.vue'
 import { useLanguage } from '@/composables/useLanguage'
 import { getUnreadNotificationCount } from '@/services/notifications.api'
+import { refreshCurrentUser } from '@/services/auth'
 import type { CurrentUser } from '@/types/user'
 
 defineOptions({ name: 'AppNavbar' })
@@ -25,7 +27,16 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
-const { setLanguage, t } = useLanguage()
+const { isThai, setLanguage, t } = useLanguage()
+const sidebarName = computed(() => {
+  if (props.user.role !== 'advisor') return props.user.fullName
+
+  const localizedName = isThai.value
+    ? props.user.fullNameThai?.trim() || props.user.fullNameEnglish?.trim() || props.user.fullName
+    : props.user.fullNameEnglish?.trim() || props.user.fullName
+
+  return advisorSidebarName(localizedName)
+})
 const isMobileMenuOpen = ref(false)
 const isFontSizeMenuOpen = ref(false)
 const notificationUnreadCount = ref(0)
@@ -76,12 +87,21 @@ const shouldShowNotificationBadge = computed(
 )
 const canChangeLanguage = computed(() => ['admin', 'advisor', 'student'].includes(props.user.role))
 
+async function ensureAdvisorLocalizedName() {
+  if (props.user.role !== 'advisor' || props.user.fullNameEnglish) return
+  await refreshCurrentUser()
+}
+
 function menuLabel(item: MenuItem) {
   return t(item.label as Parameters<typeof t>[0])
 }
 
 const userInitials = computed(() => {
-  const normalizedName = props.user.fullName
+  if (props.user.role === 'advisor') {
+    return advisorSidebarInitials(props.user.fullNameThai?.trim() || props.user.fullName)
+  }
+
+  const normalizedName = sidebarName.value
     .normalize('NFKC')
     .replace(/[\u200B-\u200D\uFEFF]/g, '')
     .replace(/^(?:(?:Asst\.?\s*Prof\.?|Assoc\.?\s*Prof\.?|Prof\.?|Dr\.?)\s*)+/i, '')
@@ -201,6 +221,14 @@ watch(
   () => props.user.role,
   (role) => {
     setLanguage(role === 'admin' ? 'th' : 'en')
+  },
+  { immediate: true },
+)
+
+watch(
+  isThai,
+  () => {
+    void ensureAdvisorLocalizedName().catch(() => undefined)
   },
   { immediate: true },
 )
@@ -428,7 +456,7 @@ watch(
         </div>
 
         <div class="min-w-0 flex-1">
-          <p class="truncate text-xs font-medium">{{ user.fullName }}</p>
+          <p class="truncate text-xs font-medium">{{ sidebarName }}</p>
           <p class="truncate text-[10px] text-white/70">{{ user.email }}</p>
         </div>
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { advisorDisplayName } from '@/utils/advisor-name'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { createEvidencePreviewUrl } from '@/services/student-milestones.api'
@@ -209,7 +210,7 @@ const primaryAdvisorOptions = computed(() => [
     .filter((advisor) => !selectedCoAdvisorIds.value.includes(advisor.advisorId))
     .map((advisor) => ({
       value: advisor.advisorId,
-      label: `${advisor.fullName} - ${advisor.email}`,
+      label: `${advisorDisplayName(advisor, isThai.value)} - ${advisor.email}`,
     })),
 ])
 function coAdvisorOptions(slotIndex: number) {
@@ -223,7 +224,7 @@ function coAdvisorDropdownOptions(slotIndex: number) {
     { value: '', label: 'Select co-advisor' },
     ...coAdvisorOptions(slotIndex).map((advisor) => ({
       value: advisor.advisorId,
-      label: `${advisor.fullName} - ${advisor.email}`,
+      label: `${advisorDisplayName(advisor, isThai.value)} - ${advisor.email}`,
     })),
   ]
 }
@@ -473,7 +474,7 @@ function selectEvidenceFile(file: File) {
         <p
           v-for="reference in collapsedReferenceLabels"
           :key="reference"
-          class="truncate text-slate-600"
+          class="break-words text-slate-600"
         >
           {{ reference }}
         </p>
@@ -553,7 +554,7 @@ function selectEvidenceFile(file: File) {
             :class="mobileCollapsible ? 'text-[11px] sm:text-xs' : 'text-xs'"
           >
             <div class="min-w-0 flex-1">
-              <p v-for="reference in referenceLabels" :key="reference" class="text-slate-600">
+              <p v-for="reference in referenceLabels" :key="reference" class="break-words text-slate-600">
                 {{ reference }}
               </p>
               <a
