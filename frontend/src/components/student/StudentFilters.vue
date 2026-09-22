@@ -68,6 +68,8 @@ function planLabel(plan: string) {
 }
 
 function statusLabel(status: string) {
+  if (status === 'Resigned') return t('dashboard.resigned')
+  if (status === 'Dismissed') return t('dashboard.dismissed')
   if (status === 'Graduate') return t('dashboard.graduate')
   if (status === 'Extended') return t('dashboard.extended')
   if (status === 'Overdue') return t('dashboard.overdue')

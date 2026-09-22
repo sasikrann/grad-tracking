@@ -11,12 +11,14 @@ import {
   findAllStudents,
   findStudentById,
   grantStudentStudyExtension,
+  cancelLatestStudentStudyExtension,
   findStudentsForExport,
   findStudentsPage,
   importStudents,
   insertStudent,
   removeStudent,
   replaceStudent,
+  setStudentExitStatus,
 } from '../services/students.service.js'
 
 export async function getStudents(request, response) {
@@ -45,13 +47,27 @@ export async function getStudent(request, response) {
 }
 
 export async function extendStudentStudyPeriod(request, response) {
-  const student = await grantStudentStudyExtension(request.params.studentId)
+  const student = await grantStudentStudyExtension(request.params.studentId, request.user?.userId)
   if (!student) {
     const existingStudent = await findStudentById(request.params.studentId)
     if (!existingStudent) throw new ApiError(404, 'Student not found')
-    throw new ApiError(409, 'Study extension is available only for overdue students who have not been extended')
+    throw new ApiError(409, 'Study extension is available only after the normal study period and is limited to two semesters')
   }
   response.json({ data: student })
+}
+
+export async function cancelStudentStudyExtension(request, response) {
+  const extension = await cancelLatestStudentStudyExtension(
+    request.params.studentId,
+    request.user?.userId,
+    'Confirmed by administrator',
+  )
+  if (!extension) {
+    const existingStudent = await findStudentById(request.params.studentId)
+    if (!existingStudent) throw new ApiError(404, 'Student not found')
+    throw new ApiError(409, 'This student has no study extension to cancel')
+  }
+  response.json({ data: extension })
 }
 
 export async function getStudentMilestones(request, response) {
@@ -69,6 +85,15 @@ export async function updateStudent(request, response) {
   const student = await replaceStudent(
     request.params.studentId,
     normalizeStudent(request.body, { studentId: request.params.studentId }),
+  )
+  if (!student) throw new ApiError(404, 'Student not found')
+  response.json({ data: student })
+}
+
+export async function updateStudentExitStatus(request, response) {
+  const student = await setStudentExitStatus(
+    request.params.studentId,
+    String(request.body.status ?? '').trim(),
   )
   if (!student) throw new ApiError(404, 'Student not found')
   response.json({ data: student })

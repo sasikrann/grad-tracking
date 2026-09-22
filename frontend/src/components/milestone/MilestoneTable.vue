@@ -588,7 +588,7 @@ const tableRows = computed(() => {
                     :class="
                       isWebReference(reference)
                         ? 'truncate text-[#7D2923] underline'
-                        : 'leading-snug text-slate-600'
+                        : 'break-words leading-snug text-slate-600'
                     "
                     :title="reference"
                   >

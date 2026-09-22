@@ -123,7 +123,7 @@ function showImportResult(result: AdvisorImportResult) {
   const successText = isThai.value
     ? createdRecords
       ? `นำเข้าสำเร็จ — เพิ่มใหม่ ${createdRecords} คน${updatedRecords ? `, อัปเดต ${updatedRecords} คน` : ''}`
-      : `นำเข้าสำเร็จ อัปเดตใหม่ ${updatedRecords} รายการ`
+      : `นำเข้าสำเร็จ อัปเดต ${updatedRecords} รายการ`
     : createdRecords && updatedRecords
       ? `Imported ${createdRecords} new ${advisorLabel(createdRecords)} and updated ${updatedRecords} ${advisorLabel(updatedRecords)} successfully.`
       : createdRecords
@@ -131,7 +131,7 @@ function showImportResult(result: AdvisorImportResult) {
         : `Updated ${updatedRecords} ${advisorLabel(updatedRecords)} successfully.`
   showNotification(
     result.failedRecords
-      ? `${t('toast.advisorsImportPartial', { success: result.successRecords, total: result.totalRecords })}${errorText}`
+      ? `${t('toast.advisorsImportPartial', { success: result.successRecords + (result.unchangedRecords ?? 0), total: result.totalRecords })}${errorText}`
       : successText,
     result.failedRecords ? 'error' : 'success',
   )
@@ -169,6 +169,11 @@ async function handleImport() {
 }
 
 function handleImportFileSelect(file: File | null) {
+  if (file && (!/\.(csv|xlsx)$/i.test(file.name) || file.size > 5 * 1024 * 1024)) {
+    selectedImportFile.value = null
+    showNotification(advisorImportMessage(file.size > 5 * 1024 * 1024 ? 'File too large' : 'Only CSV and XLSX files are supported', isThai.value), 'error')
+    return
+  }
   selectedImportFile.value = file
 }
 

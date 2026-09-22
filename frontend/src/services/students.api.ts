@@ -1,5 +1,5 @@
 import type { Student, StudentStatus } from '@/types/student'
-import { apiUrl, downloadApiFile, readJson } from '@/services/api-client'
+import { apiRequest, apiUrl, downloadApiFile, readJson } from '@/services/api-client'
 import { authenticatedFetch } from '@/services/auth'
 import type { StudentMilestone } from '@/types/milestone'
 
@@ -16,6 +16,7 @@ interface StudentApiResponse {
   expectedGraduationYear: number
   advisorId: string | null
   advisorName: string | null
+  advisorNameThai?: string | null
   isCoAdvised?: boolean
   progress: number
   status: StudentStatus
@@ -83,6 +84,7 @@ function toStudent(student: StudentApiResponse, currentAdvisorId?: string): Stud
     status: student.status,
     studyExtensionGranted: Boolean(student.studyExtensionGranted),
     advisor: student.advisorName ?? 'Unassigned',
+    advisorThai: student.advisorNameThai,
     isAdvised: currentAdvisorId ? student.advisorId === currentAdvisorId : false,
     isCoAdvised: Boolean(student.isCoAdvised),
   }
@@ -139,8 +141,18 @@ export interface StudentDetail {
   studentId: string
   fullName: string
   degreeLevel: 'Master' | 'Doctoral'
+  educationPlan: string
   enrollmentAcademicYear: number
+  semester: '1' | '2'
+  academicStatus: StudentStatus
   studyExtensionGranted: boolean
+  studyExtensionCount: number
+  latestStudyExtensionNumber: number | null
+  studyExtensionAcademicYear: number | null
+  studyExtensionSemester: '1' | '2' | null
+  studyExtensionStartsOn: string | null
+  studyExtensionEndsOn: string | null
+  canExtendStudyPeriod: boolean
   graduationSemester: string | null
   graduationAcademicYear: number | null
 }
@@ -153,7 +165,15 @@ export async function getStudent(studentId: string) {
   if (!response.ok || !result?.data) {
     throw new Error(`Unable to load student (${response.status})`)
   }
-  return result.data
+  return {
+    ...result.data,
+    studyExtensionCount: Number(result.data.studyExtensionCount ?? 0),
+    latestStudyExtensionNumber:
+      result.data.latestStudyExtensionNumber == null
+        ? null
+        : Number(result.data.latestStudyExtensionNumber),
+    canExtendStudyPeriod: result.data.canExtendStudyPeriod,
+  }
 }
 
 export async function extendStudentStudyPeriod(studentId: string) {
@@ -161,9 +181,46 @@ export async function extendStudentStudyPeriod(studentId: string) {
     apiUrl(`/api/students/${encodeURIComponent(studentId)}/study-extension`),
     { method: 'PATCH' },
   )
-  const result = await readJson<ApiResponse<{ studyExtensionGranted: boolean }> & ApiErrorResponse>(response)
+  const result = await readJson<ApiResponse<{
+    extensionNumber: number
+    academicYear: number
+    semester: '1' | '2'
+    startsOn: string
+    endsOn: string
+    studyExtensionCount: number
+  }> & ApiErrorResponse>(response)
   if (!response.ok || !result?.data) {
     throw new Error(result?.message ?? `Unable to extend study period (${response.status})`)
+  }
+  return result.data
+}
+
+export async function updateStudentExitStatus(
+  studentId: string,
+  status: 'Resigned' | 'Dismissed',
+) {
+  return apiRequest<StudentDetail>(
+    `/api/students/${encodeURIComponent(studentId)}/exit-status`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+      errorMessage: 'Unable to update student status',
+    },
+  )
+}
+
+export async function cancelStudentStudyExtension(studentId: string) {
+  const response = await authenticatedFetch(
+    apiUrl(`/api/students/${encodeURIComponent(studentId)}/study-extension`),
+    {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: 'Confirmed by administrator' }),
+    },
+  )
+  const result = await readJson<ApiResponse<{ extensionNumber: number }> & ApiErrorResponse>(response)
+  if (!response.ok || !result?.data) {
+    throw new Error(result?.message ?? `Unable to cancel study extension (${response.status})`)
   }
   return result.data
 }

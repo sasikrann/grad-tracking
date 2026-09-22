@@ -1,4 +1,10 @@
-export type StudentStatus = 'On-track' | 'Overdue' | 'Extended' | 'Graduate'
+export type StudentStatus =
+  | 'On-track'
+  | 'Overdue'
+  | 'Extended'
+  | 'Graduate'
+  | 'Resigned'
+  | 'Dismissed'
 
 // ข้อมูลขั้นต่ำที่ StudentTable ต้องใช้
 export interface StudentTableItem {
@@ -19,6 +25,7 @@ export interface StudentTableItem {
 // ข้อมูล Student ที่ใช้ในหน้า Dashboard
 export interface Student extends StudentTableItem {
   advisor: string
+  advisorThai?: string | null
   isAdvised: boolean
   isCoAdvised: boolean
 }

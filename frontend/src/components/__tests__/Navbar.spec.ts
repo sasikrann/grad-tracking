@@ -27,7 +27,7 @@ describe('Navbar', () => {
 
     expect(wrapper.text()).toContain('GRAD Tracking')
     expect(wrapper.text()).toContain(expectedMenu)
-    expect(wrapper.text()).toContain('Dr. John Doe')
+    expect(wrapper.text()).toContain(role === 'advisor' ? 'John Doe' : 'Dr. John Doe')
     expect(wrapper.text()).toContain('JD')
   })
 

@@ -7,7 +7,7 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const organizationEmailPattern = /^[^\s@]+@mfu\.ac\.th$/i
 const importRequiredFields = [
   { key: 'advisorId', label: 'Advisor ID' },
-  { key: 'fullName', label: 'Full Name' },
+  { key: 'fullName', label: 'Full Name (English)' },
   { key: 'email', label: 'Email' },
 ]
 
@@ -52,6 +52,7 @@ export function normalizeAdvisor(body, { advisorId } = {}) {
   return {
     advisorId: advisorId ?? optionalText(body.advisorId),
     fullName: requiredText(body.fullName, 'fullName'),
+    ...(body.fullNameThai !== undefined ? { fullNameThai: optionalText(body.fullNameThai) || null } : {}),
     email: requiredEmail(body.email),
   }
 }
@@ -83,7 +84,7 @@ function normalizeCellText(value) {
     if ('text' in value) return normalizeCellText(value.text)
     if ('hyperlink' in value) return normalizeCellText(value.hyperlink)
     if ('richText' in value && Array.isArray(value.richText)) {
-      return value.richText.map((part) => normalizeCellText(part.text)).join('')
+      return value.richText.map((part) => String(part.text ?? '')).join('').trim()
     }
     if ('result' in value) return normalizeCellText(value.result)
   }
@@ -91,25 +92,20 @@ function normalizeCellText(value) {
 }
 
 function normalizeEmailText(value) {
-  const text = [
-    value && typeof value === 'object' && 'hyperlink' in value ? value.hyperlink : '',
-    normalizeCellText(value),
-  ]
-    .join(' ')
-    .replace(/^mailto:/i, '')
-    .replace(/\bmailto:/gi, ' ')
-    .split('?')[0]
-    .trim()
-
-  const match = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
-  return match?.[0] ?? text
+  const raw = value && typeof value === 'object' && 'hyperlink' in value
+    ? value.hyperlink
+    : normalizeCellText(value)
+  const text = String(raw ?? '').trim()
+  return /^mailto:/i.test(text) ? text.slice(7).split('?')[0].trim() : text
 }
 
 export async function readAdvisorImportFile(file) {
+  if (!/\.(csv|xlsx)$/i.test(file.originalname)) throw new ApiError(400, 'Only CSV and XLSX files are supported')
+  if (file.buffer.length > 5 * 1024 * 1024) throw new ApiError(400, 'File too large')
   const workbook = new ExcelJS.Workbook()
 
   if (file.originalname.toLowerCase().endsWith('.csv')) {
-    await workbook.csv.read(Readable.from(file.buffer))
+    await workbook.csv.read(Readable.from(file.buffer), { map: (value) => value })
   } else {
     await workbook.xlsx.load(file.buffer)
   }
@@ -133,6 +129,7 @@ export async function readAdvisorImportFile(file) {
   const records = []
   const validationErrors = new Set()
   const missingFieldErrors = new Set()
+  const rowErrors = []
 
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1 || !row.hasValues) return
@@ -140,6 +137,7 @@ export async function readAdvisorImportFile(file) {
     const rawAdvisor = {
       advisorId: cellValue(row, headerMap, ['advisorid', 'advisor id', 'รหัสอาจารย์']),
       fullName: cellValue(row, headerMap, [
+        'Full Name (English)',
         'fullname',
         'full name',
         'name',
@@ -148,6 +146,9 @@ export async function readAdvisorImportFile(file) {
         'ชื่อ นามสกุล',
         'ชื่ออาจารย์',
       ]),
+      ...(headerMap.has(normalizeHeader('Full Name (Thai)'))
+        ? { fullNameThai: cellValue(row, headerMap, ['Full Name (Thai)']) }
+        : {}),
       email: emailCellValue(row, headerMap, ['email', 'advisor email', 'อีเมล', 'อีเมล์']),
     }
     const rowMissingFields = importRequiredFields
@@ -156,6 +157,7 @@ export async function readAdvisorImportFile(file) {
 
     if (rowMissingFields.length) {
       rowMissingFields.forEach((message) => missingFieldErrors.add(message))
+      rowErrors.push(`Row ${rowNumber}: Advisor ${rawAdvisor.advisorId || '-'}: ${formatMissingFieldsMessage(rowMissingFields)}`)
       return
     }
 
@@ -163,6 +165,7 @@ export async function readAdvisorImportFile(file) {
       records.push(normalizeAdvisor(rawAdvisor))
     } catch (error) {
       validationErrors.add(error.message)
+      rowErrors.push(`Row ${rowNumber}: Advisor ${rawAdvisor.advisorId}: ${error.message}`)
     }
   })
 
@@ -178,6 +181,7 @@ export async function readAdvisorImportFile(file) {
     throw new ApiError(
       400,
       organizationEmailError ?? 'Please complete all required fields and import the file again.',
+      rowErrors,
     )
   }
 
@@ -187,7 +191,7 @@ export async function readAdvisorImportFile(file) {
     .map((record) => record.advisorId.toLocaleLowerCase())
     .filter((advisorId, index, values) => values.indexOf(advisorId) !== index)
   if (duplicateAdvisorIds.length) {
-    throw new ApiError(400, 'Duplicate Advisor ID found in the import file.')
+    throw new ApiError(400, `Duplicate Advisor ID found in the import file: ${[...new Set(duplicateAdvisorIds)].join(', ')}.`)
   }
 
   const emailOwners = new Map()
@@ -205,16 +209,8 @@ export async function readAdvisorImportFile(file) {
 function addAdvisorExportHeaders(worksheet) {
   worksheet.columns = [
     { header: 'Advisor ID', key: 'advisorId', width: 16 },
-    { header: 'Full Name', key: 'fullName', width: 28 },
-    { header: 'Email', key: 'email', width: 32 },
-  ]
-  worksheet.getRow(1).font = { bold: true }
-}
-
-function addAdvisorTemplateHeaders(worksheet) {
-  worksheet.columns = [
-    { header: 'Advisor ID', key: 'advisorId', width: 16 },
-    { header: 'Full Name', key: 'fullName', width: 28 },
+    { header: 'Full Name (English)', key: 'fullName', width: 70 },
+    { header: 'Full Name (Thai)', key: 'fullNameThai', width: 70 },
     { header: 'Email', key: 'email', width: 32 },
   ]
   worksheet.getRow(1).font = { bold: true }
@@ -226,6 +222,14 @@ export async function createAdvisorExportBuffer(advisors) {
 
   addAdvisorExportHeaders(worksheet)
   worksheet.addRows(advisors)
+  for (const key of ['fullName', 'fullNameThai', 'email']) {
+    const column = worksheet.getColumn(key)
+    column.width = Math.min(100, advisors.reduce(
+      (width, advisor) => Math.max(width, Array.from(advisor[key] ?? '').length + 3),
+      column.width,
+    ))
+    column.alignment = { vertical: 'top', wrapText: true }
+  }
 
   return Buffer.from(await workbook.xlsx.writeBuffer())
 }
@@ -234,7 +238,7 @@ export async function createAdvisorTemplateBuffer() {
   const workbook = new ExcelJS.Workbook()
   const worksheet = workbook.addWorksheet('Advisors')
 
-  addAdvisorTemplateHeaders(worksheet)
+  addAdvisorExportHeaders(worksheet)
 
   return Buffer.from(await workbook.xlsx.writeBuffer())
 }

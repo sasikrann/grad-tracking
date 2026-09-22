@@ -3,6 +3,7 @@ import multer from 'multer'
 
 import {
   createStudent,
+  cancelStudentStudyExtension,
   deleteStudent,
   downloadStudentTemplate,
   extendStudentStudyPeriod,
@@ -12,6 +13,7 @@ import {
   getStudents,
   importStudentFile,
   updateStudent,
+  updateStudentExitStatus,
 } from '../controllers/students.controller.js'
 
 // 5 MB limit
@@ -37,6 +39,8 @@ router.get('/template', downloadStudentTemplate)
 router.post('/import', upload.single('file'), importStudentFile)
 router.get('/:studentId/milestones', getStudentMilestones)
 router.patch('/:studentId/study-extension', extendStudentStudyPeriod)
+router.patch('/:studentId/exit-status', updateStudentExitStatus)
+router.delete('/:studentId/study-extension', cancelStudentStudyExtension)
 router.get('/:studentId', getStudent)
 router.post('/', createStudent)
 router.put('/:studentId', updateStudent)

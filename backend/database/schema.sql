@@ -41,10 +41,14 @@ CREATE TABLE advisors (
   advisor_id VARCHAR PRIMARY KEY,
   user_id UUID UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
   full_name VARCHAR NOT NULL,
+  full_name_thai VARCHAR,
   email VARCHAR UNIQUE NOT NULL,
   status VARCHAR NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_normalized_unique ON users (LOWER(TRIM(email)));
+CREATE UNIQUE INDEX IF NOT EXISTS advisors_email_normalized_unique ON advisors (LOWER(TRIM(email)));
 
 CREATE TABLE students (
   student_id VARCHAR PRIMARY KEY CHECK (student_id ~ '^[0-9]{10}$'),
@@ -62,7 +66,7 @@ CREATE TABLE students (
   graduation_semester VARCHAR CHECK (graduation_semester IN ('1', '2')),
   graduation_academic_year INT CHECK (graduation_academic_year BETWEEN 1900 AND 3000),
   student_status VARCHAR NOT NULL DEFAULT 'Normal'
-    CHECK (student_status IN ('Normal', 'Graduate')),
+    CHECK (student_status IN ('Normal', 'Graduate', 'Resigned', 'Dismissed')),
   study_extension_granted BOOLEAN NOT NULL DEFAULT FALSE,
   advisor_id VARCHAR REFERENCES advisors(advisor_id) ON DELETE SET NULL,
   advisor_evidence_url TEXT,
@@ -74,6 +78,26 @@ CREATE TABLE students (
     (degree_level = 'Doctoral' AND education_plan IN ('1.1', '2.1', '2.2'))
   )
 );
+
+CREATE TABLE student_study_extensions (
+  extension_id UUID PRIMARY KEY,
+  student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
+  extension_number SMALLINT NOT NULL CHECK (extension_number BETWEEN 1 AND 2),
+  academic_year INT NOT NULL CHECK (academic_year BETWEEN 2000 AND 2200),
+  semester VARCHAR NOT NULL CHECK (semester IN ('1', '2')),
+  starts_on DATE NOT NULL,
+  ends_on DATE NOT NULL CHECK (ends_on >= starts_on),
+  status VARCHAR NOT NULL DEFAULT 'Granted' CHECK (status IN ('Granted', 'Cancelled')),
+  granted_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  granted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  cancelled_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  cancelled_at TIMESTAMP,
+  cancellation_reason TEXT
+);
+
+CREATE UNIQUE INDEX student_study_extensions_active_round_idx
+  ON student_study_extensions (student_id, extension_number)
+  WHERE status = 'Granted';
 
 CREATE TABLE student_co_advisors (
   student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,

@@ -71,7 +71,7 @@ test('stores form names and university links as separate references', () => {
   )
   assert.equal(englishTemplates.length, 3)
   for (const english of englishTemplates) {
-    assert.equal(english.references[0], 'DGC24 – แบบยื่นผลการทดสอบความสามารถภาษาอังกฤษ')
+    assert.equal(english.references[0], 'DGC24 - English Test (แบบยื่นผลการทดสอบความสามารถภาษาอังกฤษ)')
     assert.equal(english.references[1], 'https://postgrads.mfu.ac.th')
   }
 })
