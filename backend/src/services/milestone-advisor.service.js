@@ -29,7 +29,9 @@ export async function findAdvisorStudentMilestones(advisorUserId, studentId) {
         mt.first_reminder_date AS "firstReminderDate",
         mt.second_reminder_date AS "secondReminderDate",
         CASE
-          WHEN s.student_status = 'Graduate' THEN 'Approved'::milestone_status
+          WHEN s.student_status = 'Graduate'
+            OR (s.graduation_semester IS NOT NULL AND s.graduation_academic_year IS NOT NULL)
+          THEN 'Approved'::milestone_status
           ELSE COALESCE(
             sm.status,
             CASE
@@ -166,4 +168,3 @@ export async function findAdvisorMilestoneSubmissions(advisorUserId) {
 
   return result.rows
 }
-

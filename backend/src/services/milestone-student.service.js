@@ -44,13 +44,15 @@ export async function findStudentMilestonesByUserId(userId) {
           )
         ) AS "isLocked",
         CASE
+          WHEN s.student_status = 'Graduate'
+            OR (s.graduation_semester IS NOT NULL AND s.graduation_academic_year IS NOT NULL)
+          THEN 'Approved'::milestone_status
           WHEN mt.default_template_key LIKE '%advisor-appointment'
             AND s.advisor_id IS NULL
           THEN CASE
             WHEN mt.deadline < CURRENT_DATE THEN 'Missing'::milestone_status
             ELSE 'In Progress'::milestone_status
           END
-          WHEN s.student_status = 'Graduate' THEN 'Approved'::milestone_status
           ELSE COALESCE(
             sm.status,
             CASE
@@ -164,13 +166,15 @@ export async function findStudentMilestonesByStudentId(studentId) {
         mt.first_reminder_date AS "firstReminderDate",
         mt.second_reminder_date AS "secondReminderDate",
         CASE
+          WHEN s.student_status = 'Graduate'
+            OR (s.graduation_semester IS NOT NULL AND s.graduation_academic_year IS NOT NULL)
+          THEN 'Approved'::milestone_status
           WHEN mt.default_template_key LIKE '%advisor-appointment'
             AND s.advisor_id IS NULL
           THEN CASE
             WHEN mt.deadline < CURRENT_DATE THEN 'Missing'::milestone_status
             ELSE 'In Progress'::milestone_status
           END
-          WHEN s.student_status = 'Graduate' THEN 'Approved'::milestone_status
           ELSE COALESCE(
             sm.status,
             CASE

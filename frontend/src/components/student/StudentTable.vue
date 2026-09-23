@@ -45,6 +45,10 @@ function hasExited(status: StudentTableItem['status']) {
   return status === 'Resigned' || status === 'Dismissed'
 }
 
+function isExitActionDisabled(status: StudentTableItem['status']) {
+  return status === 'Graduate' || hasExited(status)
+}
+
 function statusColorClass(status: StudentTableItem['status']) {
   if (hasExited(status)) return 'bg-[#c9565d]'
   if (status === 'Graduate') return 'bg-[#49b866]'
@@ -130,11 +134,11 @@ function planLabel(plan: string) {
             type="button"
             class="flex size-5 items-center justify-center rounded border bg-white leading-none focus:outline-none focus:ring-2"
             :class="
-              hasExited(student.status)
+              isExitActionDisabled(student.status)
                 ? 'cursor-not-allowed border-slate-200 text-slate-300 shadow-none'
                 : 'border-slate-200 text-red-500 hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus:ring-red-300'
             "
-            :disabled="hasExited(student.status)"
+            :disabled="isExitActionDisabled(student.status)"
             :aria-label="`${t('dashboard.studentExitTitle')}: ${student.name}`"
             @click="$emit('exit', student)"
           >
@@ -379,11 +383,11 @@ function planLabel(plan: string) {
                 type="button"
                 class="inline-flex size-5 items-center justify-center rounded border bg-white font-normal leading-none focus:outline-none focus:ring-2"
                 :class="
-                  hasExited(student.status)
+                  isExitActionDisabled(student.status)
                     ? 'cursor-not-allowed border-slate-200 text-slate-300 shadow-none'
                     : 'border-slate-200 text-red-500 hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus:ring-red-300'
                 "
-                :disabled="hasExited(student.status)"
+                :disabled="isExitActionDisabled(student.status)"
                 :aria-label="`${t('dashboard.studentExitTitle')}: ${student.name}`"
                 @click="$emit('exit', student)"
               >

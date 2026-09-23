@@ -349,11 +349,34 @@ export async function setStudentExitStatus(studentId, status) {
   const result = await pool.query(
     `UPDATE students
      SET student_status = $2, updated_at = NOW()
-     WHERE student_id = $1
+       WHERE student_id = $1
+         AND student_status <> 'Graduate'
+         AND NOT (
+           graduation_semester IS NOT NULL
+           AND graduation_academic_year IS NOT NULL
+         )
      RETURNING student_id`,
     [studentId, status],
   )
-  return result.rowCount ? findStudentById(studentId) : null
+  if (result.rowCount) return findStudentById(studentId)
+
+  const existing = await pool.query(
+      `SELECT student_status AS "studentStatus",
+              graduation_semester AS "graduationSemester",
+              graduation_academic_year AS "graduationAcademicYear"
+       FROM students
+     WHERE student_id = $1`,
+    [studentId],
+  )
+  if (
+    existing.rows[0]?.studentStatus === 'Graduate' ||
+    (existing.rows[0]?.graduationSemester && existing.rows[0]?.graduationAcademicYear)
+  ) {
+    const error = new Error('A graduated student cannot be marked as resigned or dismissed')
+    error.statusCode = 409
+    throw error
+  }
+  return null
 }
 
 export async function grantStudentStudyExtension(studentId, grantedBy = null) {
