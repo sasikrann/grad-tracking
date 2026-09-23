@@ -7,11 +7,16 @@ export function advisorDisplayName(advisor: AdvisorName, isThai: boolean): strin
   return (isThai ? advisor.fullNameThai?.trim() || advisor.fullName : advisor.fullName) ?? ''
 }
 
-// Only the sidebar removes the English title; stored names remain unchanged.
+// Display the personal name after Dr./ดร. while leaving the stored name unchanged.
 export function advisorSidebarName(fullName: string): string {
-  const name = fullName.trim()
-  const title = /(?:\bDr\.?|ดร\.)\s*/i.exec(name)
-  return title ? name.slice(title.index + title[0].length).trim() || name : name
+  const name = fullName
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .trim()
+  const doctorTitle = /(?:\bDr\s*\.|ดร\s*\.)\s*/iu.exec(name)
+  return doctorTitle
+    ? name.slice((doctorTitle.index ?? 0) + doctorTitle[0].length).trim() || name
+    : name
 }
 
 export function advisorSidebarInitials(fullName: string): string {

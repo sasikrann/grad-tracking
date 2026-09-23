@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { advisorDisplayName } from '@/utils/advisor-name'
+import { advisorDisplayName, advisorSidebarInitials } from '@/utils/advisor-name'
 import type { Advisor } from '@/types/advisor'
 import { useLanguage } from '@/composables/useLanguage'
 const { t, isThai } = useLanguage()
@@ -15,26 +15,6 @@ const search = defineModel<string>('search', { required: true })
 defineEmits<{
   status: [advisorId: string, status: Advisor['status']]
 }>()
-
-function initials(name: string) {
-  const normalizedName = name
-    .normalize('NFKC')
-    .replace(/[\u200B-\u200D\uFEFF]/g, '')
-    .replace(/^(?:(?:Asst\.?\s*Prof\.?|Assoc\.?\s*Prof\.?|Prof\.?|Dr\.?)\s*)+/i, '')
-    .replace(/^(?:นาย|นางสาว|นาง)\s*/, '')
-    .replace(/^(?:Mr\.?|Mrs\.?|Ms\.?)\s*/i, '')
-    .trim()
-
-  const nameParts = normalizedName
-    .split(/\s+/)
-    .filter(Boolean)
-
-  const firstName = nameParts[0] ?? ''
-  const lastName = nameParts[nameParts.length - 1] ?? ''
-  const initialNames = lastName && lastName !== firstName ? [firstName, lastName] : [firstName]
-
-  return initialNames.map((part) => part.charAt(0).toUpperCase()).join('')
-}
 
 function statusLabel(status: Advisor['status']) {
   return status === 'active' ? t('advisor.active') : t('advisor.inactive')
@@ -84,7 +64,7 @@ function statusLabel(status: Advisor['status']) {
           <span
             class="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#fde7e9] text-sm font-semibold text-[#d64b59]"
           >
-            {{ initials(advisorDisplayName(advisor, isThai)) }}
+            {{ advisorSidebarInitials(advisorDisplayName(advisor, isThai)) }}
           </span>
           <div class="min-w-0 flex-1 leading-tight">
             <p class="break-words text-sm font-semibold">
@@ -146,7 +126,7 @@ function statusLabel(status: Advisor['status']) {
                 <span
                   class="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f4e7e7] text-xs font-semibold text-[#a33a3a]"
                 >
-                  {{ initials(advisorDisplayName(advisor, isThai)) }}
+                  {{ advisorSidebarInitials(advisorDisplayName(advisor, isThai)) }}
                 </span>
                 <div class="min-w-0 flex-1 leading-tight">
                   <p class="break-words font-semibold">{{ advisorDisplayName(advisor, isThai) }}</p>
