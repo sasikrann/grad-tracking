@@ -29,6 +29,12 @@ const props = defineProps<{
 const route = useRoute()
 const { isThai, setLanguage, t } = useLanguage()
 const sidebarName = computed(() => {
+  if (props.user.role === 'student') {
+    return isThai.value
+      ? props.user.fullNameThai?.trim() || props.user.fullNameEnglish?.trim() || props.user.fullName
+      : props.user.fullNameEnglish?.trim() || props.user.fullName
+  }
+
   if (props.user.role !== 'advisor') return props.user.fullName
 
   const localizedName = isThai.value
@@ -87,8 +93,8 @@ const shouldShowNotificationBadge = computed(
 )
 const canChangeLanguage = computed(() => ['admin', 'advisor', 'student'].includes(props.user.role))
 
-async function ensureAdvisorLocalizedName() {
-  if (props.user.role !== 'advisor' || props.user.fullNameEnglish) return
+async function ensureLocalizedName() {
+  if (!['advisor', 'student'].includes(props.user.role) || props.user.fullNameEnglish) return
   await refreshCurrentUser()
 }
 
@@ -228,7 +234,7 @@ watch(
 watch(
   isThai,
   () => {
-    void ensureAdvisorLocalizedName().catch(() => undefined)
+    void ensureLocalizedName().catch(() => undefined)
   },
   { immediate: true },
 )

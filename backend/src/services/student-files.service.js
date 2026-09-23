@@ -31,6 +31,7 @@ const studentSemesterCodes = {
 
 const headerAliases = {
   studentId: [
+    "รหัสนักศึกษา",
     "studentid",
     "student id",
     "student code",
@@ -55,6 +56,8 @@ const headerAliases = {
     "ที่อยู่อีเมล์",
   ],
   fullName: [
+    "ชื่อ-สกุล (ภาษาอังกฤษ)",
+    "full name (english)",
     "fullname",
     "full name",
     "name",
@@ -62,6 +65,9 @@ const headerAliases = {
     "student full name",
     "name surname",
     "first name last name",
+  ],
+  fullNameThai: ["ชื่อ-สกุล (ภาษาไทย)", "full name (thai)"],
+  legacyFullName: [
     "ชื่อ-สกุล",
     "ชื่อ สกุล",
     "ชื่อ-นามสกุล",
@@ -74,6 +80,7 @@ const headerAliases = {
   schoolName: ["school", "school name", "faculty", "สำนักวิชา"],
   program: ["program", "programme", "major", "สาขาวิชา", "หลักสูตร"],
   educationPlan: [
+    "แผนการเรียน",
     "plan",
     "education plan",
     "study plan",
@@ -111,6 +118,7 @@ const headerAliases = {
   advisorEmail: ["advisoremail", "advisor email", "อีเมลอาจารย์ที่ปรึกษา"],
   advisorName: ["advisorname", "advisor name", "advisor", "อาจารย์ที่ปรึกษา"],
   studentStatus: [
+    "สถานะ",
     "status",
     "student status",
     "studentstatus",
@@ -133,12 +141,13 @@ const studentTemplateColumns = [
 ];
 
 const studentImportColumns = [
-  { header: "Student ID", key: "studentId", width: 16 },
-  { header: "Full Name", key: "fullName", width: 28 },
-  { header: "School", key: "schoolName", width: 32 },
-  { header: "Program", key: "program", width: 18 },
-  { header: "Plan", key: "educationPlan", width: 18 },
-  { header: "Status", key: "studentStatus", width: 16 },
+  { header: "รหัสนักศึกษา", key: "studentId", width: 16 },
+  { header: "ชื่อ-สกุล (ภาษาอังกฤษ)", key: "fullName", width: 32 },
+  { header: "ชื่อ-สกุล (ภาษาไทย)", key: "fullNameThai", width: 32 },
+  { header: "สำนักวิชา", key: "schoolName", width: 32 },
+  { header: "สาขาวิชา", key: "program", width: 22 },
+  { header: "สถานะ", key: "studentStatus", width: 36 },
+  { header: "แผนการเรียน", key: "educationPlan", width: 18 },
 ];
 
 function studentExportColumns(language) {
@@ -237,8 +246,9 @@ export function normalizeStudent(
     studentId: studentId || requiredText(body.studentId, "studentId"),
     email,
     fullName: requireFullName
-      ? requiredText(body.fullName, "fullName")
-      : String(body.fullName ?? "").trim() || null,
+      ? requiredText(normalizeNameText(body.fullName), "fullName")
+      : normalizeNameText(body.fullName) || null,
+    fullNameThai: normalizeNameText(body.fullNameThai) || null,
     schoolName: String(body.schoolName ?? "").trim() || null,
     program: requiredText(body.program, "program"),
     educationPlan: String(body.educationPlan ?? "").trim() || null,
@@ -313,6 +323,10 @@ function normalizeCellText(value) {
   return String(value).trim();
 }
 
+function normalizeNameText(value) {
+  return normalizeCellText(value).replace(/\s+/g, " ").trim();
+}
+
 function normalizeEmailText(value) {
   const text = [
     value && typeof value === "object" && "hyperlink" in value ? value.hyperlink : "",
@@ -334,10 +348,11 @@ function normalizeHeader(value) {
     .replace(/[\s_.\-/()]+/g, "");
 }
 
-function normalizeImportStudent(rawStudent) {
+function normalizeImportStudent(rawStudent, { allowMissingEnglishName = false } = {}) {
   const rowErrors = [];
 
   for (const field of importRequiredFields) {
+    if (field === "fullName" && allowMissingEnglishName && rawStudent.fullNameThai) continue;
     if (String(rawStudent[field] ?? "").trim() === "") rowErrors.push(missingFieldMessage(field));
   }
 
@@ -356,7 +371,7 @@ function normalizeImportStudent(rawStudent) {
         String(rawStudent.expectedGraduationYear ?? "").trim() ||
         derived.enrollmentAcademicYear + (derived.degreeLevel === "Doctoral" ? 4 : 3),
     },
-    { requireFullName: true },
+    { requireFullName: !allowMissingEnglishName },
   );
 }
 
@@ -447,7 +462,14 @@ export function parseStudentImportStatus(value) {
     .toLowerCase()
     .replace(/[\s_.\-/()]+/g, "");
 
-  if (["ปกติ", "normal", "active"].includes(normalizedStatus)) {
+  if (
+    [
+      "ปกติ",
+      "อยู่ระหว่างตรวจสอบการสำเร็จการศึกษา",
+      "normal",
+      "active",
+    ].map((status) => status.replace(/[\s_.\-/()]+/g, "")).includes(normalizedStatus)
+  ) {
     return { action: "import", studentStatus: "Normal" };
   }
 
@@ -501,7 +523,11 @@ export async function readStudentImportFile(file) {
   const validationErrors = [];
   const missingFieldErrors = new Set();
   const seenIds = new Set();
+  let skippedRecords = 0;
+  const skippedReasonCounts = new Map();
   const hasStudentStatusColumn = hasMappedHeader(headerMap, headerAliases.studentStatus);
+  const hasExplicitEnglishNameColumn = hasMappedHeader(headerMap, headerAliases.fullName);
+  const hasLegacyNameColumn = hasMappedHeader(headerMap, headerAliases.legacyFullName);
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1 || !row.hasValues) return;
     const studentStatus = cellValue(row, headerMap, headerAliases.studentStatus);
@@ -512,7 +538,12 @@ export async function readStudentImportFile(file) {
       validationErrors.push(`Row ${rowNumber}: ${error.message}`);
       return;
     }
-    if (hasStudentStatusColumn && parsedStudentStatus?.action === "skip") return;
+    if (hasStudentStatusColumn && parsedStudentStatus?.action === "skip") {
+      skippedRecords += 1;
+      const reason = studentStatus || "Unsupported student status";
+      skippedReasonCounts.set(reason, (skippedReasonCounts.get(reason) ?? 0) + 1);
+      return;
+    }
     // Skip duplicate student IDs within the same import file silently (keep first occurrence)
     const candidateId = normalizeCellText(cellValue(row, headerMap, headerAliases.studentId));
     if (candidateId) {
@@ -520,11 +551,22 @@ export async function readStudentImportFile(file) {
       seenIds.add(candidateId);
     }
     try {
+      const explicitEnglishName = cellValue(row, headerMap, headerAliases.fullName);
+      const explicitThaiName = cellValue(row, headerMap, headerAliases.fullNameThai);
+      const legacyName = cellValue(row, headerMap, headerAliases.legacyFullName);
+      const legacyNameIsThai = /[\u0E00-\u0E7F]/.test(legacyName);
+      const fullName = normalizeNameText(
+        explicitEnglishName || (!legacyNameIsThai ? legacyName : ""),
+      );
+      const fullNameThai = normalizeNameText(
+        explicitThaiName || (legacyNameIsThai ? legacyName : ""),
+      );
       records.push(
         normalizeImportStudent({
           studentId: cellValue(row, headerMap, headerAliases.studentId),
           email: cellValue(row, headerMap, headerAliases.email),
-          fullName: cellValue(row, headerMap, headerAliases.fullName),
+          fullName,
+          fullNameThai,
           schoolName: cellValue(row, headerMap, headerAliases.schoolName),
           program: cellValue(row, headerMap, headerAliases.program),
           educationPlan: cellValue(row, headerMap, headerAliases.educationPlan),
@@ -538,6 +580,9 @@ export async function readStudentImportFile(file) {
           studentStatus: parsedStudentStatus?.studentStatus ?? studentStatus,
           graduationSemester: parsedStudentStatus?.graduationSemester,
           graduationAcademicYear: parsedStudentStatus?.graduationAcademicYear,
+        }, {
+          allowMissingEnglishName:
+            !hasExplicitEnglishNameColumn && hasLegacyNameColumn && Boolean(fullNameThai),
         }),
       );
     } catch (error) {
@@ -580,6 +625,13 @@ export async function readStudentImportFile(file) {
   // Previously we errored on duplicate IDs in-file. Per new policy, duplicates in the file
   // should be ignored (we kept the first occurrence). No error raised here.
   // clear seenIds (function-scoped, will be garbage-collected)
+  Object.defineProperty(records, "importMetadata", {
+    value: {
+      skippedRecords,
+      skippedReasons: [...skippedReasonCounts].map(([reason, count]) => ({ reason, count })),
+    },
+    enumerable: false,
+  });
   return records;
 }
 
@@ -624,6 +676,7 @@ export async function createStudentTemplateBuffer() {
   worksheet.addRow({
     studentId: "6551303009",
     fullName: "Example Student",
+    fullNameThai: "ตัวอย่าง นักศึกษา",
     schoolName: "School of Information Technology",
     educationPlan: "A1",
     program: "DTT",

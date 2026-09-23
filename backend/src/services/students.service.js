@@ -17,6 +17,7 @@ async function ensureStudentSchema() {
   studentSchemaReady ??= pool.query(`
     ALTER TABLE students ADD COLUMN IF NOT EXISTS education_plan VARCHAR;
     ALTER TABLE students ADD COLUMN IF NOT EXISTS school_name VARCHAR;
+    ALTER TABLE students ADD COLUMN IF NOT EXISTS full_name_thai VARCHAR;
     ALTER TABLE students ADD COLUMN IF NOT EXISTS graduation_semester VARCHAR;
     ALTER TABLE students ADD COLUMN IF NOT EXISTS graduation_academic_year INT;
     ALTER TABLE students ADD COLUMN IF NOT EXISTS student_status VARCHAR NOT NULL DEFAULT 'Normal';
@@ -66,6 +67,7 @@ const studentDetailColumns = `
   s.user_id AS "userId",
   u.email,
   s.full_name AS "fullName",
+  s.full_name_thai AS "fullNameThai",
   s.school_name AS "schoolName",
   s.program,
   s.education_plan AS "educationPlan",
@@ -148,6 +150,7 @@ function studentRecordsMatch(left, right) {
   return [
     'studentId',
     'fullName',
+    'fullNameThai',
     'schoolName',
     'email',
     'program',
@@ -508,14 +511,15 @@ async function upsertStudentWithClient(client, input) {
     await client.query(
       `
         INSERT INTO students (
-          student_id, user_id, full_name, school_name, program, degree_level,
+          student_id, user_id, full_name, full_name_thai, school_name, program, degree_level,
           enrollment_academic_year, semester, expected_graduation_year, advisor_id, education_plan,
           student_status, graduation_semester, graduation_academic_year
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         ON CONFLICT (student_id) DO UPDATE SET
           user_id = COALESCE(EXCLUDED.user_id, students.user_id),
           full_name = EXCLUDED.full_name,
+          full_name_thai = COALESCE(EXCLUDED.full_name_thai, students.full_name_thai),
           school_name = EXCLUDED.school_name,
           program = EXCLUDED.program,
           degree_level = EXCLUDED.degree_level,
@@ -545,6 +549,7 @@ async function upsertStudentWithClient(client, input) {
         input.studentId,
         userId,
         input.fullName,
+        input.fullNameThai,
         input.schoolName,
         input.program,
         input.degreeLevel,
@@ -1001,7 +1006,10 @@ export async function findStudentsForExport({ studentIds } = {}) {
   return result.rows
 }
 
-export async function importStudents(records, { fileName, importedBy } = {}) {
+export async function importStudents(
+  records,
+  { fileName, importedBy, skippedRecords = 0, skippedReasons = [] } = {},
+) {
   await ensureStudentSchema()
   await ensureMilestoneSchema()
   const client = await pool.connect()
@@ -1034,6 +1042,7 @@ export async function importStudents(records, { fileName, importedBy } = {}) {
       return {
         ...record,
         fullName: record.fullName || existing.fullName,
+        fullNameThai: record.fullNameThai ?? existing.fullNameThai,
         educationPlan: record.educationPlan ?? existing.educationPlan,
         advisorId: record.advisorId || existing.advisorId,
         advisorName: record.advisorName || existing.advisorName,
@@ -1074,6 +1083,8 @@ export async function importStudents(records, { fileName, importedBy } = {}) {
         createdRecords: 0,
         updatedRecords: 0,
         unchangedRecords,
+        skippedRecords,
+        skippedReasons,
         failedRecords: 0,
         errors: [],
       }
@@ -1139,6 +1150,8 @@ export async function importStudents(records, { fileName, importedBy } = {}) {
       createdRecords: successRecords - updatedRecords,
       updatedRecords,
       unchangedRecords,
+      skippedRecords,
+      skippedReasons,
       failedRecords: errors.length,
       errors,
     }
