@@ -26,3 +26,9 @@ This project is a web application for tracking graduate thesis progress. The sys
 - Record progress updates
 - Support thesis status tracking
 - Store structured data using PostgreSQL
+
+## Production deployment
+
+The production Docker stack includes Nginx gateway, built Vue frontend, Node.js backend,
+PostgreSQL, and persistent upload storage. See [DEPLOYMENT.md](DEPLOYMENT.md) for the
+required environment values, commands, UAT checklist, HTTPS handoff, and operations.

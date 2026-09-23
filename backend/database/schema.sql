@@ -39,7 +39,7 @@ CREATE TABLE users (
 
 CREATE TABLE advisors (
   advisor_id VARCHAR PRIMARY KEY,
-  user_id UUID UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
+  user_id UUID UNIQUE REFERENCES users(user_id) ON DELETE RESTRICT,
   full_name VARCHAR NOT NULL,
   full_name_thai VARCHAR,
   email VARCHAR UNIQUE NOT NULL,
@@ -52,7 +52,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS advisors_email_normalized_unique ON advisors (
 
 CREATE TABLE students (
   student_id VARCHAR PRIMARY KEY CHECK (student_id ~ '^[0-9]{10}$'),
-  user_id UUID UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
+  user_id UUID UNIQUE REFERENCES users(user_id) ON DELETE RESTRICT,
   full_name VARCHAR NOT NULL,
   full_name_thai VARCHAR,
   school_name VARCHAR,
@@ -69,7 +69,7 @@ CREATE TABLE students (
   student_status VARCHAR NOT NULL DEFAULT 'Normal'
     CHECK (student_status IN ('Normal', 'Graduate', 'Resigned', 'Dismissed')),
   study_extension_granted BOOLEAN NOT NULL DEFAULT FALSE,
-  advisor_id VARCHAR REFERENCES advisors(advisor_id) ON DELETE SET NULL,
+  advisor_id VARCHAR REFERENCES advisors(advisor_id) ON DELETE RESTRICT,
   advisor_evidence_url TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
@@ -82,16 +82,16 @@ CREATE TABLE students (
 
 CREATE TABLE student_study_extensions (
   extension_id UUID PRIMARY KEY,
-  student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
+  student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE RESTRICT,
   extension_number SMALLINT NOT NULL CHECK (extension_number BETWEEN 1 AND 2),
   academic_year INT NOT NULL CHECK (academic_year BETWEEN 2000 AND 2200),
   semester VARCHAR NOT NULL CHECK (semester IN ('1', '2')),
   starts_on DATE NOT NULL,
   ends_on DATE NOT NULL CHECK (ends_on >= starts_on),
   status VARCHAR NOT NULL DEFAULT 'Granted' CHECK (status IN ('Granted', 'Cancelled')),
-  granted_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  granted_by UUID REFERENCES users(user_id) ON DELETE RESTRICT,
   granted_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  cancelled_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  cancelled_by UUID REFERENCES users(user_id) ON DELETE RESTRICT,
   cancelled_at TIMESTAMP,
   cancellation_reason TEXT
 );
@@ -101,8 +101,8 @@ CREATE UNIQUE INDEX student_study_extensions_active_round_idx
   WHERE status = 'Granted';
 
 CREATE TABLE student_co_advisors (
-  student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
-  advisor_id VARCHAR NOT NULL REFERENCES advisors(advisor_id) ON DELETE CASCADE,
+  student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE RESTRICT,
+  advisor_id VARCHAR NOT NULL REFERENCES advisors(advisor_id) ON DELETE RESTRICT,
   position SMALLINT NOT NULL CHECK (position BETWEEN 1 AND 2),
   PRIMARY KEY (student_id, position),
   UNIQUE (student_id, advisor_id)
@@ -133,15 +133,15 @@ CREATE TABLE milestone_templates (
 
 CREATE TABLE student_milestones (
   student_milestone_id UUID PRIMARY KEY,
-  student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
-  milestone_id UUID NOT NULL REFERENCES milestone_templates(milestone_id) ON DELETE CASCADE,
+  student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE RESTRICT,
+  milestone_id UUID NOT NULL REFERENCES milestone_templates(milestone_id) ON DELETE RESTRICT,
   status milestone_status NOT NULL,
   evidence_url TEXT,
   advisor_comment TEXT,
   rejection_count INT NOT NULL DEFAULT 0,
   submitted_at TIMESTAMP,
   reviewed_at TIMESTAMP,
-  reviewed_by VARCHAR REFERENCES advisors(advisor_id) ON DELETE SET NULL,
+  reviewed_by VARCHAR REFERENCES advisors(advisor_id) ON DELETE RESTRICT,
   updated_at TIMESTAMP DEFAULT NOW(),
   CONSTRAINT student_milestones_student_milestone_unique UNIQUE (student_id, milestone_id)
 );
@@ -154,8 +154,8 @@ CREATE TABLE notifications (
   target_audience target_audience NOT NULL,
   send_email BOOLEAN NOT NULL DEFAULT FALSE,
   email_sent_at TIMESTAMP,
-  created_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
-  milestone_id UUID REFERENCES milestone_templates(milestone_id) ON DELETE CASCADE,
+  created_by UUID REFERENCES users(user_id) ON DELETE RESTRICT,
+  milestone_id UUID REFERENCES milestone_templates(milestone_id) ON DELETE RESTRICT,
   reminder_stage VARCHAR,
   created_at TIMESTAMP DEFAULT NOW(),
   sent_at TIMESTAMP
@@ -165,8 +165,8 @@ CREATE UNIQUE INDEX notifications_milestone_reminder_unique
   ON notifications(milestone_id, reminder_stage);
 
 CREATE TABLE notification_reads (
-  notification_id UUID REFERENCES notifications(notification_id) ON DELETE CASCADE,
-  user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
+  notification_id UUID REFERENCES notifications(notification_id) ON DELETE RESTRICT,
+  user_id UUID REFERENCES users(user_id) ON DELETE RESTRICT,
   read_at TIMESTAMP DEFAULT NOW(),
   PRIMARY KEY (notification_id, user_id)
 );
@@ -175,7 +175,7 @@ CREATE INDEX notification_reads_user_id_idx ON notification_reads(user_id);
 
 CREATE TABLE import_logs (
   import_id UUID PRIMARY KEY,
-  imported_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  imported_by UUID REFERENCES users(user_id) ON DELETE RESTRICT,
   import_type import_type NOT NULL,
   file_name VARCHAR NOT NULL,
   total_records INT NOT NULL DEFAULT 0 CHECK (total_records >= 0),

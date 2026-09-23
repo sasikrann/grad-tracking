@@ -16,7 +16,6 @@ import {
   findStudentsPage,
   importStudents,
   insertStudent,
-  removeStudent,
   replaceStudent,
   setStudentExitStatus,
 } from '../services/students.service.js'
@@ -97,13 +96,6 @@ export async function updateStudentExitStatus(request, response) {
   )
   if (!student) throw new ApiError(404, 'Student not found')
   response.json({ data: student })
-}
-
-export async function deleteStudent(request, response) {
-  if (!(await removeStudent(request.params.studentId))) {
-    throw new ApiError(404, 'Student not found')
-  }
-  response.status(204).send()
 }
 
 export async function importStudentFile(request, response) {

@@ -44,7 +44,7 @@ const returningNotificationColumns = `
 export async function ensureNotificationSchema() {
   notificationSchemaReady ??= pool.query(`
     ALTER TABLE notifications
-    ADD COLUMN IF NOT EXISTS milestone_id UUID REFERENCES milestone_templates(milestone_id) ON DELETE CASCADE
+    ADD COLUMN IF NOT EXISTS milestone_id UUID REFERENCES milestone_templates(milestone_id) ON DELETE RESTRICT
   `)
     .then(() => pool.query(`
       ALTER TABLE notifications

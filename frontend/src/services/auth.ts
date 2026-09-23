@@ -2,7 +2,7 @@ import { ref } from 'vue'
 
 import type { CurrentUser, UserRole } from '@/types/user'
 
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const apiUrl = import.meta.env.VITE_API_URL || ''
 const validRoles: UserRole[] = ['admin', 'advisor', 'student']
 
 function isCurrentUser(value: unknown): value is CurrentUser {

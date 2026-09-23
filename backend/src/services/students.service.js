@@ -24,16 +24,16 @@ async function ensureStudentSchema() {
     ALTER TABLE students ADD COLUMN IF NOT EXISTS study_extension_granted BOOLEAN NOT NULL DEFAULT FALSE;
     CREATE TABLE IF NOT EXISTS student_study_extensions (
       extension_id UUID PRIMARY KEY,
-      student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
+      student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE RESTRICT,
       extension_number SMALLINT NOT NULL CHECK (extension_number BETWEEN 1 AND 2),
       academic_year INT NOT NULL CHECK (academic_year BETWEEN 2000 AND 2200),
       semester VARCHAR NOT NULL CHECK (semester IN ('1', '2')),
       starts_on DATE NOT NULL,
       ends_on DATE NOT NULL CHECK (ends_on >= starts_on),
       status VARCHAR NOT NULL DEFAULT 'Granted' CHECK (status IN ('Granted', 'Cancelled')),
-      granted_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+      granted_by UUID REFERENCES users(user_id) ON DELETE RESTRICT,
       granted_at TIMESTAMP NOT NULL DEFAULT NOW(),
-      cancelled_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+      cancelled_by UUID REFERENCES users(user_id) ON DELETE RESTRICT,
       cancelled_at TIMESTAMP,
       cancellation_reason TEXT
     );
@@ -52,8 +52,8 @@ async function ensureStudentSchema() {
     ALTER TABLE students ADD CONSTRAINT students_graduation_semester_check
       CHECK (graduation_semester IN ('1', '2'));
     CREATE TABLE IF NOT EXISTS student_co_advisors (
-      student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
-      advisor_id VARCHAR NOT NULL REFERENCES advisors(advisor_id) ON DELETE CASCADE,
+      student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE RESTRICT,
+      advisor_id VARCHAR NOT NULL REFERENCES advisors(advisor_id) ON DELETE RESTRICT,
       position SMALLINT NOT NULL CHECK (position BETWEEN 1 AND 2),
       PRIMARY KEY (student_id, position),
       UNIQUE (student_id, advisor_id)
@@ -923,33 +923,6 @@ export async function replaceStudent(studentId, input) {
     await upsertStudentWithClient(client, { ...input, studentId })
     await client.query('COMMIT')
     return findStudentById(studentId)
-  } catch (error) {
-    await client.query('ROLLBACK')
-    throw error
-  } finally {
-    client.release()
-  }
-}
-
-export async function removeStudent(studentId) {
-  const client = await pool.connect()
-  try {
-    await client.query('BEGIN')
-    const result = await client.query(
-      'SELECT user_id FROM students WHERE student_id = $1 FOR UPDATE',
-      [studentId],
-    )
-    if (!result.rowCount) {
-      await client.query('ROLLBACK')
-      return false
-    }
-    await client.query('DELETE FROM student_milestones WHERE student_id = $1', [studentId])
-    await client.query('DELETE FROM students WHERE student_id = $1', [studentId])
-    if (result.rows[0].user_id) {
-      await client.query('DELETE FROM users WHERE user_id = $1', [result.rows[0].user_id])
-    }
-    await client.query('COMMIT')
-    return true
   } catch (error) {
     await client.query('ROLLBACK')
     throw error

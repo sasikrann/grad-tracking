@@ -5,7 +5,6 @@ import {
   findAllUsers,
   findUserById,
   insertUser,
-  removeUser,
   replaceUser,
 } from '../services/users.service.js'
 
@@ -76,15 +75,4 @@ export async function updateUser(request, response) {
   }
 
   response.json({ data: user })
-}
-
-export async function deleteUser(request, response) {
-  validateUserId(request.params.userId)
-  const deleted = await removeUser(request.params.userId)
-
-  if (!deleted) {
-    throw new ApiError(404, 'User not found')
-  }
-
-  response.status(204).send()
 }

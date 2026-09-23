@@ -4,7 +4,6 @@ import multer from 'multer'
 import {
   createStudent,
   cancelStudentStudyExtension,
-  deleteStudent,
   downloadStudentTemplate,
   extendStudentStudyPeriod,
   exportStudents,
@@ -44,6 +43,5 @@ router.delete('/:studentId/study-extension', cancelStudentStudyExtension)
 router.get('/:studentId', getStudent)
 router.post('/', createStudent)
 router.put('/:studentId', updateStudent)
-router.delete('/:studentId', deleteStudent)
 
 export default router

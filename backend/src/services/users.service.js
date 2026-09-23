@@ -102,12 +102,3 @@ export async function replaceUser(userId, { email, fullName, role, advisorId }) 
     client.release()
   }
 }
-
-export async function removeUser(userId) {
-  const result = await pool.query(
-    'DELETE FROM users WHERE user_id = $1 RETURNING user_id',
-    [userId],
-  )
-
-  return result.rowCount > 0
-}

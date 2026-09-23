@@ -22,6 +22,11 @@ export async function viewEvidence(request, response, next) {
     'Cache-Control': 'private, no-store',
     'Content-Disposition': `inline; filename="${path.basename(evidence.evidenceUrl)}"`,
   })
+  if (process.env.NGINX_ACCEL_REDIRECT === 'true') {
+    response.set('X-Accel-Redirect', `/protected-media/evidence/${path.basename(evidence.evidenceUrl)}`)
+    response.end()
+    return
+  }
   response.sendFile(path.basename(evidence.evidenceUrl), { root: evidenceDirectory }, (error) => {
     if (error) next(error)
   })
