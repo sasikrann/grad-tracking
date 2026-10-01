@@ -1,11 +1,10 @@
 # Docker deployment
 
-Production runs as four services:
+Production runs as three services:
 
-1. `gateway` — public Nginx entry point on port 80; routes the SPA, API, and authorized media.
-2. `frontend` — builds Vue with Vite and serves the generated static SPA with Nginx.
-3. `backend` — runs the Node.js API, database migrations, admin bootstrap, and schedulers.
-4. `db` — PostgreSQL with a persistent Docker volume.
+1. `gateway` — builds Vue into static files, serves the SPA, proxies API requests, and returns authorized media through one public Nginx entry point on port 80.
+2. `backend` — runs the Node.js API, database migrations, admin bootstrap, and schedulers.
+3. `db` — PostgreSQL with a persistent Docker volume.
 
 Uploaded evidence and notification attachments use a second persistent volume. The backend checks authorization first, then asks Nginx to transfer the file through an internal-only location. PostgreSQL, Node, and Vite do not need to run on the host.
 
@@ -83,7 +82,7 @@ docker compose --env-file .env.docker logs --tail=200 gateway
 docker compose --env-file .env.docker exec backend npm run db:audit
 ```
 
-`/api/auth/me` should return `401` before login; that confirms routing is working. A `502` means the gateway cannot reach the frontend or backend.
+`/api/auth/me` should return `401` before login; that confirms routing is working. A `502` means the gateway cannot reach the backend.
 
 ## 4. Local Docker UAT checklist
 
