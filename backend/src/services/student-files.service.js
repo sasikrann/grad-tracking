@@ -296,20 +296,6 @@ function missingFieldMessage(field) {
   return messages[field] ?? `${field} is missing.`;
 }
 
-function missingFieldLabel(message) {
-  return message.replace(/\s+is missing\.$/i, "");
-}
-
-function formatMissingFieldsMessage(messages) {
-  const labels = messages.map(missingFieldLabel);
-
-  if (labels.length === 0) return "";
-  if (labels.length === 1) return `${labels[0]} is missing.`;
-  if (labels.length === 2) return `${labels[0]} and ${labels[1]} are missing.`;
-
-  return `${labels.slice(0, -1).join(", ")} and ${labels.at(-1)} are missing.`;
-}
-
 function normalizeCellText(value) {
   if (value === null || value === undefined) return "";
   if (typeof value === "object") {
@@ -532,7 +518,6 @@ export async function readStudentImportFile(file) {
 
   const records = [];
   const validationErrors = [];
-  const missingFieldErrors = new Set();
   const seenIds = new Set();
   let skippedRecords = 0;
   const skippedReasonCounts = new Map();
@@ -598,28 +583,17 @@ export async function readStudentImportFile(file) {
       );
     } catch (error) {
       const message = formatImportValidationError(error);
-      const missingMessages = message
-        .split(";")
-        .map((item) => item.trim())
-        .filter((item) =>
-          importRequiredFields.some((field) => item === missingFieldMessage(field)),
-        );
-
-      if (missingMessages.length) {
-        missingMessages.forEach((item) => missingFieldErrors.add(item));
-        const otherMessages = message
+      validationErrors.push(
+        ...message
           .split(";")
           .map((item) => item.trim())
-          .filter((item) => !missingMessages.includes(item));
-        validationErrors.push(...otherMessages.map((item) => `Row ${rowNumber}: ${item}`));
-      } else {
-        validationErrors.push(`Row ${rowNumber}: ${message}`);
-      }
+          .filter(Boolean)
+          .map((item) => `Row ${rowNumber}: ${item}`),
+      );
     }
   });
 
   const allValidationErrors = [
-    formatMissingFieldsMessage([...missingFieldErrors]),
     ...validationErrors,
   ].filter(Boolean);
   if (allValidationErrors.length) {
@@ -630,7 +604,8 @@ export async function readStudentImportFile(file) {
       400,
       graduationStatusError
         ? "กรุณากรอกสถานะสำเร็จการศึกษาให้ถูกต้อง"
-        : "Please complete all required fields and import the file again.",
+        : "Student import validation failed.",
+      allValidationErrors,
     );
   }
   // Previously we errored on duplicate IDs in-file. Per new policy, duplicates in the file
