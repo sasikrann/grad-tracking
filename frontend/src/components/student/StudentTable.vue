@@ -32,6 +32,10 @@ function displayYear(year: string) {
   return Number.isFinite(numericYear) ? String(numericYear + 543) : year
 }
 
+function studentDisplayName(student: StudentTableItem) {
+  return isThai.value ? student.nameThai ?? student.nameEnglish : student.nameEnglish
+}
+
 function statusLabel(status: StudentTableItem['status']) {
   if (status === 'Resigned') return t('dashboard.resigned')
   if (status === 'Dismissed') return t('dashboard.dismissed')
@@ -64,6 +68,7 @@ function degreeLabel(degree: string) {
 }
 
 function planLabel(plan: string) {
+  if (['1.1', '1.2', '2'].includes(plan)) return `${isThai.value ? 'แผน' : 'Plan'} ${plan}`
   const keys: Record<
     string,
     'common.planA1' | 'common.planA2' | 'common.planB' | 'common.plan21' | 'common.plan22'
@@ -107,7 +112,7 @@ function planLabel(plan: string) {
             </svg>
           </div>
           <div class="min-w-0 leading-tight">
-            <p class="truncate py-0.5 text-xs font-semibold leading-normal">{{ student.name }}</p>
+            <p class="truncate py-0.5 text-xs font-semibold leading-normal">{{ studentDisplayName(student) }}</p>
             <p class="mt-1 text-[10px] text-[#7690a5]">{{ student.studentId }}</p>
           </div>
         </div>
@@ -139,7 +144,7 @@ function planLabel(plan: string) {
                 : 'border-slate-200 text-red-500 hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus:ring-red-300'
             "
             :disabled="isExitActionDisabled(student.status)"
-            :aria-label="`${t('dashboard.studentExitTitle')}: ${student.name}`"
+            :aria-label="`${t('dashboard.studentExitTitle')}: ${studentDisplayName(student)}`"
             @click="$emit('exit', student)"
           >
             <svg
@@ -289,7 +294,7 @@ function planLabel(plan: string) {
                 </svg>
               </div>
               <div class="leading-tight">
-                <p class="text-sm font-normal">{{ student.name }}</p>
+                <p class="text-sm font-normal">{{ studentDisplayName(student) }}</p>
                 <p class="mt-1 text-xs text-[#858585]">{{ student.studentId }}</p>
               </div>
             </div>
@@ -362,7 +367,7 @@ function planLabel(plan: string) {
               <button
                 type="button"
                 class="inline-flex items-center gap-1.5 rounded-md px-1 py-2 text-xs font-semibold text-sky-500 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-300"
-                :aria-label="`View ${student.name}`"
+                :aria-label="`${t('common.view')} ${studentDisplayName(student)}`"
                 @click="$emit('view', student.studentId)"
               >
               <svg
@@ -388,7 +393,7 @@ function planLabel(plan: string) {
                     : 'border-slate-200 text-red-500 hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus:ring-red-300'
                 "
                 :disabled="isExitActionDisabled(student.status)"
-                :aria-label="`${t('dashboard.studentExitTitle')}: ${student.name}`"
+                :aria-label="`${t('dashboard.studentExitTitle')}: ${studentDisplayName(student)}`"
                 @click="$emit('exit', student)"
               >
                 <svg

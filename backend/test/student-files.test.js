@@ -161,6 +161,9 @@ test('derives degree, program and semester from the student ID convention', () =
 test('normalizes supported Master and Doctoral study plans', () => {
   assert.equal(normalizeEducationPlan('ก2', 'Master'), 'A2')
   assert.equal(normalizeEducationPlan('ข', 'Master'), 'B')
+  assert.equal(normalizeEducationPlan('1.1', 'Master'), '1.1')
+  assert.equal(normalizeEducationPlan('1.2', 'Master'), '1.2')
+  assert.equal(normalizeEducationPlan('2', 'Master'), '2')
   assert.equal(normalizeEducationPlan('2.2', 'Doctoral'), '2.2')
   assert.throws(() => normalizeEducationPlan('2.1', 'Master'), /Master education plan/)
 })

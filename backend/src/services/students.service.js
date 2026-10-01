@@ -7,8 +7,8 @@ import { ensureMilestoneSchema } from './milestones.service.js'
 import {
   MAX_STUDY_EXTENSIONS,
   academicTermForDate,
+  extensionPeriodFromDate,
   isPastNormalStudyPeriod,
-  nextAcademicTerm,
 } from './study-extension-policy.js'
 
 let studentSchemaReady
@@ -22,6 +22,13 @@ async function ensureStudentSchema() {
     ALTER TABLE students ADD COLUMN IF NOT EXISTS graduation_academic_year INT;
     ALTER TABLE students ADD COLUMN IF NOT EXISTS student_status VARCHAR NOT NULL DEFAULT 'Normal';
     ALTER TABLE students ADD COLUMN IF NOT EXISTS study_extension_granted BOOLEAN NOT NULL DEFAULT FALSE;
+    ALTER TABLE students ADD COLUMN IF NOT EXISTS study_extension_round_1_cancellations SMALLINT NOT NULL DEFAULT 0;
+    ALTER TABLE students ADD COLUMN IF NOT EXISTS study_extension_round_2_cancellations SMALLINT NOT NULL DEFAULT 0;
+    ALTER TABLE students DROP CONSTRAINT IF EXISTS students_education_plan_check;
+    ALTER TABLE students ADD CONSTRAINT students_education_plan_check CHECK (
+      (degree_level = 'Master' AND education_plan IN ('A1', 'A2', 'B', '1.1', '1.2', '2'))
+      OR (degree_level = 'Doctoral' AND education_plan IN ('1.1', '2.1', '2.2'))
+    );
     CREATE TABLE IF NOT EXISTS student_study_extensions (
       extension_id UUID PRIMARY KEY,
       student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE RESTRICT,
@@ -78,6 +85,8 @@ const studentDetailColumns = `
   s.graduation_semester AS "graduationSemester",
   s.graduation_academic_year AS "graduationAcademicYear",
   s.student_status AS "studentStatus",
+  s.study_extension_round_1_cancellations AS "studyExtensionRound1Cancellations",
+  s.study_extension_round_2_cancellations AS "studyExtensionRound2Cancellations",
   (SELECT COUNT(*)::INT FROM student_study_extensions e
     WHERE e.student_id = s.student_id AND e.status = 'Granted') AS "studyExtensionCount",
   EXISTS (SELECT 1 FROM student_study_extensions e
@@ -109,11 +118,34 @@ const studentDetailColumns = `
       WHEN s.semester = '2' THEN make_date(s.enrollment_academic_year + CASE WHEN s.degree_level = 'Master' THEN 4 WHEN s.education_plan = '2.2' THEN 7 ELSE 5 END, 12, 31)
       ELSE make_date(s.enrollment_academic_year + CASE WHEN s.degree_level = 'Master' THEN 4 WHEN s.education_plan = '2.2' THEN 7 ELSE 5 END, 5, 31)
     END
+    AND EXISTS (
+      SELECT 1 FROM milestone_templates mt
+      LEFT JOIN student_milestones sm
+        ON sm.student_id = s.student_id AND sm.milestone_id = mt.milestone_id
+      WHERE (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
+        AND mt.academic_year = s.enrollment_academic_year
+        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR (s.education_plan IS NOT NULL AND
+          CASE WHEN s.degree_level = 'Master' THEN
+            CASE s.education_plan WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
+          ELSE s.education_plan END = ANY(mt.plans)))
+        AND mt.is_enabled = TRUE
+        AND COALESCE(sm.status NOT IN ('Completed', 'Approved'), TRUE)
+    )
+    AND CASE (SELECT COUNT(*) FROM student_study_extensions e
+      WHERE e.student_id = s.student_id AND e.status = 'Granted')
+      WHEN 0 THEN s.study_extension_round_1_cancellations < 2
+      WHEN 1 THEN s.study_extension_round_2_cancellations < 2
+      ELSE FALSE
+    END
   ) AS "canExtendStudyPeriod",
   CASE
     WHEN s.student_status = 'Resigned' THEN 'Resigned'
     WHEN s.student_status = 'Dismissed' THEN 'Dismissed'
     WHEN s.student_status = 'Graduate' THEN 'Graduate'
+    WHEN (SELECT COUNT(*) FROM student_study_extensions e
+      WHERE e.student_id = s.student_id AND e.status = 'Granted') = 2
+      AND CURRENT_DATE > (SELECT MAX(e.ends_on) FROM student_study_extensions e
+        WHERE e.student_id = s.student_id AND e.status = 'Granted') THEN 'Dismissed'
     WHEN EXISTS (SELECT 1 FROM student_study_extensions e WHERE e.student_id = s.student_id AND e.status = 'Granted' AND CURRENT_DATE BETWEEN e.starts_on AND e.ends_on) THEN 'Extended'
     WHEN CURRENT_DATE > CASE
       WHEN s.semester = '2' THEN make_date(s.enrollment_academic_year + CASE WHEN s.degree_level = 'Master' THEN 4 WHEN s.education_plan = '2.2' THEN 7 ELSE 5 END, 12, 31)
@@ -140,6 +172,12 @@ const studentDetailColumns = `
   s.created_at AS "createdAt",
   s.updated_at AS "updatedAt"
 `
+
+function canonicalMilestonePlan(degreeLevel, educationPlan) {
+  if (degreeLevel !== 'Master') return educationPlan
+  return { '1.1': 'A1', '1.2': 'A2', 2: 'B' }[educationPlan] ?? educationPlan
+}
+
 function normalizeComparableValue(value) {
   return value === null || value === undefined
     ? ''
@@ -186,7 +224,6 @@ async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
     ['semester', 'semester'],
     ['year', 'year'],
     ['degree', 'degreeLevel'],
-    ['plan', 'educationPlan'],
     ['status', 'status'],
   ]
   for (const [inputKey, column] of filterMappings) {
@@ -195,6 +232,15 @@ async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
       values.push(value)
       outerFilters.push(`"${column}"::text = $${values.length}`)
     }
+  }
+  if (pagination?.plan && pagination.plan !== 'all') {
+    const equivalentPlans = {
+      '1.1': ['1.1', 'A1'],
+      '1.2': ['1.2', 'A2'],
+      2: ['2', 'B'],
+    }[pagination.plan] ?? [pagination.plan]
+    values.push(equivalentPlans)
+    outerFilters.push(`"educationPlan" = ANY($${values.length}::varchar[])`)
   }
   const outerWhere = outerFilters.length ? `WHERE ${outerFilters.join(' AND ')}` : ''
   const page = Math.max(1, Number(pagination?.page) || 1)
@@ -215,7 +261,12 @@ async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
           'semesters', ARRAY_AGG(DISTINCT semester),
           'years', ARRAY_AGG(DISTINCT year),
           'degrees', ARRAY_AGG(DISTINCT "degreeLevel"),
-          'plans', ARRAY_AGG(DISTINCT "educationPlan") FILTER (WHERE "educationPlan" IS NOT NULL),
+          'plans', ARRAY_AGG(DISTINCT CASE
+            WHEN "degreeLevel" = 'Master' AND "educationPlan" IN ('A1', '1.1') THEN '1.1'
+            WHEN "degreeLevel" = 'Master' AND "educationPlan" IN ('A2', '1.2') THEN '1.2'
+            WHEN "degreeLevel" = 'Master' AND "educationPlan" IN ('B', '2') THEN '2'
+            ELSE "educationPlan"
+          END) FILTER (WHERE "educationPlan" IS NOT NULL),
           'statuses', ARRAY_AGG(DISTINCT status)
         ) FROM students_with_status) AS "filterOptions"`
     : '*'
@@ -226,6 +277,7 @@ async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
       SELECT
         s.student_id AS "studentId",
         s.full_name AS "fullName",
+        s.full_name_thai AS "fullNameThai",
         s.school_name AS "schoolName",
         s.program,
         s.education_plan AS "educationPlan",
@@ -263,6 +315,10 @@ async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
           WHEN s.student_status = 'Graduate'
             OR (s.graduation_semester IS NOT NULL
               AND s.graduation_academic_year IS NOT NULL) THEN 'Graduate'
+          WHEN (SELECT COUNT(*) FROM student_study_extensions e
+            WHERE e.student_id = s.student_id AND e.status = 'Granted') = 2
+            AND CURRENT_DATE > (SELECT MAX(e.ends_on) FROM student_study_extensions e
+              WHERE e.student_id = s.student_id AND e.status = 'Granted') THEN 'Dismissed'
           WHEN EXISTS (SELECT 1 FROM student_study_extensions e
             WHERE e.student_id = s.student_id AND e.status = 'Granted'
               AND CURRENT_DATE BETWEEN e.starts_on AND e.ends_on) THEN 'Extended'
@@ -277,7 +333,10 @@ async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
       LEFT JOIN milestone_templates mt
         ON (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
         AND mt.academic_year = s.enrollment_academic_year
-        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR (s.education_plan IS NOT NULL AND s.education_plan = ANY(mt.plans)))
+        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR (s.education_plan IS NOT NULL AND
+          CASE WHEN s.degree_level = 'Master' THEN
+            CASE s.education_plan WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
+          ELSE s.education_plan END = ANY(mt.plans)))
         AND mt.is_enabled = TRUE
       LEFT JOIN student_milestones sm
         ON sm.student_id = s.student_id
@@ -286,6 +345,7 @@ async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
       GROUP BY
         s.student_id,
         s.full_name,
+        s.full_name_thai,
         s.school_name,
         s.program,
         s.education_plan,
@@ -381,6 +441,7 @@ export async function setStudentExitStatus(studentId, status) {
 
 export async function grantStudentStudyExtension(studentId, grantedBy = null) {
   await ensureStudentSchema()
+  await ensureMilestoneSchema()
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
@@ -388,15 +449,52 @@ export async function grantStudentStudyExtension(studentId, grantedBy = null) {
       `SELECT student_id AS "studentId", degree_level AS "degreeLevel",
               education_plan AS "educationPlan", enrollment_academic_year AS "enrollmentAcademicYear",
               semester, graduation_semester AS "graduationSemester",
-              graduation_academic_year AS "graduationAcademicYear", CURRENT_DATE::text AS "currentDate"
+              graduation_academic_year AS "graduationAcademicYear", student_status AS "studentStatus",
+              study_extension_round_1_cancellations AS "round1Cancellations",
+              study_extension_round_2_cancellations AS "round2Cancellations",
+              CURRENT_DATE::text AS "currentDate"
        FROM students WHERE student_id = $1 FOR UPDATE`,
       [studentId],
     )
     const student = studentResult.rows[0]
-    if (!student || student.graduationSemester || student.graduationAcademicYear ||
-        !isPastNormalStudyPeriod(student, student.currentDate)) {
+    if (!student) {
       await client.query('ROLLBACK')
       return null
+    }
+    if (student.studentStatus !== 'Normal') {
+      const error = new Error('Only active students can receive a study extension')
+      error.statusCode = 409
+      throw error
+    }
+    if (student.graduationSemester || student.graduationAcademicYear) {
+      const error = new Error('A graduated student cannot receive a study extension')
+      error.statusCode = 409
+      throw error
+    }
+    if (!isPastNormalStudyPeriod(student, student.currentDate)) {
+      const error = new Error('The normal study period has not ended yet')
+      error.statusCode = 409
+      throw error
+    }
+
+    const incompleteMilestones = await client.query(
+      `SELECT 1
+       FROM milestone_templates mt
+       LEFT JOIN student_milestones sm
+         ON sm.student_id = $1 AND sm.milestone_id = mt.milestone_id
+       WHERE (mt.degree_level = $2 OR mt.degree_level = 'All')
+         AND mt.academic_year = $3
+         AND (mt.plans @> ARRAY['All']::VARCHAR[] OR ($4::VARCHAR IS NOT NULL AND $4 = ANY(mt.plans)))
+         AND mt.is_enabled = TRUE
+         AND COALESCE(sm.status NOT IN ('Completed', 'Approved'), TRUE)
+       LIMIT 1`,
+      [studentId, student.degreeLevel, student.enrollmentAcademicYear,
+        canonicalMilestonePlan(student.degreeLevel, student.educationPlan)],
+    )
+    if (!incompleteMilestones.rowCount) {
+      const error = new Error('All milestones are complete; a study extension is not required')
+      error.statusCode = 409
+      throw error
     }
 
     const extensionResult = await client.query(
@@ -408,19 +506,28 @@ export async function grantStudentStudyExtension(studentId, grantedBy = null) {
       [studentId],
     )
     if (extensionResult.rows.length >= MAX_STUDY_EXTENSIONS) {
-      await client.query('ROLLBACK')
-      return null
+      const error = new Error('All 2 study extension rounds have been used')
+      error.statusCode = 409
+      throw error
     }
 
     const lastExtension = extensionResult.rows.at(-1)
     if (lastExtension && student.currentDate <= lastExtension.endsOn) {
-      await client.query('ROLLBACK')
-      return null
+      const error = new Error('The current study extension has not ended yet')
+      error.statusCode = 409
+      throw error
     }
-    const term = lastExtension
-      ? nextAcademicTerm(lastExtension)
-      : academicTermForDate(student.currentDate)
     const extensionNumber = extensionResult.rows.length + 1
+    const cancellationCount = extensionNumber === 1
+      ? Number(student.round1Cancellations)
+      : Number(student.round2Cancellations)
+    if (cancellationCount >= 2) {
+      const error = new Error(`Extension round ${extensionNumber} has already used its one retry`)
+      error.statusCode = 409
+      throw error
+    }
+    const term = academicTermForDate(student.currentDate)
+    const period = extensionPeriodFromDate(student.currentDate)
     const result = await client.query(
       `INSERT INTO student_study_extensions
         (extension_id, student_id, extension_number, academic_year, semester, starts_on, ends_on, granted_by)
@@ -428,7 +535,7 @@ export async function grantStudentStudyExtension(studentId, grantedBy = null) {
        RETURNING extension_number AS "extensionNumber", academic_year AS "academicYear", semester,
                  starts_on AS "startsOn", ends_on AS "endsOn"`,
       [randomUUID(), studentId, extensionNumber, term.academicYear, term.semester,
-        term.startsOn, term.endsOn, grantedBy],
+        period.startsOn, period.endsOn, grantedBy],
     )
     await client.query('UPDATE students SET updated_at = NOW() WHERE student_id = $1', [studentId])
     await client.query('COMMIT')
@@ -441,24 +548,55 @@ export async function grantStudentStudyExtension(studentId, grantedBy = null) {
   }
 }
 
-export async function cancelLatestStudentStudyExtension(studentId, cancelledBy = null, reason = null) {
+export async function cancelLatestStudentStudyExtension(studentId) {
   await ensureStudentSchema()
-  const result = await pool.query(
-    `UPDATE student_study_extensions
-     SET status = 'Cancelled', cancelled_by = $2, cancelled_at = NOW(), cancellation_reason = $3
-     WHERE extension_id = (
-       SELECT extension_id FROM student_study_extensions
-       WHERE student_id = $1 AND status = 'Granted'
-       ORDER BY extension_number DESC LIMIT 1
-     )
-     RETURNING extension_number AS "extensionNumber"`,
-    [studentId, cancelledBy, reason],
-  )
-  return result.rows[0] || null
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const student = await client.query(
+      `SELECT student_id FROM students WHERE student_id = $1 FOR UPDATE`,
+      [studentId],
+    )
+    if (!student.rowCount) {
+      await client.query('ROLLBACK')
+      return null
+    }
+    const result = await client.query(
+      `DELETE FROM student_study_extensions
+       WHERE extension_id = (
+         SELECT extension_id FROM student_study_extensions
+         WHERE student_id = $1 AND status = 'Granted'
+         ORDER BY extension_number DESC LIMIT 1
+       )
+       RETURNING extension_number AS "extensionNumber"`,
+      [studentId],
+    )
+    const extension = result.rows[0]
+    if (!extension) {
+      await client.query('ROLLBACK')
+      return null
+    }
+    const counter = extension.extensionNumber === 1
+      ? 'study_extension_round_1_cancellations'
+      : 'study_extension_round_2_cancellations'
+    await client.query(
+      `UPDATE students SET ${counter} = LEAST(${counter} + 1, 2), updated_at = NOW()
+       WHERE student_id = $1`,
+      [studentId],
+    )
+    await client.query('COMMIT')
+    return extension
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
 }
 
 export async function findStudentById(studentId) {
   await ensureStudentSchema()
+  await ensureMilestoneSchema()
   const result = await pool.query(
     `
       SELECT ${studentDetailColumns}
@@ -615,7 +753,8 @@ async function approveAllImportedGraduateMilestones(client, student) {
         )
         AND mt.is_enabled = TRUE
     `,
-    [student.enrollmentAcademicYear, student.degreeLevel, student.educationPlan],
+    [student.enrollmentAcademicYear, student.degreeLevel,
+      canonicalMilestonePlan(student.degreeLevel, student.educationPlan)],
   )
 
   for (const template of templates.rows) {
@@ -640,6 +779,7 @@ async function approveAllImportedGraduateMilestones(client, student) {
 
 export async function findStudentByUserId(userId) {
   await ensureStudentSchema()
+  await ensureMilestoneSchema()
   const result = await pool.query(
     `
       SELECT ${studentDetailColumns}
@@ -788,7 +928,9 @@ export async function appointStudentAdvisorsByUserId(
           ON mt.milestone_id = $2
           AND mt.academic_year = s.enrollment_academic_year
           AND mt.degree_level = s.degree_level::text
-          AND s.education_plan = ANY(mt.plans)
+          AND CASE WHEN s.degree_level = 'Master' THEN
+            CASE s.education_plan WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
+          ELSE s.education_plan END = ANY(mt.plans)
           AND mt.is_enabled = TRUE
           AND mt.default_template_key LIKE '%advisor-appointment'
         WHERE s.user_id = $1
@@ -866,7 +1008,9 @@ export async function submitStudentGraduationByUserId(userId, milestoneId, semes
           ON mt.milestone_id = $2
           AND mt.academic_year = s.enrollment_academic_year
           AND mt.degree_level = s.degree_level::text
-          AND s.education_plan = ANY(mt.plans)
+          AND CASE WHEN s.degree_level = 'Master' THEN
+            CASE s.education_plan WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
+          ELSE s.education_plan END = ANY(mt.plans)
           AND mt.is_enabled = TRUE
           AND mt.default_template_key LIKE '%graduation'
         WHERE s.user_id = $1
@@ -956,6 +1100,7 @@ export async function replaceStudent(studentId, input) {
 
 export async function findStudentsForExport({ studentIds } = {}) {
   await ensureStudentSchema()
+  await ensureMilestoneSchema()
   const ids = Array.isArray(studentIds) ? studentIds : []
   if (!ids.length) return []
 
@@ -988,7 +1133,10 @@ export async function findStudentsForExport({ studentIds } = {}) {
             AND sm.milestone_id = mt.milestone_id
           WHERE (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
             AND mt.academic_year = s.enrollment_academic_year
-            AND (mt.plans @> ARRAY['All']::VARCHAR[] OR (s.education_plan IS NOT NULL AND s.education_plan = ANY(mt.plans)))
+            AND (mt.plans @> ARRAY['All']::VARCHAR[] OR (s.education_plan IS NOT NULL AND
+              CASE WHEN s.degree_level = 'Master' THEN
+                CASE s.education_plan WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
+              ELSE s.education_plan END = ANY(mt.plans)))
             AND mt.is_enabled = TRUE
         ),
         '[]'::json

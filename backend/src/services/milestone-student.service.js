@@ -71,7 +71,10 @@ export async function findStudentMilestonesByUserId(userId) {
       JOIN milestone_templates mt
         ON (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
         AND mt.academic_year = s.enrollment_academic_year
-        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR s.education_plan IS NULL OR s.education_plan = ANY(mt.plans))
+        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR s.education_plan IS NULL OR
+          CASE WHEN s.degree_level = 'Master' THEN CASE s.education_plan
+            WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
+          ELSE s.education_plan END = ANY(mt.plans))
       LEFT JOIN student_milestones sm
         ON sm.student_id = s.student_id
         AND sm.milestone_id = mt.milestone_id
@@ -96,11 +99,15 @@ export async function studentMilestoneRequiresAdvisor(userId, milestoneId) {
         ON target.milestone_id = $2
         AND target.academic_year = s.enrollment_academic_year
         AND target.degree_level = s.degree_level::text
-        AND s.education_plan = ANY(target.plans)
+        AND CASE WHEN s.degree_level = 'Master' THEN CASE s.education_plan
+          WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
+        ELSE s.education_plan END = ANY(target.plans)
       JOIN milestone_templates appointment
         ON appointment.academic_year = s.enrollment_academic_year
         AND appointment.degree_level = s.degree_level::text
-        AND s.education_plan = ANY(appointment.plans)
+        AND CASE WHEN s.degree_level = 'Master' THEN CASE s.education_plan
+          WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
+        ELSE s.education_plan END = ANY(appointment.plans)
         AND appointment.default_template_key LIKE '%advisor-appointment'
       WHERE s.user_id = $1
       LIMIT 1
@@ -149,6 +156,7 @@ export async function findStudentMilestonesByStudentId(studentId) {
       SELECT
         s.student_id AS "studentId",
         s.full_name AS "studentName",
+        s.full_name_thai AS "studentNameThai",
         s.graduation_semester AS "graduationSemester",
         s.graduation_academic_year AS "graduationAcademicYear",
         mt.milestone_id AS "milestoneId",
@@ -193,7 +201,10 @@ export async function findStudentMilestonesByStudentId(studentId) {
       LEFT JOIN milestone_templates mt
         ON (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
         AND mt.academic_year = s.enrollment_academic_year
-        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR s.education_plan IS NULL OR s.education_plan = ANY(mt.plans))
+        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR s.education_plan IS NULL OR
+          CASE WHEN s.degree_level = 'Master' THEN CASE s.education_plan
+            WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
+          ELSE s.education_plan END = ANY(mt.plans))
       LEFT JOIN student_milestones sm
         ON sm.student_id = s.student_id
         AND sm.milestone_id = mt.milestone_id
@@ -210,6 +221,7 @@ export async function findStudentMilestonesByStudentId(studentId) {
     student: {
       studentId: result.rows[0].studentId,
       studentName: result.rows[0].studentName,
+      studentNameThai: result.rows[0].studentNameThai,
       graduationSemester: result.rows[0].graduationSemester,
       graduationAcademicYear: result.rows[0].graduationAcademicYear,
     },
@@ -218,6 +230,7 @@ export async function findStudentMilestonesByStudentId(studentId) {
       .map(({
         studentId: _studentId,
         studentName: _studentName,
+        studentNameThai: _studentNameThai,
         graduationSemester: _graduationSemester,
         graduationAcademicYear: _graduationAcademicYear,
         ...milestone

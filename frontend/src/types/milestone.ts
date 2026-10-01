@@ -1,6 +1,6 @@
 export type DegreeLevel = 'Master' | 'Doctoral'
 export type MilestoneProgram = DegreeLevel | 'All'
-export type EducationPlan = 'All' | 'A1' | 'A2' | 'B' | '1.1' | '2.1' | '2.2'
+export type EducationPlan = 'All' | 'A1' | 'A2' | 'B' | '1.1' | '1.2' | '2' | '2.1' | '2.2'
 
 export interface Milestone {
   milestoneId: string

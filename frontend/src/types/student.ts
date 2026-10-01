@@ -9,6 +9,8 @@ export type StudentStatus =
 // ข้อมูลขั้นต่ำที่ StudentTable ต้องใช้
 export interface StudentTableItem {
   name: string
+  nameEnglish: string
+  nameThai: string | null
   studentId: string
   degree: string
   program: string

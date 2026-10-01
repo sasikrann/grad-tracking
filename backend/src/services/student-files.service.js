@@ -390,14 +390,25 @@ export function normalizeEducationPlan(value, degreeLevel) {
       A1: "A1",
       "ก.1": "A1",
       ก1: "A1",
+      "แผนก.1": "A1",
+      แผนก1: "A1",
       A2: "A2",
       "ก.2": "A2",
       ก2: "A2",
+      "แผนก.2": "A2",
+      แผนก2: "A2",
       B: "B",
       ข: "B",
+      แผนข: "B",
+      "1.1": "1.1",
+      "แผน1.1": "1.1",
+      "1.2": "1.2",
+      "แผน1.2": "1.2",
+      "2": "2",
+      "แผน2": "2",
     };
     if (masterPlans[plan]) return masterPlans[plan];
-    throw new ApiError(400, "Master education plan must be A1 (ก1), A2 (ก2), or B (ข)");
+    throw new ApiError(400, "Master education plan must be A1 (ก1), A2 (ก2), B (ข), 1.1, 1.2, or 2");
   }
 
   if (degreeLevel === "Doctoral") {
@@ -678,7 +689,7 @@ export async function createStudentTemplateBuffer() {
     fullName: "Example Student",
     fullNameThai: "ตัวอย่าง นักศึกษา",
     schoolName: "School of Information Technology",
-    educationPlan: "A1",
+    educationPlan: "1.1",
     program: "DTT",
     studentStatus: "Active",
   });

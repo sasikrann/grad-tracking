@@ -246,7 +246,11 @@ async function splitSharedAcademicYearTemplates() {
               FROM students s
               WHERE sm.student_id = s.student_id
                 AND sm.milestone_id = $1
-                AND s.education_plan = $3
+                AND CASE WHEN s.degree_level = 'Master' THEN CASE s.education_plan
+                  WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
+                ELSE s.education_plan END = CASE WHEN s.degree_level = 'Master' THEN CASE $3
+                  WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE $3 END
+                ELSE $3 END
             `,
             [template.milestone_id, cloneId, plan],
           )
@@ -778,7 +782,11 @@ export async function updateMilestoneForPlan(milestoneId, scopePlan, input) {
             FROM students s
             WHERE sm.student_id = s.student_id
               AND sm.milestone_id = $1
-              AND s.education_plan = $3
+              AND CASE WHEN s.degree_level = 'Master' THEN CASE s.education_plan
+                WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
+              ELSE s.education_plan END = CASE WHEN s.degree_level = 'Master' THEN CASE $3
+                WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE $3 END
+              ELSE $3 END
           `,
           [template.milestone_id, cloneId, scopePlan],
         )

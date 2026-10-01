@@ -69,12 +69,14 @@ CREATE TABLE students (
   student_status VARCHAR NOT NULL DEFAULT 'Normal'
     CHECK (student_status IN ('Normal', 'Graduate', 'Resigned', 'Dismissed')),
   study_extension_granted BOOLEAN NOT NULL DEFAULT FALSE,
+  study_extension_round_1_cancellations SMALLINT NOT NULL DEFAULT 0 CHECK (study_extension_round_1_cancellations BETWEEN 0 AND 2),
+  study_extension_round_2_cancellations SMALLINT NOT NULL DEFAULT 0 CHECK (study_extension_round_2_cancellations BETWEEN 0 AND 2),
   advisor_id VARCHAR REFERENCES advisors(advisor_id) ON DELETE RESTRICT,
   advisor_evidence_url TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   CONSTRAINT students_education_plan_check CHECK (
-    (degree_level = 'Master' AND education_plan IN ('A1', 'A2', 'B'))
+    (degree_level = 'Master' AND education_plan IN ('A1', 'A2', 'B', '1.1', '1.2', '2'))
     OR
     (degree_level = 'Doctoral' AND education_plan IN ('1.1', '2.1', '2.2'))
   )

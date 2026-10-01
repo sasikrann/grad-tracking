@@ -90,7 +90,9 @@ const targetProgramOptions = computed(() =>
 )
 
 const targetPlanOptions = computed(() => {
-  const allowedPlans = selectedDegree.value === 'Ph. D.' ? ['2.1', '2.2'] : ['A1', 'A2', 'B']
+  const allowedPlans = selectedDegree.value === 'Ph. D.'
+    ? ['1.1', '2.1', '2.2']
+    : ['A1', 'A2', 'B', '1.1', '1.2', '2']
   const availablePlans = new Set(
     studentsForSelectedDegree.value.map((student) => student.educationPlan),
   )

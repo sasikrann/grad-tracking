@@ -54,6 +54,7 @@ function yearLabel(year: string) {
 }
 
 function planLabel(plan: string) {
+  if (['1.1', '1.2', '2'].includes(plan)) return `${isThai.value ? 'แผน' : 'Plan'} ${plan}`
   const keys: Record<
     string,
     'common.planA1' | 'common.planA2' | 'common.planB' | 'common.plan21' | 'common.plan22'
@@ -79,7 +80,7 @@ function statusLabel(status: string) {
 
 const planOptions = computed<FilterOption[]>(() => {
   const allPlan = { label: t('student.allPlan'), value: 'all' }
-  const planOrder = ['A1', 'A2', 'B', '2.1', '2.2']
+  const planOrder = ['1.1', '1.2', '2', '2.1', '2.2']
   const selectedDegree = props.modelValue.degree
   const plans = (
     props.filterOptions?.plans ??
@@ -89,10 +90,12 @@ const planOptions = computed<FilterOption[]>(() => {
           props.modelValue.degree === 'all' || student.degree === props.modelValue.degree,
       )
       .map((student) => student.educationPlan)
-  ).filter((plan) => {
+  )
+    .map((plan) => ({ A1: '1.1', A2: '1.2', B: '2' })[plan] ?? plan)
+    .filter((plan) => {
     if (!plan || plan === '-') return false
-    if (selectedDegree === 'Master') return !['2.1', '2.2'].includes(plan)
-    if (['Doctoral', 'Ph. D.'].includes(selectedDegree)) return !['A1', 'A2', 'B'].includes(plan)
+    if (selectedDegree === 'Master') return ['1.1', '1.2', '2'].includes(plan)
+    if (['Doctoral', 'Ph. D.'].includes(selectedDegree)) return ['1.1', '2.1', '2.2'].includes(plan)
     return true
   })
   return [

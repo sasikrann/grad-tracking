@@ -14,7 +14,7 @@ import {
 
 const degreeLevels = new Set(['All', 'Master', 'Doctoral'])
 const semesters = new Set(['all', '1', '2'])
-const educationPlans = new Set(['All', 'A1', 'A2', 'B', '1.1', '2.1', '2.2'])
+const educationPlans = new Set(['All', 'A1', 'A2', 'B', '1.1', '1.2', '2', '2.1', '2.2'])
 
 function requiredText(value, field) {
   const result = String(value ?? '').trim()

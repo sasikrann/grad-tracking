@@ -15,17 +15,24 @@ import {
 import type { StudentMilestone } from '@/types/milestone'
 import { useLanguage } from '@/composables/useLanguage'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
-const { t } = useLanguage()
+const { isThai, t } = useLanguage()
 
 const route = useRoute()
 
 const studentId = computed(() => String(route.params.studentId ?? ''))
 const studentName = ref('')
+const studentNameThai = ref<string | null>(null)
+const displayedStudentName = computed(() =>
+  isThai.value ? studentNameThai.value ?? studentName.value : studentName.value,
+)
 const milestones = ref<StudentMilestone[]>([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 const student = ref<StudentDetail | null>(null)
 const isExtending = ref(false)
+const isExtendModalOpen = ref(false)
+const isExtendConfirmed = ref(false)
+const extendError = ref('')
 const isCancellingExtension = ref(false)
 const isCancelExtensionModalOpen = ref(false)
 const isCancelExtensionConfirmed = ref(false)
@@ -36,34 +43,23 @@ const studyExtensionCount = computed(() => {
   return Number.isFinite(count) ? Math.min(2, Math.max(0, count)) : 0
 })
 
-function isPastNormalStudyPeriod() {
-  if (!student.value) return false
-  const normalYears =
-    student.value.degreeLevel === 'Master'
-      ? 4
-      : student.value.educationPlan === '2.2'
-        ? 7
-        : 5
-  const endMonth = student.value.semester === '2' ? 11 : 4
-  const endDay = student.value.semester === '2' ? 31 : 31
-  const normalEnd = new Date(
-    student.value.enrollmentAcademicYear + normalYears,
-    endMonth,
-    endDay,
-    23,
-    59,
-    59,
-  )
-  return new Date() > normalEnd
-}
-
 const canExtendStudyPeriod = computed(() => {
-  if (!student.value) return false
-  if (student.value.graduationSemester && student.value.graduationAcademicYear) return false
-  if (studyExtensionCount.value >= 2) return false
-  if (student.value.studyExtensionGranted || student.value.academicStatus === 'Extended') return false
-  if (student.value.canExtendStudyPeriod === true) return true
-  return student.value.academicStatus === 'Overdue' || isPastNormalStudyPeriod()
+  return student.value?.canExtendStudyPeriod === true && completedCount.value < milestones.value.length
+})
+
+const extensionUnavailableReason = computed(() => {
+  if (!student.value || canExtendStudyPeriod.value) return ''
+  if (student.value.graduationSemester && student.value.graduationAcademicYear) return t('student.extensionUnavailableGraduated')
+  if (['Graduate', 'Resigned', 'Dismissed'].includes(student.value.academicStatus)) return t('student.extensionUnavailableStatus')
+  if (!milestones.value.length || completedCount.value >= milestones.value.length) return t('student.extensionUnavailableMilestonesComplete')
+  if (studyExtensionCount.value >= 2) return t('student.studyExtensionLimitReached')
+  if (student.value.studyExtensionGranted || student.value.academicStatus === 'Extended') return t('student.extensionUnavailableActive')
+  const targetRound = studyExtensionCount.value + 1
+  const cancellations = targetRound === 1
+    ? Number(student.value.studyExtensionRound1Cancellations ?? 0)
+    : Number(student.value.studyExtensionRound2Cancellations ?? 0)
+  if (cancellations >= 2) return t('student.extensionRetryUsed')
+  return t('student.extensionUnavailableNormalPeriod')
 })
 
 const extensionButtonLabel = computed(() => {
@@ -96,6 +92,7 @@ async function loadMilestones({ silent = false } = {}) {
       getStudent(studentId.value),
     ])
     studentName.value = result.student.studentName
+    studentNameThai.value = result.student.studentNameThai
     student.value = studentResult
     milestones.value = result.milestones
   } catch (error) {
@@ -106,21 +103,29 @@ async function loadMilestones({ silent = false } = {}) {
   }
 }
 
-async function extendStudyPeriod() {
-  if (!canExtendStudyPeriod.value || isExtending.value || !student.value) return
+function openExtendModal() {
+  if (!canExtendStudyPeriod.value || isExtending.value) return
+  isExtendConfirmed.value = false
+  extendError.value = ''
+  isExtendModalOpen.value = true
+}
+
+function closeExtendModal() {
+  if (isExtending.value) return
+  isExtendModalOpen.value = false
+  isExtendConfirmed.value = false
+  extendError.value = ''
+}
+
+async function confirmExtendStudyPeriod() {
+  if (!canExtendStudyPeriod.value || !isExtendConfirmed.value || isExtending.value || !student.value) return
   isExtending.value = true
   try {
-    const extension = await extendStudentStudyPeriod(studentId.value)
-    student.value.studyExtensionCount = extension.studyExtensionCount
-    student.value.latestStudyExtensionNumber = extension.extensionNumber
-    student.value.studyExtensionAcademicYear = extension.academicYear
-    student.value.studyExtensionSemester = extension.semester
-    student.value.studyExtensionStartsOn = extension.startsOn
-    student.value.studyExtensionEndsOn = extension.endsOn
-    student.value.studyExtensionGranted = true
-    student.value.canExtendStudyPeriod = extension.studyExtensionCount < 2
+    await extendStudentStudyPeriod(studentId.value)
+    isExtendModalOpen.value = false
+    await loadMilestones({ silent: true })
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Unable to extend study period'
+    extendError.value = error instanceof Error ? error.message : 'Unable to extend study period'
   } finally {
     isExtending.value = false
   }
@@ -178,7 +183,7 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
         class="flex w-full flex-col gap-3 rounded-xl border border-[#ead7d5] bg-white p-3 shadow-[0_3px_10px_rgba(88,39,35,0.08)] xl:w-auto xl:items-end xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none"
       >
         <div
-          v-if="studentName"
+          v-if="displayedStudentName"
           class="flex w-full flex-col items-stretch gap-0 xl:w-auto xl:flex-row xl:items-start xl:justify-between xl:gap-2"
         >
           <div
@@ -201,7 +206,7 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
             </span>
             <span class="min-w-0">
               <span class="block truncate text-sm font-semibold text-[#3b2f2e]">{{
-                studentName
+                displayedStudentName
               }}</span>
               <span class="mt-0.5 block text-[11px] font-medium text-[#9a4a44] xl:hidden">{{
                 studentId
@@ -236,10 +241,17 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
                 type="button"
                 class="w-full rounded-lg border border-[#d9b9b6] bg-[#8a2b25] px-2 py-2 text-[10px] font-semibold text-white shadow-sm transition hover:bg-[#76231e] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-200 disabled:text-slate-500 xl:w-auto xl:px-2.5 xl:text-[11px]"
                 :disabled="!canExtendStudyPeriod || isExtending"
-                @click="extendStudyPeriod"
+                :title="extensionUnavailableReason"
+                @click="openExtendModal"
               >
                 {{ extensionButtonLabel }}
               </button>
+              <span
+                v-if="extensionUnavailableReason"
+                class="mt-1 max-w-56 text-right text-[9px] leading-tight text-red-600"
+              >
+                {{ extensionUnavailableReason }}
+              </span>
             </div>
           </div>
         </div>
@@ -301,6 +313,61 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
 
     <Teleport to="body">
       <div
+        v-if="isExtendModalOpen"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="extend-study-title"
+        @click.self="closeExtendModal"
+      >
+        <section class="w-full max-w-md rounded-2xl border border-[#ead7d5] bg-white p-5 shadow-2xl sm:p-6">
+          <h2 id="extend-study-title" class="text-lg font-bold text-slate-900">
+            {{ t('student.extendStudyPeriodModalTitle') }}
+          </h2>
+          <p class="mt-2 text-sm leading-6 text-slate-600">
+            {{
+              t('student.extendStudyPeriodConfirmation')
+                .replace('{round}', String(studyExtensionCount + 1))
+                .replace('{name}', displayedStudentName)
+                .replace('{studentId}', studentId)
+            }}
+          </p>
+          <label class="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-[#ead7d5] bg-[#fff8f7] p-3.5 text-sm text-slate-700">
+            <input
+              v-model="isExtendConfirmed"
+              type="checkbox"
+              class="mt-0.5 size-4 shrink-0 accent-[#8a2b25]"
+              :disabled="isExtending"
+            />
+            <span>{{ t('student.extendStudyPeriodCheckbox') }}</span>
+          </label>
+          <p v-if="extendError" class="mt-2 text-xs text-red-600" role="alert">
+            {{ extendError }}
+          </p>
+          <div class="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              class="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 sm:w-auto"
+              :disabled="isExtending"
+              @click="closeExtendModal"
+            >
+              {{ t('common.cancel') }}
+            </button>
+            <button
+              type="button"
+              class="w-full rounded-lg bg-[#8a2b25] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#76231e] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 sm:w-auto"
+              :disabled="isExtending || !isExtendConfirmed"
+              @click="confirmExtendStudyPeriod"
+            >
+              {{ t('student.confirmExtendStudyPeriod') }}
+            </button>
+          </div>
+        </section>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div
         v-if="isCancelExtensionModalOpen"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6"
         role="dialog"
@@ -319,7 +386,7 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
                   '{round}',
                   String(student?.latestStudyExtensionNumber ?? studyExtensionCount),
                 )
-                .replace('{name}', student?.fullName ?? studentName)
+                .replace('{name}', displayedStudentName)
                 .replace('{studentId}', studentId)
             }}
           </p>

@@ -39,11 +39,11 @@ function planLabel(plan: EducationPlan) {
     '2.1': 'common.plan21',
     '2.2': 'common.plan22',
   } as const
-  return plan === 'All' || plan === '1.1'
+  return plan === 'All' || ['1.1', '1.2', '2'].includes(plan)
     ? plan === 'All'
       ? t('common.allPlan')
-      : plan
-    : t(keys[plan])
+      : `${language.value === 'th' ? 'แผน' : 'Plan'} ${plan}`
+    : t(keys[plan as keyof typeof keys])
 }
 
 const filteredMilestones = computed(() =>
@@ -118,17 +118,15 @@ const filterDefinitions = computed(() => [
   {
     key: 'degreeLevel' as const,
     label: selectedDegreeLevel.value === 'Doctoral' ? t('common.doctoral') : t('common.master'),
-    options: [
-      ...degreeOptions.value.map((degree) => ({
+    options: degreeOptions.value.map((degree) => ({
         label: degree === 'Doctoral' ? t('common.doctoral') : t('common.master'),
         value: degree,
       })),
-    ],
   },
   {
     key: 'plan' as const,
     label: planLabel(selectedPlan.value),
-    options: [...planOptions.value.map((plan) => ({ label: planLabel(plan), value: plan }))],
+    options: planOptions.value.map((plan) => ({ label: planLabel(plan), value: plan })),
   },
   {
     key: 'year' as const,
@@ -136,12 +134,10 @@ const filterDefinitions = computed(() => [
       selectedYear.value === null
         ? t('common.academicYear')
         : formatAcademicYear(selectedYear.value, language.value),
-    options: [
-      ...yearOptions.value.map((year) => ({
+    options: yearOptions.value.map((year) => ({
         label: formatAcademicYear(year, language.value),
         value: String(year),
       })),
-    ],
   },
 ])
 
