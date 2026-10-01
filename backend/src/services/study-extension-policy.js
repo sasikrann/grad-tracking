@@ -34,11 +34,16 @@ export function academicTermForDate(date) {
   return { academicYear: year, semester: '1', startsOn: `${year}-08-01`, endsOn: `${year}-12-31` }
 }
 
-export function nextAcademicTerm(term) {
-  if (term.semester === '1') {
-    const year = term.academicYear + 1
-    return { academicYear: term.academicYear, semester: '2', startsOn: `${year}-01-01`, endsOn: `${year}-05-31` }
+export function extensionPeriodFromDate(date) {
+  const [year, month] = date.split('-').map(Number)
+  const targetMonthIndex = month - 1 + 4
+  const targetYear = year + Math.floor(targetMonthIndex / 12)
+  const targetMonth = (targetMonthIndex % 12) + 1
+  const lastDayOfTargetMonth = new Date(Date.UTC(targetYear, targetMonth, 0)).getUTCDate()
+  const pad = (value) => String(value).padStart(2, '0')
+
+  return {
+    startsOn: date,
+    endsOn: `${targetYear}-${pad(targetMonth)}-${pad(lastDayOfTargetMonth)}`,
   }
-  const year = term.academicYear + 1
-  return { academicYear: year, semester: '1', startsOn: `${year}-08-01`, endsOn: `${year}-12-31` }
 }

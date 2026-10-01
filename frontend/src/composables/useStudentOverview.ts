@@ -5,6 +5,7 @@ export function useStudentOverview(
   loadStudentData: () => Promise<Student[]>,
   initialAdvisorFilter: 'default' | 'all',
 ) {
+  const equivalentPlan = (plan: string) => ({ A1: '1.1', A2: '1.2', B: '2' })[plan] ?? plan
   const students = ref<Student[]>([])
   const isLoading = ref(true)
   const loadError = ref('')
@@ -25,7 +26,8 @@ export function useStudentOverview(
       .filter((student) => {
         const matchesSearch =
           !keyword ||
-          student.name.toLowerCase().includes(keyword) ||
+          student.nameEnglish.toLowerCase().includes(keyword) ||
+          student.nameThai?.toLowerCase().includes(keyword) ||
           student.studentId.toLowerCase().includes(keyword)
         const matchesSemester =
           filters.value.semester === 'all' || student.semester === Number(filters.value.semester)
@@ -33,7 +35,8 @@ export function useStudentOverview(
         const matchesDegree =
           filters.value.degree === 'all' || student.degree === filters.value.degree
         const matchesPlan =
-          filters.value.plan === 'all' || student.educationPlan === filters.value.plan
+          filters.value.plan === 'all' ||
+          equivalentPlan(student.educationPlan) === equivalentPlan(filters.value.plan)
         const matchesStatus =
           filters.value.status === 'all' || student.status === filters.value.status
         const matchesAdvisor =

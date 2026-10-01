@@ -5,6 +5,7 @@ export interface StudentProfile {
   userId: string
   email: string
   fullName: string
+  fullNameThai: string | null
   schoolName: string | null
   program: string
   educationPlan: string | null

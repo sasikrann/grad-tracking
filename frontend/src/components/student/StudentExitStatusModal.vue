@@ -1,21 +1,23 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import { useLanguage } from '@/composables/useLanguage'
 import type { StudentTableItem } from '@/types/student'
-
-defineProps<{
-  student: StudentTableItem
-  isSaving: boolean
-  error: string
-}>()
 
 const emit = defineEmits<{
   close: []
   confirm: [status: 'Resigned' | 'Dismissed']
 }>()
 
-const { t } = useLanguage()
+const { isThai, t } = useLanguage()
+const props = defineProps<{
+  student: StudentTableItem
+  isSaving: boolean
+  error: string
+}>()
+const studentName = computed(() =>
+  isThai.value ? props.student.nameThai ?? props.student.nameEnglish : props.student.nameEnglish,
+)
 const selectedStatus = ref<'Resigned' | 'Dismissed' | ''>('')
 </script>
 
@@ -31,7 +33,7 @@ const selectedStatus = ref<'Resigned' | 'Dismissed' | ''>('')
         {{ t('dashboard.studentExitTitle') }}
       </h2>
       <p class="mt-4 text-sm leading-6 text-slate-600">
-        {{ t('dashboard.studentExitConfirm', { name: `${student.name} (${student.studentId})` }) }}
+        {{ t('dashboard.studentExitConfirm', { name: `${studentName} (${student.studentId})` }) }}
       </p>
 
       <fieldset class="mt-6 space-y-3 rounded-2xl border border-red-200 bg-red-50 p-4">

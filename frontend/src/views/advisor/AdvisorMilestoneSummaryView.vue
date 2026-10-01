@@ -25,7 +25,7 @@ const selectedYear = ref('')
 const isLoading = ref(true)
 const loadError = ref('')
 const openFilter = ref<SummaryFilterKey | null>(null)
-const { t } = useLanguage()
+const { isThai, t } = useLanguage()
 
 const completedCount = computed(
   () => summary.value.counts.completed + summary.value.counts.approved,
@@ -92,6 +92,7 @@ const educationPlanOptions = computed(() =>
 )
 
 function educationPlanLabel(plan: string) {
+  if (['1.1', '1.2', '2'].includes(plan)) return `${isThai.value ? 'แผน' : 'Plan'} ${plan}`
   const translationKeys = {
     A1: 'common.planA1',
     A2: 'common.planA2',

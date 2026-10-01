@@ -475,7 +475,9 @@ export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, educa
           mt.title,
           mt.sequence_order,
           s.degree_level::text AS degree_level,
-          s.education_plan,
+          CASE WHEN s.degree_level = 'Master' THEN CASE s.education_plan
+            WHEN 'A1' THEN '1.1' WHEN 'A2' THEN '1.2' WHEN 'B' THEN '2' ELSE s.education_plan END
+          ELSE s.education_plan END AS education_plan,
           mt.semester,
           s.enrollment_academic_year AS year,
           COALESCE(
@@ -489,7 +491,10 @@ export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, educa
         JOIN milestone_templates mt
           ON (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
           AND mt.academic_year = s.enrollment_academic_year
-         AND (mt.plans @> ARRAY['All']::VARCHAR[] OR s.education_plan IS NULL OR s.education_plan = ANY(mt.plans))
+         AND (mt.plans @> ARRAY['All']::VARCHAR[] OR s.education_plan IS NULL OR
+           CASE WHEN s.degree_level = 'Master' THEN CASE s.education_plan
+             WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
+           ELSE s.education_plan END = ANY(mt.plans))
          AND mt.is_enabled = TRUE
         LEFT JOIN student_milestones sm
           ON sm.student_id = s.student_id

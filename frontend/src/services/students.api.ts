@@ -66,6 +66,7 @@ export interface AdminStudentMilestones {
   student: {
     studentId: string
     studentName: string
+    studentNameThai: string | null
     graduationSemester: string | null
     graduationAcademicYear: number | null
   }
@@ -76,6 +77,8 @@ function toStudent(student: StudentApiResponse, currentAdvisorId?: string): Stud
   return {
     studentId: student.studentId,
     name: student.fullName,
+    nameEnglish: student.fullName,
+    nameThai: student.fullNameThai ?? null,
     degree: student.degreeLevel === 'Doctoral' ? 'Ph. D.' : 'Master',
     program: student.program,
     educationPlan: student.educationPlan ?? '-',
@@ -143,6 +146,7 @@ export async function getStudentsPage(input: {
 export interface StudentDetail {
   studentId: string
   fullName: string
+  fullNameThai: string | null
   degreeLevel: 'Master' | 'Doctoral'
   educationPlan: string
   enrollmentAcademicYear: number
@@ -156,6 +160,8 @@ export interface StudentDetail {
   studyExtensionStartsOn: string | null
   studyExtensionEndsOn: string | null
   canExtendStudyPeriod: boolean
+  studyExtensionRound1Cancellations: number
+  studyExtensionRound2Cancellations: number
   graduationSemester: string | null
   graduationAcademicYear: number | null
 }
@@ -217,8 +223,6 @@ export async function cancelStudentStudyExtension(studentId: string) {
     apiUrl(`/api/students/${encodeURIComponent(studentId)}/study-extension`),
     {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason: 'Confirmed by administrator' }),
     },
   )
   const result = await readJson<ApiResponse<{ extensionNumber: number }> & ApiErrorResponse>(response)

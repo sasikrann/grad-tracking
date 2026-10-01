@@ -7,10 +7,14 @@ import type { StudentProfile } from '@/services/student-profile.api'
 const props = defineProps<{
   profile: StudentProfile
 }>()
-const { t } = useLanguage()
+const { isThai, t } = useLanguage()
+
+const displayedStudentName = computed(() =>
+  isThai.value ? props.profile.fullNameThai ?? props.profile.fullName : props.profile.fullName,
+)
 
 const studentInitials = computed(() => {
-  const normalizedName = props.profile.fullName
+  const normalizedName = displayedStudentName.value
     .normalize('NFKC')
     .replace(/[\u200B-\u200D\uFEFF]/g, '')
     .replace(/^(?:นาย|นางสาว|นาง)\s*/, '')
@@ -29,7 +33,7 @@ const studentInitials = computed(() => {
 })
 
 const studentRows = computed(() => [
-  { label: t('studentPortal.fullName'), value: props.profile.fullName, icon: 'user', profileField: true },
+  { label: t('studentPortal.fullName'), value: displayedStudentName.value, icon: 'user', profileField: true },
   { label: t('studentPortal.studentId'), value: props.profile.studentId, icon: 'id', profileField: true },
   { label: t('common.program'), value: props.profile.program, icon: 'cap' },
   {
@@ -75,7 +79,7 @@ const studentRows = computed(() => [
       >
         {{ studentInitials }}
       </div>
-      <p class="mt-2 text-sm font-medium uppercase text-slate-600">{{ profile.fullName }}</p>
+      <p class="mt-2 text-sm font-medium uppercase text-slate-600">{{ displayedStudentName }}</p>
       <p class="mt-1 text-sm font-medium text-slate-600">{{ profile.studentId }}</p>
     </div>
 

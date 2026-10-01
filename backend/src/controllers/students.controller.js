@@ -50,17 +50,13 @@ export async function extendStudentStudyPeriod(request, response) {
   if (!student) {
     const existingStudent = await findStudentById(request.params.studentId)
     if (!existingStudent) throw new ApiError(404, 'Student not found')
-    throw new ApiError(409, 'Study extension is available only after the normal study period and is limited to two semesters')
+    throw new ApiError(409, 'This student is not eligible for a study extension')
   }
   response.json({ data: student })
 }
 
 export async function cancelStudentStudyExtension(request, response) {
-  const extension = await cancelLatestStudentStudyExtension(
-    request.params.studentId,
-    request.user?.userId,
-    'Confirmed by administrator',
-  )
+  const extension = await cancelLatestStudentStudyExtension(request.params.studentId)
   if (!extension) {
     const existingStudent = await findStudentById(request.params.studentId)
     if (!existingStudent) throw new ApiError(404, 'Student not found')

@@ -16,10 +16,14 @@ import { useLanguage } from '@/composables/useLanguage'
 defineOptions({ name: 'AdvisorStudentMilestoneView' })
 
 const route = useRoute()
-const { t } = useLanguage()
+const { isThai, t } = useLanguage()
 
 const studentId = computed(() => String(route.params.studentId ?? ''))
 const studentName = ref('')
+const studentNameThai = ref<string | null>(null)
+const displayedStudentName = computed(() =>
+  isThai.value ? studentNameThai.value ?? studentName.value : studentName.value,
+)
 const graduationSemester = ref<string | null>(null)
 const graduationAcademicYear = ref<number | null>(null)
 const milestones = ref<StudentMilestone[]>([])
@@ -48,6 +52,7 @@ async function loadMilestones({ silent = false } = {}) {
   try {
     const result = await getAdvisorStudentMilestones(studentId.value)
     studentName.value = result.student.studentName
+    studentNameThai.value = result.student.studentNameThai
     graduationSemester.value = result.student.graduationSemester
     graduationAcademicYear.value = result.student.graduationAcademicYear
     milestones.value = result.milestones
@@ -137,10 +142,10 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
 
         <div class="hidden flex-col items-end gap-2 sm:flex">
           <div
-            v-if="studentName"
+            v-if="displayedStudentName"
             class="inline-flex flex-wrap items-center gap-2 rounded-lg border border-[#ead7d5] bg-white px-3 py-2 text-sm shadow-sm"
           >
-            <span class="font-medium text-[#3b2f2e]">{{ studentName }}</span>
+            <span class="font-medium text-[#3b2f2e]">{{ displayedStudentName }}</span>
             <span class="rounded-md bg-[#f5e6e5] px-2 py-0.5 text-xs font-medium text-[#8a2b25]">
               {{ studentId }}
             </span>
@@ -151,7 +156,7 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
         <div
           class="flex w-full flex-col gap-3 rounded-xl border border-[#ead7d5] bg-white p-3 shadow-[0_3px_10px_rgba(88,39,35,0.08)] sm:hidden"
         >
-          <div v-if="studentName" class="flex w-full items-center gap-2.5">
+          <div v-if="displayedStudentName" class="flex w-full items-center gap-2.5">
             <span
               class="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f7e7e5] text-[#8a2b25]"
             >
@@ -169,7 +174,7 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
             </span>
             <span class="min-w-0">
               <span class="block truncate text-sm font-semibold text-[#3b2f2e]">
-                {{ studentName }}
+                {{ displayedStudentName }}
               </span>
               <span class="mt-0.5 block text-[11px] font-medium text-[#9a4a44]">
                 {{ studentId }}

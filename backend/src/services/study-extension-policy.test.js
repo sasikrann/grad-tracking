@@ -3,9 +3,9 @@ import test from 'node:test'
 
 import {
   academicTermForDate,
+  extensionPeriodFromDate,
   isPastNormalStudyPeriod,
   maximumStudyYears,
-  nextAcademicTerm,
   normalStudyEndDate,
 } from './study-extension-policy.js'
 
@@ -13,6 +13,15 @@ test('uses the configured normal study periods for each degree and plan', () => 
   assert.equal(maximumStudyYears('Master', 'A1'), 4)
   assert.equal(maximumStudyYears('Doctoral', '2.1'), 5)
   assert.equal(maximumStudyYears('Doctoral', '2.2'), 7)
+})
+
+test('grants exactly four calendar months from the approval date', () => {
+  assert.deepEqual(extensionPeriodFromDate('2026-08-01'), {
+    startsOn: '2026-08-01', endsOn: '2026-12-31',
+  })
+  assert.deepEqual(extensionPeriodFromDate('2026-10-31'), {
+    startsOn: '2026-10-31', endsOn: '2027-02-28',
+  })
 })
 
 test('calculates normal study end from the enrollment semester without a two-year rule', () => {
@@ -27,11 +36,8 @@ test('calculates normal study end from the enrollment semester without a two-yea
   }, '2025-06-01'), true)
 })
 
-test('grants one academic term at a time and advances to the next term', () => {
+test('identifies the academic term only as extension metadata', () => {
   assert.deepEqual(academicTermForDate('2026-09-21'), {
     academicYear: 2026, semester: '1', startsOn: '2026-08-01', endsOn: '2026-12-31',
-  })
-  assert.deepEqual(nextAcademicTerm({ academicYear: 2026, semester: '1' }), {
-    academicYear: 2026, semester: '2', startsOn: '2027-01-01', endsOn: '2027-05-31',
   })
 })
