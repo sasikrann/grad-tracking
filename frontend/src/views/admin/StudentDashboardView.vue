@@ -163,8 +163,56 @@ function shortenImportMessage(text: string) {
     )
 }
 
+function formatStudentImportDetails(text: string) {
+  const row = text.match(/\bRow\s+(\d+):/i)?.[1]
+  const fieldLabels: Array<[RegExp, string, string]> = [
+    [/Student ID is missing\./i, 'รหัสนักศึกษา', 'Student ID'],
+    [/Email is missing\./i, 'อีเมล', 'Email'],
+    [/Full Name is missing\./i, 'ชื่อ-สกุล (ภาษาอังกฤษ)', 'Full name (English)'],
+    [/School Name is missing\./i, 'สำนักวิชา', 'School'],
+    [/Program is missing\./i, 'สาขาวิชา', 'Program'],
+    [/Education Plan is missing\./i, 'แผนการเรียน', 'Study plan'],
+    [/Student Status is missing\./i, 'สถานะ', 'Status'],
+  ]
+  const missingFields = fieldLabels
+    .filter(([pattern]) => pattern.test(text))
+    .map(([, thaiLabel, englishLabel]) => (isThai.value ? thaiLabel : englishLabel))
+
+  if (missingFields.length) {
+    const rowPrefix = row ? (isThai.value ? `แถวที่ ${row}: ` : `Row ${row}: `) : ''
+    const prefix = isThai.value ? 'กรุณากรอกข้อมูลให้ครบถ้วน' : 'Please complete all required fields'
+    return `${rowPrefix}${prefix} — ${missingFields.join(', ')}`
+  }
+
+  const rowPrefix = row ? (isThai.value ? `แถวที่ ${row}: ` : `Row ${row}: `) : ''
+  if (/Student ID must contain exactly 10 digits/i.test(text)) {
+    return isThai.value
+      ? `${rowPrefix}รหัสนักศึกษาต้องมีตัวเลข 10 หลัก`
+      : `${rowPrefix}Student ID must contain exactly 10 digits.`
+  }
+  if (/Master education plan must be/i.test(text)) {
+    return isThai.value
+      ? `${rowPrefix}แผนการเรียนระดับปริญญาโทต้องเป็น A1, A2, B, 1.1, 1.2 หรือ 2`
+      : `${rowPrefix}Master study plan must be A1, A2, B, 1.1, 1.2, or 2.`
+  }
+  if (/Doctoral education plan must be/i.test(text)) {
+    return isThai.value
+      ? `${rowPrefix}แผนการเรียนระดับปริญญาเอกต้องเป็น 1.1, 2.1 หรือ 2.2`
+      : `${rowPrefix}Doctoral study plan must be 1.1, 2.1, or 2.2.`
+  }
+  if (/A valid email is required/i.test(text)) {
+    return isThai.value
+      ? `${rowPrefix}รูปแบบอีเมลไม่ถูกต้อง`
+      : `${rowPrefix}Please enter a valid email address.`
+  }
+
+  return ''
+}
+
 function formatStudentImportError(error: unknown) {
-  const text = shortenImportMessage(removeRowPrefix(error instanceof Error ? error.message : ''))
+  const text = shortenImportMessage(error instanceof Error ? error.message : '')
+  const detailedMessage = formatStudentImportDetails(text)
+  if (detailedMessage) return detailedMessage
   if (text.includes('กรุณากรอกสถานะสำเร็จการศึกษาให้ถูกต้อง')) {
     return 'กรุณากรอกสถานะสำเร็จการศึกษาให้ถูกต้อง'
   }
@@ -180,7 +228,6 @@ function formatStudentImportError(error: unknown) {
     'A valid email is required': 'Please enter a valid email address.',
   }
 
-  if (isThai.value) return t('toast.studentsImportFailed')
   return (readableMessages[text] ?? text) || t('toast.studentsImportFailed')
 }
 
@@ -233,6 +280,9 @@ function showImportResult(result: StudentImportResult) {
   const hasMissingRequiredFields = result.errors?.some((error) =>
     /\b(missing|required)\b/i.test(error),
   )
+  const detailedErrors = result.errors?.length
+    ? formatStudentImportError(new Error(result.errors.join('; ')))
+    : ''
   const partialSuccessText = hasMissingRequiredFields
     ? isThai.value
       ? 'กรุณากรอกข้อมูลให้ครบถ้วน'
@@ -242,7 +292,7 @@ function showImportResult(result: StudentImportResult) {
       : `Import completed. ${result.successRecords} of ${result.totalRecords} students were imported successfully, but some records could not be imported.${errorText}${skippedText}`
 
   showNotificationAfterImportModalCloses(
-    result.failedRecords ? partialSuccessText : successText,
+    result.failedRecords ? detailedErrors || partialSuccessText : successText,
     result.failedRecords ? 'error' : 'success',
   )
 }

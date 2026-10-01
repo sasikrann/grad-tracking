@@ -71,7 +71,7 @@ test('accepts the six real Thai column names', async () => {
   assert.equal(student.educationPlan, 'A1')
 })
 
-test('rejects the whole file with one generic message when a required cell is empty', async () => {
+test('reports the row and missing field when a required import cell is empty', async () => {
   await assert.rejects(
     readStudentImportFile(
       csvFile(
@@ -80,8 +80,8 @@ test('rejects the whole file with one generic message when a required cell is em
     ),
     (error) => {
       assert.equal(error.statusCode, 400)
-      assert.equal(error.message, 'Please complete all required fields and import the file again.')
-      assert.doesNotMatch(error.message, /Row|Full Name/)
+      assert.equal(error.message, 'Student import validation failed.')
+      assert.deepEqual(error.details, ['Row 3: Full Name is missing.'])
       return true
     },
   )
