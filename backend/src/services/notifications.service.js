@@ -117,6 +117,7 @@ function notificationEmailAttachment(attachmentUrl) {
 export async function findNotificationAttachmentForUser(fileName, user) {
   await ensureNotificationSchema()
 
+  // Admins can read every attachment. Students must match the notification audience.
   const attachmentUrl = `/uploads/notifications/${fileName}`
   const escapedFileName = fileName.replace(/[\\%_]/g, '\\$&')
   const legacyAttachmentPattern = `%/uploads/notifications/${escapedFileName}`

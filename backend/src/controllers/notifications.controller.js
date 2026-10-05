@@ -125,6 +125,12 @@ export async function getNotificationAttachment(request, response) {
     throw new ApiError(404, 'Notification attachment not found')
   }
 
+  response.set({
+    'Cache-Control': 'private, no-store',
+    'Content-Disposition': `attachment; filename="${fileName}"`,
+    'X-Content-Type-Options': 'nosniff',
+  })
+  // Keep file transfer in Nginx after the API has approved this user.
   if (process.env.NGINX_ACCEL_REDIRECT === 'true') {
     response.set('X-Accel-Redirect', `/protected-media/notifications/${fileName}`)
     response.end()

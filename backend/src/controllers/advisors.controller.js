@@ -173,7 +173,7 @@ export async function getAdvisorStudentMilestones(request, response) {
   const result = await findAdvisorStudentMilestones(request.user.userId, request.params.studentId)
 
   if (!result) {
-    throw new ApiError(404, 'Advised student not found')
+    throw new ApiError(404, 'Student not found')
   }
 
   response.json({ data: result })

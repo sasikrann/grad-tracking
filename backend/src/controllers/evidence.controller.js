@@ -21,7 +21,9 @@ export async function viewEvidence(request, response, next) {
   response.set({
     'Cache-Control': 'private, no-store',
     'Content-Disposition': `inline; filename="${path.basename(evidence.evidenceUrl)}"`,
+    'X-Content-Type-Options': 'nosniff',
   })
+  // Node checks permission; Nginx sends the file without exposing the upload folder.
   if (process.env.NGINX_ACCEL_REDIRECT === 'true') {
     response.set('X-Accel-Redirect', `/protected-media/evidence/${path.basename(evidence.evidenceUrl)}`)
     response.end()
