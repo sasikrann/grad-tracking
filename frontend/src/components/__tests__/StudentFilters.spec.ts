@@ -37,7 +37,7 @@ describe('StudentFilters', () => {
     expect(wrapper.text()).not.toContain('All Program')
   })
 
-  it('only offers plans compatible with the selected degree', async () => {
+  it('uses the current plan names and only offers plans compatible with the selected degree', async () => {
     const wrapper = mount(StudentFilters, {
       props: {
         search: '',
@@ -60,7 +60,12 @@ describe('StudentFilters', () => {
     await planButton?.trigger('click')
 
     const visibleLabels = wrapper.findAll('button').map((button) => button.text())
-    expect(visibleLabels).toContain('แผน ก1')
+    expect(visibleLabels).toContain('แผน 1.1')
+    expect(visibleLabels).toContain('แผน 1.2')
+    expect(visibleLabels).toContain('แผน 2')
+    expect(visibleLabels).not.toContain('แผน ก1')
+    expect(visibleLabels).not.toContain('แผน ก2')
+    expect(visibleLabels).not.toContain('แผน ข')
     expect(visibleLabels).not.toContain('2.1')
     expect(visibleLabels).not.toContain('2.2')
   })

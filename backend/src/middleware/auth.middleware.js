@@ -1,4 +1,4 @@
-// ใช้สร้างและตรวจสอบ JWT token รวมถึงเช็คสิทธิ์ของ user ตาม role เช่น student, advisor, admin
+// Creates login sessions and protects routes by user role.
 import jwt from 'jsonwebtoken'
 
 import { ApiError } from '../errors/api-error.js'
@@ -9,6 +9,7 @@ const tokenAudience = 'grad-tracking-web'
 const tokenAlgorithm = 'HS256'
 export const authCookieName = 'access_token'
 
+// Keep the token away from browser scripts and send it only in safe cookie contexts.
 export function getAuthCookieOptions() {
   const isProduction = process.env.NODE_ENV === 'production'
   const configuredSameSite = process.env.AUTH_COOKIE_SAME_SITE?.toLowerCase()
@@ -24,7 +25,7 @@ export function getAuthCookieOptions() {
   }
 }
 
-// ดึง JWT_SECRET จาก .env ถ้าไม่มีจะ error เพราะระบบ auth ยังไม่ได้ตั้งค่า
+// Authentication must fail closed when the server secret is missing.
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET
 
@@ -35,7 +36,7 @@ function getJwtSecret() {
   return secret
 }
 
-// ดึง JWT_SECRET จาก .env ถ้าไม่มีจะ error เพราะระบบ auth ยังไม่ได้ตั้งค่า
+// The token identifies the user. Resource permissions are checked separately on each route.
 export function createAccessToken(user) {
   return jwt.sign(
     {
@@ -67,7 +68,7 @@ export function createRequireAuth(findUserById = findAuthorizedUserById) {
       throw new ApiError(401, 'Authentication is required')
     }
 
-    // ตรวจสอบว่า token ถูกต้อง ยังไม่หมดอายุ และไม่ถูกแก้ไข
+    // Verify the signature and reload the user so disabled accounts lose access immediately.
     try {
       const payload = jwt.verify(decodeURIComponent(token), getJwtSecret(), {
         algorithms: [tokenAlgorithm],

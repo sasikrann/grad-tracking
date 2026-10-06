@@ -3,6 +3,7 @@ import { ensureMilestoneSchema } from './milestones.service.js'
 
 const maxRejectedRevisionRounds = 3
 
+// Every advisor may read a student's milestones, but only the primary advisor can review them.
 export async function findAdvisorStudentMilestones(advisorUserId, studentId) {
   await ensureMilestoneSchema()
 
@@ -61,15 +62,6 @@ export async function findAdvisorStudentMilestones(advisorUserId, studentId) {
         AND sm.milestone_id = mt.milestone_id
       WHERE a.user_id = $1
         AND (mt.is_enabled = TRUE OR sm.student_milestone_id IS NOT NULL)
-        AND (
-          s.advisor_id = a.advisor_id
-          OR EXISTS (
-            SELECT 1
-            FROM student_co_advisors sca
-            WHERE sca.student_id = s.student_id
-              AND sca.advisor_id = a.advisor_id
-          )
-        )
       ORDER BY CASE WHEN mt.semester = 'all' THEN 0 ELSE mt.semester::int END, mt.sequence_order, mt.created_at
     `,
     [advisorUserId, studentId],
@@ -109,6 +101,7 @@ export async function reviewStudentMilestone({
 }) {
   await ensureMilestoneSchema()
 
+  // This query joins through the primary advisor to prevent other advisors from changing status.
   const result = await pool.query(
     `
       UPDATE student_milestones sm

@@ -1,18 +1,15 @@
 import pool from '../config/database.js'
 
+// Students can read only their own evidence. Advisors and admins can read all evidence.
 export function canAccessEvidence(user, evidence) {
   if (user.role === 'admin') return true
   if (user.role === 'student') return evidence.studentUserId === user.userId
-  if (user.role === 'advisor') {
-    return (
-      evidence.primaryAdvisorUserId === user.userId ||
-      evidence.coAdvisorUserIds.includes(user.userId)
-    )
-  }
+  if (user.role === 'advisor') return true
   return false
 }
 
 export async function findEvidenceByUrl(evidenceUrl) {
+  // A file is accessible only when it belongs to a milestone stored in the database.
   const result = await pool.query(
     `
       SELECT

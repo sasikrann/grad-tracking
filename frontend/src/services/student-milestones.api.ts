@@ -29,6 +29,7 @@ export function removeMyMilestoneEvidence(milestoneId: string) {
 }
 
 export async function createEvidencePreviewUrl(evidenceUrl: string) {
+  // Fetch through the protected API instead of opening the stored upload path directly.
   const response = await authenticatedFetch(
     apiUrl(`/api/evidence?path=${encodeURIComponent(evidenceUrl)}`),
     { cache: 'no-store' },

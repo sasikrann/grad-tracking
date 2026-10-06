@@ -33,6 +33,7 @@ export function uploadNotificationAttachment(file: File) {
 }
 
 export function resolveNotificationAttachmentUrl(attachmentUrl: string) {
+  // Old records store an upload path; the browser must use the protected API route.
   const protectedPath = attachmentUrl
     .replace(
       /^https?:\/\/[^/]+\/uploads\/notifications\//i,
