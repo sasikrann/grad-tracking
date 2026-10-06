@@ -50,3 +50,4 @@ function selectFile(event: Event) {
     </p>
   </div>
 </template>
+<!-- Selects, validates, uploads, opens, and removes milestone evidence files. -->

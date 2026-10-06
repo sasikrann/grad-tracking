@@ -15,3 +15,4 @@ describe('EvidenceUploadControl', () => {
     expect(wrapper.emitted('select')?.[0]).toEqual([file])
   })
 })
+// Verifies that the evidence control forwards the selected file through its upload event.

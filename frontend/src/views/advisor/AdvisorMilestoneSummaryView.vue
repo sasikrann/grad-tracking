@@ -448,3 +448,4 @@ useAutoRefresh(() => loadSummary({ silent: true }))
     </section>
   </div>
 </template>
+<!-- Builds a filterable milestone progress summary for students assigned to an advisor. -->

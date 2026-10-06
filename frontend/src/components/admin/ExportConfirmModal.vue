@@ -54,3 +54,4 @@ defineEmits<{
     </section>
   </div>
 </template>
+<!-- Confirms whether the administrator wants to export all or selected records. -->

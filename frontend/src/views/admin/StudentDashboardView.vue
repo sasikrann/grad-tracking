@@ -565,3 +565,4 @@ useAutoRefresh(() => loadStudents({ silent: true }), {
     </div>
   </div>
 </template>
+<!-- Manages the paginated student dashboard, imports, exports, filters, and exit-status actions. -->

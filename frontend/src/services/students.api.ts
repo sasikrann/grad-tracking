@@ -113,10 +113,12 @@ async function requestStudents(path: string, currentAdvisorId?: string) {
   return students.map((student) => toStudent(student, currentAdvisorId))
 }
 
+// Loads all students using the non-paginated compatibility endpoint.
 export function getStudents() {
   return requestStudents('/api/students')
 }
 
+// Loads a filtered student page together with statistics and filter options.
 export async function getStudentsPage(input: {
   page: number
   limit?: number
@@ -166,6 +168,7 @@ export interface StudentDetail {
   graduationAcademicYear: number | null
 }
 
+// Loads one student record by student identifier.
 export async function getStudent(studentId: string) {
   const response = await authenticatedFetch(apiUrl(`/api/students/${encodeURIComponent(studentId)}`), {
     cache: 'no-store',
@@ -185,6 +188,7 @@ export async function getStudent(studentId: string) {
   }
 }
 
+// Grants the next study-extension period to an eligible student.
 export async function extendStudentStudyPeriod(studentId: string) {
   const response = await authenticatedFetch(
     apiUrl(`/api/students/${encodeURIComponent(studentId)}/study-extension`),
@@ -204,6 +208,7 @@ export async function extendStudentStudyPeriod(studentId: string) {
   return result.data
 }
 
+// Updates a student's graduation, resignation, or dismissal status.
 export async function updateStudentExitStatus(
   studentId: string,
   status: 'Resigned' | 'Dismissed',
@@ -218,6 +223,7 @@ export async function updateStudentExitStatus(
   )
 }
 
+// Cancels the student's latest active study extension.
 export async function cancelStudentStudyExtension(studentId: string) {
   const response = await authenticatedFetch(
     apiUrl(`/api/students/${encodeURIComponent(studentId)}/study-extension`),
@@ -232,14 +238,17 @@ export async function cancelStudentStudyExtension(studentId: string) {
   return result.data
 }
 
+// Loads the students assigned to a specific advisor.
 export function getAdvisorStudents(advisorId: string) {
   return requestStudents(`/api/advisors/${advisorId}/students`, advisorId)
 }
 
+// Loads students visible in the current advisor's overview.
 export function getAdvisorStudentOverview(advisorId: string) {
   return requestStudents(`/api/advisors/${advisorId}/students?scope=all`, advisorId)
 }
 
+// Loads all milestone progress for one student.
 export async function getStudentMilestones(studentId: string) {
   const response = await authenticatedFetch(
     apiUrl(`/api/students/${encodeURIComponent(studentId)}/milestones`),
@@ -255,6 +264,7 @@ export async function getStudentMilestones(studentId: string) {
   return result.data
 }
 
+// Downloads an export workbook for the selected students and language.
 export async function exportStudents(studentIds: string[], language: 'en' | 'th' = 'en') {
   const response = await authenticatedFetch(apiUrl('/api/students/export'), {
     method: 'POST',
@@ -278,10 +288,12 @@ export async function exportStudents(studentIds: string[], language: 'en' | 'th'
   }
 }
 
+// Downloads the blank student-import workbook.
 export function downloadStudentTemplate() {
   return downloadApiFile('/api/students/template', 'student_import_template.xlsx')
 }
 
+// Uploads a student import file and returns its processing summary.
 export async function importStudents(file: File) {
   const formData = new FormData()
   formData.append('file', file)
@@ -318,3 +330,4 @@ export async function importStudents(file: File) {
   }
   return result?.data as StudentImportResult
 }
+// Calls student management endpoints and maps API records into dashboard-friendly models.

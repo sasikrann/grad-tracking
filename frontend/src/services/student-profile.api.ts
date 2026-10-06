@@ -27,6 +27,7 @@ export interface StudentProfile {
   updatedAt: string
 }
 
+// Submits the student's primary advisor and ordered co-advisor choices.
 export async function appointMyStudentAdvisors(input: {
   milestoneId: string
   advisorId: string
@@ -48,6 +49,7 @@ export async function appointMyStudentAdvisors(input: {
   )
 }
 
+// Submits the student's graduation term against the required milestone.
 export async function submitMyGraduation(input: {
   milestoneId: string
   semester: string
@@ -63,12 +65,14 @@ export async function submitMyGraduation(input: {
   )
 }
 
+// Loads the academic profile linked to the current student account.
 export async function getMyStudentProfile() {
   return apiRequest<StudentProfile>('/api/student-profile/me', {
     errorMessage: 'Unable to load student profile',
   })
 }
 
+// Updates only the current student's primary advisor.
 export async function updateMyStudentAdvisor(input: {
   advisorId: string
   advisorEvidenceUrl?: string | null
@@ -79,3 +83,4 @@ export async function updateMyStudentAdvisor(input: {
     errorMessage: 'Unable to update advisor',
   })
 }
+// Calls the signed-in student's profile, advisor appointment, and graduation endpoints.

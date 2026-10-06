@@ -31,16 +31,19 @@ export interface AdvisorStudentMilestones {
 const request = <T>(path: string, options?: RequestInit) =>
   apiRequest<T>(path, { ...options, errorMessage: 'Advisor milestone request failed' })
 
+// Loads milestone submissions awaiting or containing advisor review.
 export function getAdvisorMilestoneSubmissions() {
   return request<AdvisorMilestoneSubmission[]>('/api/advisors/milestone-submissions')
 }
 
+// Loads milestone progress for one student assigned to the advisor.
 export function getAdvisorStudentMilestones(studentId: string) {
   return request<AdvisorStudentMilestones>(
     `/api/advisors/students/${encodeURIComponent(studentId)}/milestones`,
   )
 }
 
+// Approves or rejects a student's milestone submission.
 export function reviewAdvisorMilestone(
   studentId: string,
   milestoneId: string,
@@ -55,3 +58,4 @@ export function reviewAdvisorMilestone(
     },
   )
 }
+// Calls advisor endpoints for student milestone details, reviews, and submission summaries.

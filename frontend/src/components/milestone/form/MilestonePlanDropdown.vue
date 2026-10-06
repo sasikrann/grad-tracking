@@ -99,3 +99,4 @@ function togglePlan(plan: EducationPlan) {
     </div>
   </div>
 </template>
+<!-- Selects one or more education plans within a milestone form. -->

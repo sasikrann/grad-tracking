@@ -887,3 +887,4 @@ function selectEvidenceFile(file: File) {
     </div>
   </article>
 </template>
+<!-- Displays one milestone and coordinates evidence, advisor selection, graduation, and review details. -->

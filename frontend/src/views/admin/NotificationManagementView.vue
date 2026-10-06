@@ -1553,3 +1553,4 @@ useAutoRefresh(() => loadNotifications({ silent: true }), {
   white-space: pre-wrap;
 }
 </style>
+<!-- Provides the administrator workflow for composing, targeting, sending, and reviewing notifications. -->

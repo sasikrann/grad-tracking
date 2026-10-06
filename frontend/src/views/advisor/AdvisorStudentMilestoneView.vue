@@ -290,3 +290,4 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
     </div>
   </div>
 </template>
+<!-- Shows one assigned student's milestone details and allows the advisor to review submissions. -->

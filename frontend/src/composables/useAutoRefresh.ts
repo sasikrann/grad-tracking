@@ -5,6 +5,7 @@ interface AutoRefreshOptions {
   canRefresh?: () => boolean
 }
 
+// Runs an asynchronous refresh callback on an interval while the document is visible.
 export function useAutoRefresh(
   refresh: () => void | Promise<unknown>,
   { interval = 15_000, canRefresh = () => true }: AutoRefreshOptions = {},
@@ -38,3 +39,4 @@ export function useAutoRefresh(
     document.removeEventListener('visibilitychange', handleVisibilityChange)
   })
 }
+// Provides a reusable interval that refreshes data only while the page is visible.

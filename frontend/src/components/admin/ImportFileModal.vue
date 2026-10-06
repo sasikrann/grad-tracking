@@ -83,3 +83,4 @@ function handleFileDrop(event: DragEvent) {
     </section>
   </div>
 </template>
+<!-- Collects an import file and emits confirmation or cancellation events. -->

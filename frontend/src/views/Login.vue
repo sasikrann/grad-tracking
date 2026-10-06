@@ -183,3 +183,4 @@ onMounted(async () => {
     </section>
   </div>
 </template>
+<!-- Provides Google and development login flows and redirects authenticated users by role. -->

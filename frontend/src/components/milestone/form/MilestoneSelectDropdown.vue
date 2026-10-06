@@ -98,3 +98,4 @@ const dropdownOptions = computed(() =>
     </div>
   </div>
 </template>
+<!-- Reusable single-select dropdown for milestone and advisor form fields. -->

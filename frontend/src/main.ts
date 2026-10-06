@@ -9,3 +9,4 @@ const app = createApp(App)
 app.use(router)
 
 app.mount('#app')
+// Creates the Vue application, installs routing, loads global styles, and mounts the root component.

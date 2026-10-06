@@ -1,3 +1,4 @@
+// Converts a backend advisor-import result into a concise localized message.
 export function advisorImportMessage(text: string, isThai: boolean): string {
   if (text.includes('\n')) return text.split('\n').map((line) => advisorImportMessage(line, isThai)).join('; ')
   const row = text.match(/^Row (\d+): (.*)$/)
@@ -43,3 +44,4 @@ export function advisorImportMessage(text: string, isThai: boolean): string {
   if (another) return `อีเมล ${another[1]} ถูกใช้โดยผู้ใช้อื่นแล้ว`
   return 'ไม่สามารถนำเข้าข้อมูลอาจารย์ที่ปรึกษาได้ กรุณาลองอีกครั้ง'
 }
+// Converts advisor import validation messages into concise localized user-facing text.

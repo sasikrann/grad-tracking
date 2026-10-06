@@ -105,3 +105,4 @@ export interface AdvisorMilestoneSummary {
     }>
   }
 }
+// Shared TypeScript shapes for milestone templates, progress, evidence, and summaries.

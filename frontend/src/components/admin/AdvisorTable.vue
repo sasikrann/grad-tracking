@@ -170,3 +170,4 @@ function statusLabel(status: Advisor['status']) {
     </div>
   </section>
 </template>
+<!-- Displays advisor records and emits view or status-change actions selected by an administrator. -->

@@ -181,3 +181,4 @@ function viewStudentMilestones(studentId: string) {
     </nav>
   </div>
 </template>
+<!-- Shows an advisor's assigned students with reusable searching and filtering controls. -->

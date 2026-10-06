@@ -7,3 +7,4 @@ export interface Advisor {
   createdAt: string
   status: 'active' | 'inactive'
 }
+// Shared TypeScript shapes for advisor records and advisor import results.

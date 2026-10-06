@@ -4,12 +4,14 @@ import { translate, type AppLanguage, type TranslationKey } from '@/lang'
 const language = ref<AppLanguage>('en')
 document.documentElement.lang = language.value
 
+// Formats an academic year using Buddhist or Gregorian numbering for the selected language.
 export function formatAcademicYear(year: string | number, targetLanguage = language.value) {
   const numericYear = Number(year)
   if (!Number.isFinite(numericYear)) return String(year)
   return String(targetLanguage === 'th' ? numericYear + 543 : numericYear)
 }
 
+// Returns reactive language state together with translation and language-switching helpers.
 export function useLanguage() {
   const isThai = computed(() => language.value === 'th')
 
@@ -24,3 +26,4 @@ export function useLanguage() {
 
   return { language, isThai, setLanguage, t }
 }
+// Exposes shared language state and the translation lookup function.

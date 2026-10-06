@@ -77,3 +77,4 @@ const filters = defineModel<StudentFiltersState>('filters', { required: true })
     />
   </section>
 </template>
+<!-- Composes summary cards, student filters, and the student results table. -->

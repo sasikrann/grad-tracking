@@ -9,6 +9,7 @@ export type TranslationKey = DotPaths<typeof en>
 
 const messages = { en, th }
 
+// Resolves a dotted translation key and interpolates any supplied parameters.
 export function translate(
   language: AppLanguage,
   key: TranslationKey,
@@ -29,3 +30,4 @@ export function translate(
     text,
   )
 }
+// Defines supported languages and resolves nested translation keys at runtime.

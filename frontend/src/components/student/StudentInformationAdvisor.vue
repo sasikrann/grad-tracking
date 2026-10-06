@@ -44,3 +44,4 @@ defineProps<{ profile: StudentProfile }>()
     </div>
   </section>
 </template>
+<!-- Displays the student's primary advisor and advisor evidence link. -->

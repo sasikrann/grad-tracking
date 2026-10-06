@@ -10,3 +10,4 @@ export interface CurrentUser {
   role: UserRole
   initials?: string
 }
+// Shared TypeScript shapes for authenticated users and application roles.

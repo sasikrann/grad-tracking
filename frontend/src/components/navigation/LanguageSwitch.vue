@@ -28,3 +28,4 @@ const { language, setLanguage, t } = useLanguage()
     </div>
   </div>
 </template>
+<!-- Switches the shared application language between Thai and English. -->

@@ -25,3 +25,4 @@ async function handleLogout() {
     </main>
   </div>
 </template>
+<!-- Root application shell that renders the route selected by Vue Router. -->

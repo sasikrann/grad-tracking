@@ -67,3 +67,4 @@ defineProps<{
     </div>
   </section>
 </template>
+<!-- Displays the student's ordered co-advisor assignments. -->

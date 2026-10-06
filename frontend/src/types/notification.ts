@@ -38,3 +38,4 @@ export interface NotificationReadRecord {
   userId: string
   readAt: string
 }
+// Shared TypeScript shapes for notifications, recipients, and attachment metadata.

@@ -40,3 +40,4 @@ describe('StudentTable education-plan labels', () => {
     expect(wrapper.text()).toContain('แผน 1.1')
   })
 })
+// Verifies that the table preserves legacy labels while displaying current plan names.

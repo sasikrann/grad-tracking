@@ -95,3 +95,4 @@ defineEmits<{
     </span>
   </button>
 </template>
+<!-- Reusable dashboard card that presents an icon, description, and primary action. -->

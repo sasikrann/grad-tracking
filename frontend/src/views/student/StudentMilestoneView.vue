@@ -417,3 +417,4 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
+<!-- Loads and manages the signed-in student's milestone progress and evidence submissions. -->

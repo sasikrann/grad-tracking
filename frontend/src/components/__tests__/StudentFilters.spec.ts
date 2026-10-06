@@ -70,3 +70,4 @@ describe('StudentFilters', () => {
     expect(visibleLabels).not.toContain('2.2')
   })
 })
+// Verifies localized student filters and current names for legacy-equivalent study plans.

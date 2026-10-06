@@ -103,3 +103,4 @@ describe('StudentMilestoneCard advisor draft', () => {
     ).toBe(false)
   })
 })
+// Verifies that unsaved advisor selections survive background data refreshes.

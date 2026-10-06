@@ -810,3 +810,4 @@ watch(totalPages, (nextTotalPages) => {
     </div>
   </div>
 </template>
+<!-- Lists student notifications and manages read state and protected attachment downloads. -->

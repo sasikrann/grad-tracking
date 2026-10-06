@@ -377,3 +377,4 @@ onBeforeUnmount(() => {
     </section>
   </div>
 </template>
+<!-- Collects and validates milestone template fields for create and edit workflows. -->

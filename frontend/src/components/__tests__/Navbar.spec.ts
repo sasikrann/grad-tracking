@@ -117,3 +117,4 @@ describe('Navbar', () => {
     expect(wrapper.find('#mobile-font-size-menu').exists()).toBe(false)
   })
 })
+// Verifies role-specific navigation and mobile menu behavior.

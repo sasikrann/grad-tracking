@@ -33,3 +33,4 @@ describe('PaginationControls', () => {
     expect(wrapper.text()).not.toContain('12')
   })
 })
+// Verifies page labels and valid previous or next navigation events.

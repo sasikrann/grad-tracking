@@ -49,3 +49,4 @@ describe('api client', () => {
     await expect(apiRequest('/api/example')).rejects.toThrow('Validation failed')
   })
 })
+// Verifies API URL construction, JSON handling, authentication cookies, and error responses.

@@ -74,3 +74,4 @@ function changePage(page: number) {
     </div>
   </nav>
 </template>
+<!-- Renders page navigation and emits validated page changes. -->

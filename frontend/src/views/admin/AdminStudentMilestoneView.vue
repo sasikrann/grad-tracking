@@ -446,3 +446,4 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
   }
 }
 </style>
+<!-- Lets administrators inspect a student's profile and complete milestone history. -->

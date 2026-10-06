@@ -27,3 +27,4 @@ describe('advisor name display', () => {
     expect(advisorSidebarInitials('Somsri Jaidee')).toBe('SJ')
   })
 })
+// Verifies localized advisor-name selection and fallback behavior.

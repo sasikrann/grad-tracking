@@ -61,3 +61,4 @@ withDefaults(
     </div>
   </article>
 </template>
+<!-- Displays one dashboard statistic with its label, value, icon, and color theme. -->

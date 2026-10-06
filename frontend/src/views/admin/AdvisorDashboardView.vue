@@ -365,3 +365,4 @@ useAutoRefresh(() => loadAdvisors({ silent: true }), {
     </div>
   </div>
 </template>
+<!-- Manages advisor records, status changes, imports, exports, searching, and pagination. -->

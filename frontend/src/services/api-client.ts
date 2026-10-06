@@ -11,14 +11,17 @@ export interface ApiRequestOptions extends RequestInit {
   errorMessage?: string
 }
 
+// Combines a relative API path with the configured API base URL.
 export function apiUrl(path: string) {
   return `${apiBaseUrl}${path}`
 }
 
+// Reads a response body as JSON while safely handling empty responses.
 export async function readJson<T>(response: Response) {
   return (await response.json().catch(() => null)) as T | null
 }
 
+// Sends an authenticated API request and normalizes successful and error responses.
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}) {
   const { errorMessage = 'Request failed', headers: customHeaders, ...init } = options
   const headers = new Headers(customHeaders)
@@ -47,6 +50,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   return result.data as T
 }
 
+// Downloads a protected API file and derives a safe browser filename.
 export async function downloadApiFile(path: string, fallbackName: string) {
   const response = await authenticatedFetch(apiUrl(path))
   if (!response.ok) throw new Error(`Unable to download file (${response.status})`)
@@ -66,6 +70,8 @@ export async function downloadApiFile(path: string, fallbackName: string) {
   }
 }
 
+// Resolves a relative API or media path into a complete request URL.
 export function resolveApiUrl(path: string) {
   return /^https?:\/\//.test(path) ? path : apiUrl(path)
 }
+// Wraps fetch with the API base URL, authentication cookies, JSON parsing, and normalized errors.

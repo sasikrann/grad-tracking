@@ -372,3 +372,4 @@ onBeforeUnmount(() => document.removeEventListener('click', closeDropdown))
     </div>
   </div>
 </template>
+<!-- Renders reusable student search and filter controls with degree-compatible study plans. -->

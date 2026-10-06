@@ -142,3 +142,4 @@ router.beforeEach(async (to) => {
 })
 
 export default router
+// Defines application routes and enforces authentication and role-based navigation.

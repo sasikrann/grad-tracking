@@ -19,6 +19,7 @@ function stageKey(notification: Notification): AutomaticStage | null {
   return null
 }
 
+// Returns the localized title for a stored notification.
 export function notificationDisplayTitle(notification: Notification, t: Translate) {
   const stage = stageKey(notification)
   if (!stage) return notification.title
@@ -27,6 +28,7 @@ export function notificationDisplayTitle(notification: Notification, t: Translat
   })
 }
 
+// Returns the localized short description for a stored notification.
 export function notificationDisplayDescription(notification: Notification, t: Translate) {
   const stage = stageKey(notification)
   if (!stage) return notification.message
@@ -35,15 +37,18 @@ export function notificationDisplayDescription(notification: Notification, t: Tr
   })
 }
 
+// Returns the optional localized footer for a stored notification.
 export function notificationDisplayFooter(notification: Notification, t: Translate) {
   const stage = stageKey(notification)
   return stage ? t(`notification.automatic.${stage}.footer` as TranslationKey) : ''
 }
 
+// Extracts a notification deadline from its structured parameters.
 export function notificationDisplayDeadline(notification: Notification) {
   return stageKey(notification) ? (notification.milestoneDeadline ?? '') : ''
 }
 
+// Builds the complete localized message shown to the student.
 export function notificationDisplayMessage(notification: Notification, t: Translate) {
   if (!stageKey(notification)) return notification.message
   return [notificationDisplayDescription(notification, t), notificationDisplayFooter(notification, t)]
@@ -51,6 +56,7 @@ export function notificationDisplayMessage(notification: Notification, t: Transl
     .join(' ')
 }
 
+// Formats a notification timestamp for the selected application language.
 export function formatNotificationDateTime(value: string | null, language: AppLanguage) {
   if (!value) return '-'
   const date = new Date(value)
@@ -66,6 +72,7 @@ export function formatNotificationDateTime(value: string | null, language: AppLa
   }).format(date)
 }
 
+// Formats a notification date without a time value.
 export function formatNotificationDate(value: string | null, language: AppLanguage) {
   if (!value) return ''
   const date = new Date(value.length === 10 ? `${value}T00:00:00` : value)
@@ -78,3 +85,4 @@ export function formatNotificationDate(value: string | null, language: AppLangua
     year: 'numeric',
   }).format(date)
 }
+// Resolves stored notification keys and parameters into localized titles and messages.

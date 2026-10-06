@@ -4,11 +4,13 @@ import type { DegreeLevel, Milestone, MilestoneInput } from '@/types/milestone'
 const request = <T>(path: string, options?: RequestInit) =>
   apiRequest<T>(path, { ...options, errorMessage: 'Milestone request failed' })
 
+// Loads milestone templates, optionally filtered by degree level.
 export function getMilestones(degreeLevel?: DegreeLevel | 'all') {
   const query = degreeLevel && degreeLevel !== 'all' ? `?degreeLevel=${degreeLevel}` : ''
   return request<Milestone[]>(`/api/milestones${query}`)
 }
 
+// Creates a milestone template from validated form data.
 export function createMilestone(input: MilestoneInput) {
   return request<Milestone>('/api/milestones', {
     method: 'POST',
@@ -16,6 +18,7 @@ export function createMilestone(input: MilestoneInput) {
   })
 }
 
+// Updates a milestone globally or only within one plan scope.
 export function updateMilestone(milestoneId: string, input: MilestoneInput, scopePlan?: string) {
   return request<Milestone>(`/api/milestones/${milestoneId}`, {
     method: 'PUT',
@@ -23,6 +26,7 @@ export function updateMilestone(milestoneId: string, input: MilestoneInput, scop
   })
 }
 
+// Enables or disables a milestone without deleting it.
 export function setMilestoneEnabled(milestoneId: string, isEnabled: boolean) {
   return request<Milestone>(`/api/milestones/${milestoneId}/enabled`, {
     method: 'PATCH',
@@ -30,6 +34,7 @@ export function setMilestoneEnabled(milestoneId: string, isEnabled: boolean) {
   })
 }
 
+// Moves a milestone one position up or down.
 export function moveMilestone(milestoneId: string, direction: 'up' | 'down') {
   return request<Milestone>(`/api/milestones/${milestoneId}/order`, {
     method: 'PATCH',
@@ -37,6 +42,7 @@ export function moveMilestone(milestoneId: string, direction: 'up' | 'down') {
   })
 }
 
+// Copies milestone templates between academic years.
 export function copyMilestones(
   fromDegreeLevel: DegreeLevel,
   toDegreeLevel: DegreeLevel,
@@ -57,3 +63,4 @@ export function copyMilestones(
     }),
   })
 }
+// Calls administrator milestone endpoints for listing, creation, editing, ordering, and copying.

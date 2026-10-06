@@ -56,3 +56,4 @@ describe('useStudentOverview education-plan filtering', () => {
     wrapper.unmount()
   })
 })
+// Verifies that current plan filters include records stored under equivalent legacy plan names.

@@ -60,3 +60,4 @@ describe('auth service', () => {
     expect(currentUser.value).toBeNull()
   })
 })
+// Verifies authentication state, role redirects, and login availability checks.

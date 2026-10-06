@@ -124,3 +124,4 @@ const studentRows = computed(() => [
     </div>
   </section>
 </template>
+<!-- Displays the student's academic program, plan, enrollment, and expected completion details. -->

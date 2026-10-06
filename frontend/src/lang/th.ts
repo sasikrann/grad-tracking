@@ -368,3 +368,4 @@ export const th = {
     },
   },
 } as const
+// Thai translation dictionary used by the shared language composable.

@@ -8,3 +8,4 @@
     </div>
   </main>
 </template>
+<!-- Displays a safe fallback page when the signed-in user cannot access an application area. -->

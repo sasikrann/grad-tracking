@@ -370,3 +370,4 @@ export const en = {
     },
   },
 } as const
+// English translation dictionary used by the shared language composable.

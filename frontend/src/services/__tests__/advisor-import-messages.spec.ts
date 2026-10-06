@@ -18,3 +18,4 @@ describe('advisor import notification language', () => {
     expect(advisorImportMessage('Internal server error', true)).toBe('ไม่สามารถนำเข้าข้อมูลอาจารย์ที่ปรึกษาได้ กรุณาลองอีกครั้ง')
   })
 })
+// Verifies localization and cleanup of advisor import validation messages.

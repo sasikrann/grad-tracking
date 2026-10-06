@@ -1,6 +1,7 @@
 import { apiRequest } from '@/services/api-client'
 import type { AdvisorMilestoneSummary, DegreeLevel } from '@/types/milestone'
 
+// Loads an advisor's milestone summary using the selected filters.
 export async function getAdvisorMilestoneSummary(
   advisorId: string,
   filters: { degreeLevel?: DegreeLevel | 'all'; educationPlan?: string; year?: string } = {},
@@ -20,3 +21,4 @@ export async function getAdvisorMilestoneSummary(
     { errorMessage: 'Unable to load milestone summary' },
   )
 }
+// Calls the advisor milestone-summary endpoint with optional degree, plan, and year filters.

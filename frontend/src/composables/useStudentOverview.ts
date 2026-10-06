@@ -1,6 +1,7 @@
 import { computed, onMounted, ref } from 'vue'
 import type { Student, StudentFiltersState } from '@/types/student'
 
+// Loads students and exposes reusable search, filter, sort, and statistics state.
 export function useStudentOverview(
   loadStudentData: () => Promise<Student[]>,
   initialAdvisorFilter: 'default' | 'all',
@@ -101,3 +102,4 @@ export function useStudentOverview(
     yearOptions,
   }
 }
+// Provides reusable student loading, searching, filtering, sorting, and dashboard statistics.

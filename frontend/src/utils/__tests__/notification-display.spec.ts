@@ -76,3 +76,4 @@ describe('localized notification display', () => {
     expect(formatNotificationDateTime('2026-09-14T13:31:00+07:00', 'en')).toContain('2026')
   })
 })
+// Verifies localized rendering of automatic and administrator-authored notifications.

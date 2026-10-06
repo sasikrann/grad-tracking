@@ -62,3 +62,4 @@ useAutoRefresh(() => loadPage({ silent: true }))
     </template>
   </div>
 </template>
+<!-- Composes the signed-in student's profile, study plan, and advisor information panels. -->

@@ -441,3 +441,4 @@ function planLabel(plan: string) {
     </div>
   </div>
 </template>
+<!-- Displays student records while preserving legacy and current education-plan labels. -->

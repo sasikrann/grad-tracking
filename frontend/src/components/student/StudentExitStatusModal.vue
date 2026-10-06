@@ -80,3 +80,4 @@ const selectedStatus = ref<'Resigned' | 'Dismissed' | ''>('')
     </section>
   </div>
 </template>
+<!-- Confirms a student's graduation, resignation, or dismissal status change. -->

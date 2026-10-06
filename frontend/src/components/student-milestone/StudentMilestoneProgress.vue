@@ -54,3 +54,4 @@ withDefaults(
     </div>
   </section>
 </template>
+<!-- Displays overall milestone completion as counts and a progress bar. -->

@@ -29,3 +29,4 @@ const orderedMilestones = computed(() =>
     </span>
   </nav>
 </template>
+<!-- Displays aggregate counts for the student's milestone workflow states. -->
