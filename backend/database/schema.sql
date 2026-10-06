@@ -1,16 +1,19 @@
 -- Initial PostgreSQL schema for the Thesis Progress Tracking application.
 -- Run this file once when provisioning a new database.
+-- Roles control which API areas and records an authenticated user may access.
 CREATE TYPE user_role AS ENUM (
   'student',
   'advisor',
   'admin'
 );
 
+-- Supported graduate degree levels used by students and milestone templates.
 CREATE TYPE degree_level AS ENUM (
   'Master',
   'Doctoral'
 );
 
+-- Workflow states for a student's progress on an assigned milestone.
 CREATE TYPE milestone_status AS ENUM (
   'In Progress',
   'Completed',
@@ -18,17 +21,20 @@ CREATE TYPE milestone_status AS ENUM (
   'Missing'
 );
 
+-- Recipient groups available when an administrator creates a notification.
 CREATE TYPE target_audience AS ENUM (
   'All Students',
   'Master Students',
   'Doctoral Students'
 );
 
+-- Identifies the type of bulk-import operation recorded in the audit log.
 CREATE TYPE import_type AS ENUM (
   'student',
   'advisor'
 );
 
+-- Login identities and application-wide roles shared by students, advisors, and admins.
 CREATE TABLE users (
   user_id UUID PRIMARY KEY,
   email VARCHAR UNIQUE NOT NULL,
@@ -37,6 +43,7 @@ CREATE TABLE users (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Advisor profiles linked to user accounts and referenced by student assignments.
 CREATE TABLE advisors (
   advisor_id VARCHAR PRIMARY KEY,
   user_id UUID UNIQUE REFERENCES users(user_id) ON DELETE RESTRICT,
@@ -50,6 +57,7 @@ CREATE TABLE advisors (
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_normalized_unique ON users (LOWER(TRIM(email)));
 CREATE UNIQUE INDEX IF NOT EXISTS advisors_email_normalized_unique ON advisors (LOWER(TRIM(email)));
 
+-- Student academic profiles, study plans, status, and primary-advisor assignments.
 CREATE TABLE students (
   student_id VARCHAR PRIMARY KEY CHECK (student_id ~ '^[0-9]{10}$'),
   user_id UUID UNIQUE REFERENCES users(user_id) ON DELETE RESTRICT,
@@ -82,6 +90,7 @@ CREATE TABLE students (
   )
 );
 
+-- Granted or cancelled study-period extensions, with a maximum of two rounds per student.
 CREATE TABLE student_study_extensions (
   extension_id UUID PRIMARY KEY,
   student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE RESTRICT,
@@ -102,6 +111,7 @@ CREATE UNIQUE INDEX student_study_extensions_active_round_idx
   ON student_study_extensions (student_id, extension_number)
   WHERE status = 'Granted';
 
+-- Up to two ordered co-advisor assignments for each student.
 CREATE TABLE student_co_advisors (
   student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE RESTRICT,
   advisor_id VARCHAR NOT NULL REFERENCES advisors(advisor_id) ON DELETE RESTRICT,
@@ -110,6 +120,7 @@ CREATE TABLE student_co_advisors (
   UNIQUE (student_id, advisor_id)
 );
 
+-- Configurable milestone definitions scoped by academic year, degree, semester, and plan.
 CREATE TABLE milestone_templates (
   milestone_id UUID PRIMARY KEY,
   default_template_key VARCHAR UNIQUE,
@@ -133,6 +144,7 @@ CREATE TABLE milestone_templates (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Per-student milestone progress, submitted evidence, and advisor review details.
 CREATE TABLE student_milestones (
   student_milestone_id UUID PRIMARY KEY,
   student_id VARCHAR NOT NULL REFERENCES students(student_id) ON DELETE RESTRICT,
@@ -148,6 +160,7 @@ CREATE TABLE student_milestones (
   CONSTRAINT student_milestones_student_milestone_unique UNIQUE (student_id, milestone_id)
 );
 
+-- Administrator and automatic milestone notifications with optional attachments and email delivery.
 CREATE TABLE notifications (
   notification_id UUID PRIMARY KEY,
   title VARCHAR NOT NULL,
@@ -166,6 +179,7 @@ CREATE TABLE notifications (
 CREATE UNIQUE INDEX notifications_milestone_reminder_unique
   ON notifications(milestone_id, reminder_stage);
 
+-- Per-user read receipts used to calculate unread notification counts.
 CREATE TABLE notification_reads (
   notification_id UUID REFERENCES notifications(notification_id) ON DELETE RESTRICT,
   user_id UUID REFERENCES users(user_id) ON DELETE RESTRICT,
@@ -175,6 +189,7 @@ CREATE TABLE notification_reads (
 
 CREATE INDEX notification_reads_user_id_idx ON notification_reads(user_id);
 
+-- Audit history and outcome counts for student and advisor file imports.
 CREATE TABLE import_logs (
   import_id UUID PRIMARY KEY,
   imported_by UUID REFERENCES users(user_id) ON DELETE RESTRICT,

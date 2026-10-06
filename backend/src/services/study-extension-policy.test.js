@@ -41,3 +41,4 @@ test('identifies the academic term only as extension metadata', () => {
     academicYear: 2026, semester: '1', startsOn: '2026-08-01', endsOn: '2026-12-31',
   })
 })
+// Verifies study-duration rules and extension date calculations for each degree plan.

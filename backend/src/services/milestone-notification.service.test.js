@@ -13,3 +13,4 @@ test('stores language-neutral keys for automatic milestone notifications', () =>
   assert.equal(content.title.includes('Test Milestone'), false)
   assert.equal(content.message.includes('A new milestone'), false)
 })
+// Verifies that automatic milestone notifications store language-neutral content keys.

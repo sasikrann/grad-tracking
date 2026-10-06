@@ -4,6 +4,7 @@ import pool from '../config/database.js'
 import { ensureMilestoneSchema } from './milestones.service.js'
 
 let advisorSchemaReady
+// Applies backward-compatible advisor schema updates needed by the service.
 export async function ensureAdvisorSchema() {
   advisorSchemaReady ??= pool.query(`
     ALTER TABLE advisors ADD COLUMN IF NOT EXISTS full_name_thai VARCHAR;
@@ -69,6 +70,7 @@ function advisorRecordsMatch(left, right) {
   })
 }
 
+// Returns advisors, optionally limited to active records.
 export async function findAllAdvisors({ activeOnly = false } = {}) {
   await ensureAdvisorSchema()
 
@@ -83,6 +85,7 @@ export async function findAllAdvisors({ activeOnly = false } = {}) {
   return result.rows
 }
 
+// Returns one searchable and paginated page of advisors.
 export async function findAdvisorsPage({ page = 1, limit = 10, search = '' } = {}) {
   await ensureAdvisorSchema()
 
@@ -123,6 +126,7 @@ export async function findAdvisorsPage({ page = 1, limit = 10, search = '' } = {
   }
 }
 
+// Returns one advisor profile by advisor identifier.
 export async function findAdvisorById(advisorId) {
   await ensureAdvisorSchema()
   const result = await pool.query(
@@ -220,6 +224,7 @@ async function upsertAdvisorWithClient(client, input) {
   return advisorId
 }
 
+// Creates an advisor and its linked user account in one transaction.
 export async function insertAdvisor(input) {
   const client = await pool.connect()
 
@@ -236,6 +241,7 @@ export async function insertAdvisor(input) {
   }
 }
 
+// Updates an advisor and its linked user account in one transaction.
 export async function replaceAdvisor(advisorId, input) {
   const client = await pool.connect()
 
@@ -257,6 +263,7 @@ export async function replaceAdvisor(advisorId, input) {
   }
 }
 
+// Activates or deactivates an advisor without deleting the record.
 export async function updateAdvisorStatus(advisorId, status) {
   await ensureAdvisorSchema()
   if (!['active', 'inactive'].includes(status)) {
@@ -271,6 +278,7 @@ export async function updateAdvisorStatus(advisorId, status) {
   return result.rowCount ? findAdvisorById(advisorId) : null
 }
 
+// Imports advisor records and writes an audit log for the operation.
 export async function importAdvisors(records, { fileName, importedBy } = {}) {
   await ensureAdvisorSchema()
   const client = await pool.connect()
@@ -369,6 +377,7 @@ export async function importAdvisors(records, { fileName, importedBy } = {}) {
   }
 }
 
+// Resolves an advisor from an ID, email address, or name supplied during import.
 export async function resolveAdvisorReference(client, { advisorId, advisorEmail, advisorName } = {}) {
   const normalizedAdvisorId = String(advisorId ?? '').trim()
   const normalizedEmail = String(advisorEmail ?? '').trim().toLowerCase()
@@ -444,6 +453,7 @@ export async function resolveAdvisorReference(client, { advisorId, advisorEmail,
   return null
 }
 
+// Builds milestone progress totals for students assigned to an advisor.
 export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, educationPlan, year } = {}) {
   await ensureMilestoneSchema()
   const values = [advisorId]
@@ -604,3 +614,4 @@ export async function getAdvisorMilestoneSummary(advisorId, { degreeLevel, educa
     },
   }
 }
+// Provides advisor persistence, import, assignment lookup, and milestone summary queries.

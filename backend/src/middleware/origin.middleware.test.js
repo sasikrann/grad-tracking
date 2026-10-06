@@ -50,4 +50,4 @@ test('rejects state-changing requests from an untrusted or missing origin', () =
     (error) => error.statusCode === 403,
   )
 })
-
+// Verifies trusted-origin enforcement for safe and state-changing HTTP requests.

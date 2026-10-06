@@ -44,3 +44,4 @@ try {
   client.release()
   await pool.end()
 }
+// Applies each pending SQL migration once and records it in the schema_migrations table.

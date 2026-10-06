@@ -15,3 +15,4 @@ router.post('/', createUser)
 router.put('/:userId', updateUser)
 
 export default router
+// Maps administrator-only user-management API paths to their controllers.

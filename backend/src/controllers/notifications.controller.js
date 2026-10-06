@@ -53,6 +53,7 @@ function requireStudent(request) {
   }
 }
 
+// Returns notifications visible to the signed-in user's role.
 export async function getNotifications(request, response) {
   if (request.user.role === 'admin') {
     const targetAudience = optionalText(request.query.targetAudience)
@@ -70,12 +71,14 @@ export async function getNotifications(request, response) {
   response.json({ data: await findNotificationsForStudent(request.user.userId) })
 }
 
+// Returns one notification after checking that the user may view it.
 export async function getNotification(request, response) {
   const notification = await findNotificationByIdForUser(request.params.notificationId, request.user)
   if (!notification) throw new ApiError(404, 'Notification not found')
   response.json({ data: notification })
 }
 
+// Creates a notification and optionally sends its email copy.
 export async function addNotification(request, response) {
   if (request.user.role !== 'admin') {
     throw new ApiError(403, 'Only admins can create notifications')
@@ -88,6 +91,7 @@ export async function addNotification(request, response) {
   response.status(201).json({ data: notification })
 }
 
+// Stores an uploaded notification attachment.
 export async function uploadNotificationAttachment(request, response) {
   if (request.user.role !== 'admin') {
     throw new ApiError(403, 'Only admins can upload notification attachments')
@@ -105,6 +109,7 @@ export async function uploadNotificationAttachment(request, response) {
   })
 }
 
+// Authorizes and serves a protected notification attachment.
 export async function getNotificationAttachment(request, response) {
   const fileName = String(request.params.fileName ?? '')
   if (!safeAttachmentFileNamePattern.test(fileName)) {
@@ -139,6 +144,7 @@ export async function getNotificationAttachment(request, response) {
   response.sendFile(filePath)
 }
 
+// Returns the student's current unread notification count.
 export async function getUnreadNotificationCount(request, response) {
   requireStudent(request)
   response.json({
@@ -148,6 +154,7 @@ export async function getUnreadNotificationCount(request, response) {
   })
 }
 
+// Marks one notification as read for the signed-in student.
 export async function readNotification(request, response) {
   requireStudent(request)
   const readRecord = await markNotificationAsRead(request.params.notificationId, request.user.userId)
@@ -155,6 +162,7 @@ export async function readNotification(request, response) {
   response.json({ data: readRecord })
 }
 
+// Marks every visible notification as read for the signed-in student.
 export async function readAllNotifications(request, response) {
   requireStudent(request)
   response.json({
@@ -163,3 +171,4 @@ export async function readAllNotifications(request, response) {
     },
   })
 }
+// Handles notification listing, creation, attachments, and read-state HTTP responses.

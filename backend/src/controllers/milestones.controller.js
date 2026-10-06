@@ -100,6 +100,7 @@ function normalizeMilestone(body) {
   }
 }
 
+// Returns milestone templates matching the requested filters.
 export async function getMilestones(request, response) {
   const degreeLevel = String(request.query.degreeLevel ?? '').trim()
   const semester = optionalSemester(request.query.semester)
@@ -111,23 +112,27 @@ export async function getMilestones(request, response) {
   })
 }
 
+// Returns one milestone template by its identifier.
 export async function getMilestone(request, response) {
   const milestone = await findMilestoneById(request.params.milestoneId)
   if (!milestone) throw new ApiError(404, 'Milestone not found')
   response.json({ data: milestone })
 }
 
+// Returns the next available display order for a milestone scope.
 export async function getNextMilestoneOrder(request, response) {
   const degreeLevel = requiredText(request.query.degreeLevel, 'degreeLevel')
   const semester = requiredSemester(request.query.semester ?? '1')
   response.json({ data: { sequenceOrder: await nextSequenceOrder(degreeLevel, semester) } })
 }
 
+// Validates the request and creates a milestone template.
 export async function addMilestone(request, response) {
   const milestone = await createMilestone(normalizeMilestone(request.body))
   response.status(201).json({ data: milestone })
 }
 
+// Validates the request and updates an existing milestone template.
 export async function editMilestone(request, response) {
   const scopePlan = optionalText(request.body.scopePlan)
   if (scopePlan && !educationPlans.has(scopePlan)) {
@@ -141,12 +146,14 @@ export async function editMilestone(request, response) {
   response.json({ data: milestone })
 }
 
+// Enables or disables a milestone without deleting it.
 export async function toggleMilestone(request, response) {
   const milestone = await setMilestoneEnabled(request.params.milestoneId, Boolean(request.body.isEnabled))
   if (!milestone) throw new ApiError(404, 'Milestone not found')
   response.json({ data: milestone })
 }
 
+// Moves a milestone up or down within its configured scope.
 export async function reorderMilestone(request, response) {
   const direction = String(request.body.direction ?? '')
   if (!['up', 'down'].includes(direction)) throw new ApiError(400, 'direction must be up or down')
@@ -156,6 +163,7 @@ export async function reorderMilestone(request, response) {
   response.json({ data: milestone })
 }
 
+// Copies a complete milestone set into another academic year.
 export async function copyMilestoneSet(request, response) {
   const fromDegreeLevel = requiredText(request.body.fromDegreeLevel, 'fromDegreeLevel')
   const toDegreeLevel = requiredText(request.body.toDegreeLevel, 'toDegreeLevel')
@@ -180,3 +188,4 @@ export async function copyMilestoneSet(request, response) {
     },
   })
 }
+// Validates milestone request data and translates HTTP requests into milestone service operations.

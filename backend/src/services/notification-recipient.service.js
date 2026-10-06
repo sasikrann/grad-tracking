@@ -1,3 +1,4 @@
+// Returns student email addresses matching the notification audience.
 export async function findNotificationEmailRecipients(client, targetAudience) {
   const result = await client.query(
     `
@@ -18,3 +19,4 @@ export async function findNotificationEmailRecipients(client, targetAudience) {
 
   return result.rows.map((row) => row.email)
 }
+// Resolves email recipients whose degree level matches a notification audience.

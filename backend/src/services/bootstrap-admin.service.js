@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 const organizationEmailPattern = /^[^\s@]+@lamduan\.mfu\.ac\.th$/i;
 const bootstrapLockName = "grad-tracking-bootstrap-admin";
 
+// Reads and validates the administrator bootstrap settings.
 export function bootstrapAdminConfig(environment = process.env) {
   const email = String(environment.BOOTSTRAP_ADMIN_EMAIL ?? "")
     .trim()
@@ -17,6 +18,7 @@ export function bootstrapAdminConfig(environment = process.env) {
   return { email, fullName };
 }
 
+// Creates the bootstrap administrator or updates the existing matching account.
 export async function upsertBootstrapAdmin(client, admin, createId = randomUUID) {
   await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [bootstrapLockName]);
 
@@ -50,6 +52,7 @@ export async function upsertBootstrapAdmin(client, admin, createId = randomUUID)
   return { created: true };
 }
 
+// Runs the complete bootstrap operation in a database transaction.
 export async function bootstrapAdmin(pool, environment = process.env, createId = randomUUID) {
   const admin = bootstrapAdminConfig(environment);
   const client = await pool.connect();
@@ -67,6 +70,7 @@ export async function bootstrapAdmin(pool, environment = process.env, createId =
   }
 }
 
+// Retries a database connection until PostgreSQL is ready or the attempt limit is reached.
 export async function waitForDatabase(
   pool,
   { attempts = 30, delayMs = 1000, onRetry = () => {} } = {},
@@ -88,3 +92,4 @@ export async function waitForDatabase(
 
   throw new Error(`Database was not ready after ${attempts} attempts`, { cause: lastError });
 }
+// Validates bootstrap administrator settings and safely upserts the initial admin account.

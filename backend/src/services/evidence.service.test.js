@@ -1,3 +1,4 @@
+// Verifies which users may access a student's uploaded milestone evidence.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 

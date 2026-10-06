@@ -24,6 +24,7 @@ function targetAudienceForDegreeLevel(degreeLevel) {
   return 'All Students'
 }
 
+// Returns the language-neutral title and message keys for a reminder stage.
 export function milestoneReminderContent(_milestone, reminderStage) {
   const stage = ['created', 'first', 'deadline', 'second'].includes(reminderStage)
     ? reminderStage
@@ -35,6 +36,7 @@ export function milestoneReminderContent(_milestone, reminderStage) {
   }
 }
 
+// Creates a reminder notification once and sends email when configured.
 export async function createMilestoneReminderNotification(milestone, reminderStage) {
   await ensureNotificationSchema()
 
@@ -70,3 +72,4 @@ export async function createMilestoneReminderNotification(milestone, reminderSta
 
   return result.rows[0] || null
 }
+// Creates localized in-app and email notifications for milestone reminder stages.

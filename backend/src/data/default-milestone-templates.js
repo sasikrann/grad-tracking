@@ -332,3 +332,4 @@ export const defaultMilestoneTemplates = [
   ...createPlanTemplates('master-is', 'Master', ['B'], masterIsDefinitions),
   ...createPlanTemplates('doctoral', 'Doctoral', ['2.1', '2.2'], doctoralDefinitions),
 ]
+// Defines the built-in milestone templates used to initialize each supported degree plan.

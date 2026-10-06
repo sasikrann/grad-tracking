@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 
 import { defaultMilestoneTemplateVersion } from './milestone.constants.js'
 
+// Creates missing milestone templates for an academic year from the latest source set.
 export async function ensureAcademicYearMilestoneTemplates(client, academicYear) {
   const year = Number(academicYear)
   if (!Number.isInteger(year) || year < 2000 || year > 2200) {
@@ -97,3 +98,4 @@ export async function ensureAcademicYearMilestoneTemplates(client, academicYear)
 
   return true
 }
+// Creates an academic year's milestone templates from the latest applicable template set.

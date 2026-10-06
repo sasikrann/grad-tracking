@@ -31,6 +31,7 @@ const ignoredTitleWords = new Set([
   'RESULT',
 ])
 
+// Converts an evidence code into its stored uppercase identifier format.
 export function normalizeEvidenceCode(value) {
   return String(value ?? '')
     .trim()
@@ -41,6 +42,7 @@ export function normalizeEvidenceCode(value) {
     .replace(/-+$/g, '')
 }
 
+// Returns the configured default evidence code for a built-in template key.
 export function defaultEvidenceCodeForKey(templateKey) {
   const baseKey = String(templateKey ?? '')
     .replace(/^academic-\d+-/, '')
@@ -49,6 +51,7 @@ export function defaultEvidenceCodeForKey(templateKey) {
   return definitionKey ? defaultEvidenceCodes[definitionKey] : ''
 }
 
+// Chooses a supplied code or generates a stable fallback from milestone data.
 export function createEvidenceCode({ value, title, templateKey, sequenceOrder } = {}) {
   const requestedCode = normalizeEvidenceCode(value)
   if (requestedCode) return requestedCode
@@ -68,3 +71,4 @@ export function createEvidenceCode({ value, title, templateKey, sequenceOrder } 
 }
 
 export { maxEvidenceCodeLength }
+// Normalizes or generates short stable codes used to identify milestone evidence.

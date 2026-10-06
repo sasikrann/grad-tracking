@@ -23,3 +23,4 @@ router.patch('/:milestoneId/enabled', toggleMilestone)
 router.patch('/:milestoneId/order', reorderMilestone)
 
 export default router
+// Maps milestone-management API paths to administrator-only controllers.

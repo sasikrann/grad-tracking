@@ -3,6 +3,7 @@ import { ensureMilestoneSchema } from './milestones.service.js'
 
 const maxRejectedRevisionRounds = 3
 
+// Returns the signed-in student's milestones with calculated workflow states.
 export async function findStudentMilestonesByUserId(userId) {
   await ensureMilestoneSchema()
 
@@ -88,6 +89,7 @@ export async function findStudentMilestonesByUserId(userId) {
   return result.rows
 }
 
+// Checks whether a milestone requires the student to appoint an advisor first.
 export async function studentMilestoneRequiresAdvisor(userId, milestoneId) {
   await ensureMilestoneSchema()
 
@@ -118,6 +120,7 @@ export async function studentMilestoneRequiresAdvisor(userId, milestoneId) {
   return result.rows[0]?.requiresAdvisor ?? false
 }
 
+// Checks whether every prerequisite milestone has been completed.
 export async function areStudentMilestonePrerequisitesComplete(userId, milestoneId) {
   await ensureMilestoneSchema()
 
@@ -148,6 +151,7 @@ export async function areStudentMilestonePrerequisitesComplete(userId, milestone
   return result.rows[0]?.complete ?? true
 }
 
+// Returns milestone progress for a student viewed by an authorized advisor or admin.
 export async function findStudentMilestonesByStudentId(studentId) {
   await ensureMilestoneSchema()
 
@@ -237,3 +241,4 @@ export async function findStudentMilestonesByStudentId(studentId) {
       }) => milestone),
   }
 }
+// Loads student milestone progress and checks prerequisites and submission requirements.

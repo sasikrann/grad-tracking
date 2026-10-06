@@ -23,6 +23,7 @@ const milestoneColumns = `
   updated_at AS "updatedAt"
 `
 
+// Converts a date value into a comparable local calendar date.
 export function normalizeReminderDate(value) {
   if (!value) return null
   const date = new Date(value)
@@ -33,6 +34,7 @@ export function normalizeReminderDate(value) {
   return `${year}-${month}-${day}`
 }
 
+// Returns the reminder stages whose configured dates match the target date.
 export function getDueReminderStages(milestone, targetDate) {
   const stages = []
   const stageDates = [
@@ -48,6 +50,7 @@ export function getDueReminderStages(milestone, targetDate) {
   return stages
 }
 
+// Creates every milestone reminder due on the requested date.
 export async function createDueMilestoneReminderNotifications(date = null) {
   await ensureMilestoneSchema()
 
@@ -89,3 +92,4 @@ export async function createDueMilestoneReminderNotifications(date = null) {
     duplicatesSkipped: attemptedStages - notifications.length,
   }
 }
+// Determines which milestone reminders are due and creates their notifications.

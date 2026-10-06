@@ -43,11 +43,13 @@ function validateUserBody(body) {
   return { email, fullName, role, advisorId: role === 'advisor' ? advisorId : null }
 }
 
+// Returns all application users for administrator management.
 export async function getUsers(_request, response) {
   const users = await findAllUsers()
   response.json({ data: users })
 }
 
+// Returns one application user by identifier.
 export async function getUserById(request, response) {
   validateUserId(request.params.userId)
   const user = await findUserById(request.params.userId)
@@ -59,12 +61,14 @@ export async function getUserById(request, response) {
   response.json({ data: user })
 }
 
+// Validates and creates a new application user.
 export async function createUser(request, response) {
   const input = validateUserBody(request.body)
   const user = await insertUser(input)
   response.status(201).json({ data: user })
 }
 
+// Replaces the editable details of an existing user.
 export async function updateUser(request, response) {
   validateUserId(request.params.userId)
   const input = validateUserBody(request.body)
@@ -76,3 +80,4 @@ export async function updateUser(request, response) {
 
   response.json({ data: user })
 }
+// Validates and handles administrator requests for managing application users.

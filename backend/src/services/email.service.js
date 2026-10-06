@@ -26,6 +26,7 @@ function envelopeAddress(value) {
   return normalizeAddress(address)
 }
 
+// Selects real recipients or redirects all mail to the configured test recipient.
 export function resolveNotificationEmailRecipients(recipients, environment = process.env) {
   const normalizedRecipients = [...new Set(recipients.map(normalizeAddress).filter(Boolean))]
   if (!normalizedRecipients.length) {
@@ -56,6 +57,7 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;')
 }
 
+// Converts rich notification HTML into readable plain text.
 export function stripNotificationHtml(value) {
   return String(value ?? '')
     .replace(/&(?:nbsp|#160|#x0*a0);/gi, ' ')
@@ -114,6 +116,7 @@ function foldedBase64(buffer) {
   return buffer.toString('base64').match(/.{1,76}/g)?.join('\r\n') ?? ''
 }
 
+// Builds the raw multipart MIME message sent to the SMTP server.
 export function createMimeMessage({ from, subject, html, text, attachment = null }) {
   const alternativeBoundary = `notification-alternative-${Date.now()}-${Math.random().toString(16).slice(2)}`
   const alternativeBody = [
@@ -263,6 +266,7 @@ async function authenticate(socket, { user, pass }) {
   await smtpCommand(socket, base64(pass), [235])
 }
 
+// Connects to SMTP and sends a notification email with an optional attachment.
 export async function sendNotificationEmail({ recipients, title, message, attachment = null }) {
   const normalizedRecipients = resolveNotificationEmailRecipients(recipients)
   const emailAttachment = attachment
@@ -322,3 +326,4 @@ export async function sendNotificationEmail({ recipients, title, message, attach
 
   return { recipientCount: normalizedRecipients.length }
 }
+// Builds MIME messages and sends notification email directly through an SMTP connection.

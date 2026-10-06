@@ -1,3 +1,4 @@
+// Provides student queries, status changes, advisor assignments, imports, and study-extension workflows.
 import { randomUUID } from 'node:crypto'
 
 import pool from '../config/database.js'
@@ -386,18 +387,22 @@ async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
   }
 }
 
+// Returns all students visible to an advisor context.
 export function findAllStudents({ viewerAdvisorId } = {}) {
   return findStudents({ viewerAdvisorId })
 }
 
+// Returns a filtered and paginated student dashboard result.
 export function findStudentsPage(pagination) {
   return findStudents({ pagination })
 }
 
+// Returns students assigned to an advisor as primary or co-advisor.
 export function findStudentsByAdvisorId(advisorId) {
   return findStudents({ advisorId })
 }
 
+// Records a student's graduated, resigned, or dismissed status.
 export async function setStudentExitStatus(studentId, status) {
   await ensureStudentSchema()
   if (!['Resigned', 'Dismissed'].includes(status)) {
@@ -439,6 +444,7 @@ export async function setStudentExitStatus(studentId, status) {
   return null
 }
 
+// Creates the next allowed study extension for an eligible student.
 export async function grantStudentStudyExtension(studentId, grantedBy = null) {
   await ensureStudentSchema()
   await ensureMilestoneSchema()
@@ -548,6 +554,7 @@ export async function grantStudentStudyExtension(studentId, grantedBy = null) {
   }
 }
 
+// Cancels the student's most recently granted extension.
 export async function cancelLatestStudentStudyExtension(studentId) {
   await ensureStudentSchema()
   const client = await pool.connect()
@@ -594,6 +601,7 @@ export async function cancelLatestStudentStudyExtension(studentId) {
   }
 }
 
+// Returns one student profile by student identifier.
 export async function findStudentById(studentId) {
   await ensureStudentSchema()
   await ensureMilestoneSchema()
@@ -777,6 +785,7 @@ async function approveAllImportedGraduateMilestones(client, student) {
   }
 }
 
+// Returns the student profile linked to a signed-in user.
 export async function findStudentByUserId(userId) {
   await ensureStudentSchema()
   await ensureMilestoneSchema()
@@ -794,6 +803,7 @@ export async function findStudentByUserId(userId) {
   return result.rows[0] || null
 }
 
+// Checks whether the student remains eligible to submit milestone evidence.
 export async function canStudentSubmitMilestones(userId) {
   await ensureStudentSchema()
   const result = await pool.query(
@@ -820,6 +830,7 @@ export async function canStudentSubmitMilestones(userId) {
   return result.rows[0]?.canSubmit === true
 }
 
+// Updates the signed-in student's primary advisor.
 export async function updateStudentAdvisorByUserId(
   userId,
   { advisorId, advisorEmail, advisorName, advisorEvidenceUrl },
@@ -867,6 +878,7 @@ export async function updateStudentAdvisorByUserId(
   }
 }
 
+// Assigns the student's primary advisor and ordered co-advisors.
 export async function appointStudentAdvisorsByUserId(
   userId,
   milestoneId,
@@ -981,6 +993,7 @@ export async function appointStudentAdvisorsByUserId(
   }
 }
 
+// Records graduation details after validating the required milestone.
 export async function submitStudentGraduationByUserId(userId, milestoneId, semester, academicYear) {
   await ensureStudentSchema()
   await ensureMilestoneSchema()
@@ -1057,6 +1070,7 @@ export async function submitStudentGraduationByUserId(userId, milestoneId, semes
   }
 }
 
+// Creates a student and linked account in a transaction.
 export async function insertStudent(input) {
   const client = await pool.connect()
   try {
@@ -1078,6 +1092,7 @@ export async function insertStudent(input) {
   }
 }
 
+// Updates an existing student and linked account in a transaction.
 export async function replaceStudent(studentId, input) {
   const client = await pool.connect()
   try {
@@ -1098,6 +1113,7 @@ export async function replaceStudent(studentId, input) {
   }
 }
 
+// Returns selected student records with advisor and milestone details for export.
 export async function findStudentsForExport({ studentIds } = {}) {
   await ensureStudentSchema()
   await ensureMilestoneSchema()
@@ -1150,6 +1166,7 @@ export async function findStudentsForExport({ studentIds } = {}) {
   return result.rows
 }
 
+// Imports student records and writes one audit log for the complete operation.
 export async function importStudents(
   records,
   { fileName, importedBy, skippedRecords = 0, skippedReasons = [] } = {},

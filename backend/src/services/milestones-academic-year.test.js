@@ -1,3 +1,4 @@
+// Verifies that academic-year milestone sets are copied once with plan-specific prerequisites.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 

@@ -50,3 +50,4 @@ router.get('/:advisorId/students', getAdvisorStudents)
 router.patch('/students/:studentId/milestones/:milestoneId/review', reviewAdvisorStudentMilestone)
 
 export default router
+// Maps advisor-management API paths to authorization, upload, and controller handlers.

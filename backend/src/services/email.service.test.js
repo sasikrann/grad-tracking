@@ -63,3 +63,4 @@ test('creates a multipart email with the selected notification file attached', (
   assert.match(message, new RegExp(Buffer.from('image-content').toString('base64')))
   assert.doesNotMatch(message, /localhost|\/uploads\/notifications\//)
 })
+// Verifies notification recipients, test-mode redirection, and MIME attachment generation.

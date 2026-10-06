@@ -103,3 +103,4 @@ test('requireRole rejects a user with the wrong role', () => {
     (error) => error.statusCode === 403,
   )
 })
+// Verifies JWT authentication, account validation, and role-based access behavior.

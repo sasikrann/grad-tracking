@@ -46,3 +46,4 @@ export function errorHandler(error, _request, response, _next) {
 
   return response.status(statusCode).json(payload)
 }
+// Converts missing routes and application errors into consistent JSON HTTP responses.

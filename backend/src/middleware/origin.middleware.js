@@ -30,4 +30,4 @@ export function requireTrustedOrigin(request, _response, next) {
 
   next()
 }
-
+// Rejects unsafe cross-origin API requests while allowing trusted application origins.

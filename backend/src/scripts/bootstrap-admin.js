@@ -17,3 +17,4 @@ try {
 } finally {
   await pool.end();
 }
+// Waits for PostgreSQL and creates or updates the configured bootstrap administrator.

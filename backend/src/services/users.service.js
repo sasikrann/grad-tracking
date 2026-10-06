@@ -10,6 +10,7 @@ const userColumns = `
   created_at AS "createdAt"
 `
 
+// Returns every application user for administrator management.
 export async function findAllUsers() {
   const result = await pool.query(`
     SELECT ${userColumns}
@@ -20,6 +21,7 @@ export async function findAllUsers() {
   return result.rows
 }
 
+// Returns one user by its UUID.
 export async function findUserById(userId) {
   const result = await pool.query(
     `SELECT ${userColumns} FROM users WHERE user_id = $1`,
@@ -43,6 +45,7 @@ async function upsertAdvisorForUser(client, { userId, email, fullName, advisorId
   )
 }
 
+// Creates a user and, for advisor roles, the matching advisor profile.
 export async function insertUser({ email, fullName, role, advisorId }) {
   const client = await pool.connect()
   try {
@@ -70,6 +73,7 @@ export async function insertUser({ email, fullName, role, advisorId }) {
   }
 }
 
+// Updates a user and keeps any linked advisor profile synchronized.
 export async function replaceUser(userId, { email, fullName, role, advisorId }) {
   const client = await pool.connect()
   try {
@@ -102,3 +106,4 @@ export async function replaceUser(userId, { email, fullName, role, advisorId }) 
     client.release()
   }
 }
+// Provides user lookup and transactional create/update operations, including advisor linkage.

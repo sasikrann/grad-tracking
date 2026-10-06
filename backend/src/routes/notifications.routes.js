@@ -51,3 +51,4 @@ router.get('/:notificationId', getNotification)
 router.patch('/:notificationId/read', readNotification)
 
 export default router
+// Maps notification API paths to role checks, attachment uploads, and controllers.

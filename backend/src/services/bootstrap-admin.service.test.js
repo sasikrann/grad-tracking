@@ -160,3 +160,4 @@ test("fails after the configured database readiness attempts", async () => {
     /Database was not ready after 2 attempts/,
   );
 });
+// Verifies bootstrap configuration, idempotent admin creation, rollback, and database readiness.

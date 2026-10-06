@@ -93,3 +93,4 @@ router.put('/me/milestones/:milestoneId/evidence', uploadMilestoneEvidence, uplo
 router.delete('/me/milestones/:milestoneId/evidence', removeMyMilestoneEvidence)
 
 export default router
+// Maps the signed-in student's profile, advisor, graduation, and evidence endpoints.

@@ -17,3 +17,4 @@ test('generates a short evidence code from a custom milestone title', () => {
 test('falls back to the milestone order for a Thai-only title', () => {
   assert.equal(createEvidenceCode({ title: 'ยื่นเอกสาร', sequenceOrder: 4 }), 'MS04')
 })
+// Verifies evidence-code normalization, generation, and fallback behavior.

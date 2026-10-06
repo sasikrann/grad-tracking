@@ -76,3 +76,4 @@ try {
 }
 
 if (hasFailures) process.exitCode = 1
+// Audits deployed database constraints and reports records that violate expected rules.

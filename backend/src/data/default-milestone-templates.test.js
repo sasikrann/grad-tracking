@@ -98,3 +98,4 @@ test('references valid prerequisite templates that occur earlier', () => {
     }
   }
 })
+// Verifies the structure, ordering, and references of the built-in milestone templates.

@@ -135,4 +135,4 @@ export async function clearStudentMilestoneEvidence(userId, milestoneId) {
 
   return result.rowCount > 0
 }
-
+// Stores, retrieves, and clears student milestone evidence while enforcing submission rules.

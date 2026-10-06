@@ -48,6 +48,7 @@ function formatMissingFieldsMessage(messages) {
   return `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)} are missing.`
 }
 
+// Validates and normalizes advisor data received from an API request.
 export function normalizeAdvisor(body, { advisorId } = {}) {
   return {
     advisorId: advisorId ?? optionalText(body.advisorId),
@@ -99,6 +100,7 @@ function normalizeEmailText(value) {
   return /^mailto:/i.test(text) ? text.slice(7).split('?')[0].trim() : text
 }
 
+// Parses and validates advisor records from an uploaded spreadsheet or CSV file.
 export async function readAdvisorImportFile(file) {
   if (!/\.(csv|xlsx)$/i.test(file.originalname)) throw new ApiError(400, 'Only CSV and XLSX files are supported')
   if (file.buffer.length > 5 * 1024 * 1024) throw new ApiError(400, 'File too large')
@@ -216,6 +218,7 @@ function addAdvisorExportHeaders(worksheet) {
   worksheet.getRow(1).font = { bold: true }
 }
 
+// Builds an Excel workbook containing advisor records.
 export async function createAdvisorExportBuffer(advisors) {
   const workbook = new ExcelJS.Workbook()
   const worksheet = workbook.addWorksheet('Advisors')
@@ -234,6 +237,7 @@ export async function createAdvisorExportBuffer(advisors) {
   return Buffer.from(await workbook.xlsx.writeBuffer())
 }
 
+// Builds an empty advisor-import template workbook.
 export async function createAdvisorTemplateBuffer() {
   const workbook = new ExcelJS.Workbook()
   const worksheet = workbook.addWorksheet('Advisors')
@@ -242,3 +246,4 @@ export async function createAdvisorTemplateBuffer() {
 
   return Buffer.from(await workbook.xlsx.writeBuffer())
 }
+// Parses advisor import files and generates advisor export and template workbooks.

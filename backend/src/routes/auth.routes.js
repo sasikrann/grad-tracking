@@ -16,3 +16,4 @@ router.post('/logout', logout)
 router.get('/me', requireAuth, getCurrentUser)
 
 export default router
+// Maps login, logout, and current-session API paths to authentication controllers.

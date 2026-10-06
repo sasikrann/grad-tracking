@@ -11,6 +11,7 @@ function normalizeOrigin(value) {
   }
 }
 
+// Returns every browser origin that is allowed to call the API.
 export function getAllowedOrigins() {
   const configuredOrigins = [
     ...(process.env.FRONTEND_ORIGINS ?? '').split(','),
@@ -29,4 +30,4 @@ export function getAllowedOrigins() {
       .filter(Boolean),
   )
 }
-
+// Builds the allowlist used by CORS and state-changing request origin checks.
