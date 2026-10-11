@@ -61,7 +61,7 @@ services:
   e2e-frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.e2e
+      dockerfile: e2e/Dockerfile
     depends_on:
       e2e-backend:
         condition: service_started

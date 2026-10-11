@@ -35,4 +35,4 @@ required environment values, commands, UAT checklist, HTTPS handoff, and operati
 
 The Vue production build is part of the gateway image defined in
 `deploy/gateway/Dockerfile`; production does not use a separate frontend container.
-`frontend/Dockerfile.e2e` is retained only for the isolated Playwright test stack.
+`frontend/e2e/Dockerfile` is retained only for the isolated Playwright test stack.
