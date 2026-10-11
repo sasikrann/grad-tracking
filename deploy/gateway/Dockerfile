@@ -1,3 +1,4 @@
+# Build stage: compile the Vue application into static production files.
 FROM node:22-alpine AS frontend-build
 
 WORKDIR /app
@@ -16,6 +17,7 @@ ENV VITE_ENABLE_DEV_LOGIN=$VITE_ENABLE_DEV_LOGIN
 
 RUN npm run build
 
+# Runtime stage: serve the Vue files and proxy API requests through Nginx.
 FROM nginx:1.27-alpine
 
 COPY deploy/nginx/default.conf /etc/nginx/conf.d/default.conf

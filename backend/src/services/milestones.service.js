@@ -451,12 +451,20 @@ export async function ensureMilestoneSchema() {
         AND student_status = 'Normal'
     `))
     .then(() => pool.query(`
-      ALTER TABLE student_milestones
-      ADD CONSTRAINT student_milestones_student_milestone_unique UNIQUE (student_id, milestone_id)
-    `)
-    .catch((error) => {
-      if (!['42710', '42P07'].includes(error.code)) throw error
-    }))
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conrelid = 'student_milestones'::regclass
+            AND conname = 'student_milestones_student_milestone_unique'
+        ) THEN
+          ALTER TABLE student_milestones
+          ADD CONSTRAINT student_milestones_student_milestone_unique
+          UNIQUE (student_id, milestone_id);
+        END IF;
+      END $$;
+    `))
     .then(() => seedDefaultMilestoneTemplates())
     .then(() => backfillDgcReferenceLabels())
     .then(() => backfillMilestoneEvidenceCodes())

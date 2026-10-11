@@ -32,3 +32,7 @@ This project is a web application for tracking graduate thesis progress. The sys
 The production Docker stack includes Nginx gateway, built Vue frontend, Node.js backend,
 PostgreSQL, and persistent upload storage. See [DEPLOYMENT.md](DEPLOYMENT.md) for the
 required environment values, commands, UAT checklist, HTTPS handoff, and operations.
+
+The Vue production build is part of the gateway image defined in
+`deploy/gateway/Dockerfile`; production does not use a separate frontend container.
+`frontend/Dockerfile.e2e` is retained only for the isolated Playwright test stack.

@@ -1,3 +1,4 @@
+# Node.js runtime image for the production API.
 FROM node:22-alpine
 
 ENV NODE_ENV=production

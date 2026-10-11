@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 
 import pool from '../config/database.js'
+import { waitForDatabase } from '../services/bootstrap-admin.service.js'
 
 const migrations = [
   {
@@ -8,6 +9,12 @@ const migrations = [
     file: new URL('../../database/protective-foreign-keys.sql', import.meta.url),
   },
 ]
+
+await waitForDatabase(pool, {
+  onRetry(attempt, attempts) {
+    console.info(`Waiting for database before migrations (${attempt}/${attempts})`)
+  },
+})
 
 const client = await pool.connect()
 
