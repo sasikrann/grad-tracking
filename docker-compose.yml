@@ -20,6 +20,8 @@ services:
     networks: [app_network]
 
   backend:
+    # Build the Node.js API image from backend/Dockerfile.
+    image: grad-tracking-backend:local
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -62,6 +64,8 @@ services:
     networks: [app_network]
 
   gateway:
+    # Build the Vue application with Node.js, then serve it from Nginx.
+    image: grad-tracking-gateway:local
     build:
       context: .
       dockerfile: deploy/gateway/Dockerfile

@@ -8,6 +8,11 @@ Production runs as three services:
 
 Uploaded evidence and notification attachments use a second persistent volume. The backend checks authorization first, then asks Nginx to transfer the file through an internal-only location. PostgreSQL, Node, and Vite do not need to run on the host.
 
+The production frontend is not a separate service. `deploy/gateway/Dockerfile` uses a
+Node.js build stage to compile Vue, then copies the generated static files into the
+Nginx runtime image. `frontend/Dockerfile.e2e` is used only by the isolated Playwright
+stack in `docker-compose.e2e.yml`.
+
 ## 1. Run checks before UAT
 
 From the repository root on Windows:
