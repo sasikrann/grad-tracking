@@ -26,6 +26,11 @@ export function isPastNormalStudyPeriod(student, currentDate) {
   return Boolean(endDate && currentDate > endDate)
 }
 
+// Reports whether the inclusive extension period has ended.
+export function isPastExtensionPeriod(endDate, currentDate) {
+  return Boolean(endDate && currentDate > endDate)
+}
+
 // Converts a calendar date into the corresponding academic year and semester.
 export function academicTermForDate(date) {
   const [year, month] = date.split('-').map(Number)
@@ -40,16 +45,17 @@ export function academicTermForDate(date) {
 
 // Creates the fixed four-month date range for a granted extension.
 export function extensionPeriodFromDate(date) {
-  const [year, month] = date.split('-').map(Number)
+  const [year, month, day] = date.split('-').map(Number)
   const targetMonthIndex = month - 1 + 4
   const targetYear = year + Math.floor(targetMonthIndex / 12)
   const targetMonth = (targetMonthIndex % 12) + 1
   const lastDayOfTargetMonth = new Date(Date.UTC(targetYear, targetMonth, 0)).getUTCDate()
+  const targetDay = Math.min(day, lastDayOfTargetMonth)
   const pad = (value) => String(value).padStart(2, '0')
 
   return {
     startsOn: date,
-    endsOn: `${targetYear}-${pad(targetMonth)}-${pad(lastDayOfTargetMonth)}`,
+    endsOn: `${targetYear}-${pad(targetMonth)}-${pad(targetDay)}`,
   }
 }
 // Calculates normal study limits, academic terms, and four-month extension periods.

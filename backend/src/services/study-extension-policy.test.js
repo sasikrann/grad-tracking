@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   academicTermForDate,
   extensionPeriodFromDate,
+  isPastExtensionPeriod,
   isPastNormalStudyPeriod,
   maximumStudyYears,
   normalStudyEndDate,
@@ -17,10 +18,13 @@ test('uses the configured normal study periods for each degree and plan', () => 
 
 test('grants exactly four calendar months from the approval date', () => {
   assert.deepEqual(extensionPeriodFromDate('2026-08-01'), {
-    startsOn: '2026-08-01', endsOn: '2026-12-31',
+    startsOn: '2026-08-01', endsOn: '2026-12-01',
   })
   assert.deepEqual(extensionPeriodFromDate('2026-10-31'), {
     startsOn: '2026-10-31', endsOn: '2027-02-28',
+  })
+  assert.deepEqual(extensionPeriodFromDate('2024-10-31'), {
+    startsOn: '2024-10-31', endsOn: '2025-02-28',
   })
 })
 
@@ -34,6 +38,21 @@ test('calculates normal study end from the enrollment semester without a two-yea
   assert.equal(isPastNormalStudyPeriod({
     degreeLevel: 'Doctoral', educationPlan: '2.1', enrollmentAcademicYear: 2020, semester: '1',
   }, '2025-06-01'), true)
+})
+
+test('opens extension only after the normal study end date', () => {
+  const student = {
+    degreeLevel: 'Master', educationPlan: '1.1', enrollmentAcademicYear: 2022, semester: '1',
+  }
+  assert.equal(isPastNormalStudyPeriod(student, '2026-05-30'), false)
+  assert.equal(isPastNormalStudyPeriod(student, '2026-05-31'), false)
+  assert.equal(isPastNormalStudyPeriod(student, '2026-06-01'), true)
+})
+
+test('opens the next extension only after the inclusive end date', () => {
+  assert.equal(isPastExtensionPeriod('2026-12-01', '2026-11-30'), false)
+  assert.equal(isPastExtensionPeriod('2026-12-01', '2026-12-01'), false)
+  assert.equal(isPastExtensionPeriod('2026-12-01', '2026-12-02'), true)
 })
 
 test('identifies the academic term only as extension metadata', () => {

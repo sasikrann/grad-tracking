@@ -8,6 +8,10 @@ const migrations = [
     id: '20260923_protective_foreign_keys',
     file: new URL('../../database/protective-foreign-keys.sql', import.meta.url),
   },
+  {
+    id: '20261013_recalculate_study_extension_end_dates',
+    file: new URL('../../database/recalculate-study-extension-end-dates.sql', import.meta.url),
+  },
 ]
 
 await waitForDatabase(pool, {

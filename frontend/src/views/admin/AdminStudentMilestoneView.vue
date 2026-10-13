@@ -31,6 +31,7 @@ const errorMessage = ref('')
 const student = ref<StudentDetail | null>(null)
 const isExtending = ref(false)
 const isExtendModalOpen = ref(false)
+const isExtensionUnavailableModalOpen = ref(false)
 const isExtendConfirmed = ref(false)
 const extendError = ref('')
 const isCancellingExtension = ref(false)
@@ -51,7 +52,9 @@ const extensionUnavailableReason = computed(() => {
   if (!student.value || canExtendStudyPeriod.value) return ''
   if (student.value.graduationSemester && student.value.graduationAcademicYear) return t('student.extensionUnavailableGraduated')
   if (['Graduate', 'Resigned', 'Dismissed'].includes(student.value.academicStatus)) return t('student.extensionUnavailableStatus')
-  if (!milestones.value.length || completedCount.value >= milestones.value.length) return t('student.extensionUnavailableMilestonesComplete')
+  if (student.value.academicStatus === 'On-track') return t('student.extensionUnavailableNormalPeriod')
+  if (!milestones.value.length) return t('student.extensionUnavailableMilestonesMissing')
+  if (completedCount.value >= milestones.value.length) return t('student.extensionUnavailableMilestonesComplete')
   if (studyExtensionCount.value >= 2) return t('student.studyExtensionLimitReached')
   if (student.value.studyExtensionGranted || student.value.academicStatus === 'Extended') return t('student.extensionUnavailableActive')
   const targetRound = studyExtensionCount.value + 1
@@ -59,7 +62,7 @@ const extensionUnavailableReason = computed(() => {
     ? Number(student.value.studyExtensionRound1Cancellations ?? 0)
     : Number(student.value.studyExtensionRound2Cancellations ?? 0)
   if (cancellations >= 2) return t('student.extensionRetryUsed')
-  return t('student.extensionUnavailableNormalPeriod')
+  return t('student.extensionUnavailableStatus')
 })
 
 const extensionButtonLabel = computed(() => {
@@ -104,10 +107,18 @@ async function loadMilestones({ silent = false } = {}) {
 }
 
 function openExtendModal() {
-  if (!canExtendStudyPeriod.value || isExtending.value) return
+  if (isExtending.value) return
+  if (!canExtendStudyPeriod.value) {
+    isExtensionUnavailableModalOpen.value = true
+    return
+  }
   isExtendConfirmed.value = false
   extendError.value = ''
   isExtendModalOpen.value = true
+}
+
+function closeExtensionUnavailableModal() {
+  isExtensionUnavailableModalOpen.value = false
 }
 
 function closeExtendModal() {
@@ -233,14 +244,21 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
                 )
               }}
             </button>
-            <div class="relative flex min-w-0 flex-1 flex-col items-stretch xl:w-auto xl:flex-none">
+            <div
+              v-if="student?.normalStudyPeriodEnded"
+              class="relative flex min-w-0 flex-1 flex-col items-stretch xl:w-auto xl:flex-none"
+            >
               <span class="absolute -top-4 right-0 text-right text-[9px] font-medium leading-tight whitespace-nowrap text-slate-500 xl:text-[10px]">
                 {{ t('student.studyExtensionUsage').replace('{count}', String(studyExtensionCount)) }}
               </span>
               <button
                 type="button"
-                class="w-full rounded-lg border border-[#d9b9b6] bg-[#8a2b25] px-2 py-2 text-[10px] font-semibold text-white shadow-sm transition hover:bg-[#76231e] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-200 disabled:text-slate-500 xl:w-auto xl:px-2.5 xl:text-[11px]"
-                :disabled="!canExtendStudyPeriod || isExtending"
+                class="w-full rounded-lg border px-2 py-2 text-[10px] font-semibold shadow-sm transition xl:w-auto xl:px-2.5 xl:text-[11px]"
+                :class="canExtendStudyPeriod
+                  ? 'border-[#d9b9b6] bg-[#8a2b25] text-white hover:bg-[#76231e]'
+                  : 'cursor-not-allowed border-slate-200 bg-slate-200 text-slate-500'"
+                :disabled="isExtending"
+                :aria-disabled="!canExtendStudyPeriod"
                 :title="extensionUnavailableReason"
                 @click="openExtendModal"
               >
@@ -360,6 +378,35 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
               @click="confirmExtendStudyPeriod"
             >
               {{ t('student.confirmExtendStudyPeriod') }}
+            </button>
+          </div>
+        </section>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div
+        v-if="isExtensionUnavailableModalOpen"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="extension-unavailable-title"
+        @click.self="closeExtensionUnavailableModal"
+      >
+        <section class="w-full max-w-md rounded-2xl border border-[#ead7d5] bg-white p-5 shadow-2xl sm:p-6">
+          <h2 id="extension-unavailable-title" class="text-lg font-bold text-slate-900">
+            {{ t('student.extensionUnavailableModalTitle') }}
+          </h2>
+          <p class="mt-2 text-sm leading-6 text-slate-600" role="alert">
+            {{ extensionUnavailableReason }}
+          </p>
+          <div class="mt-5 flex justify-end">
+            <button
+              type="button"
+              class="w-full rounded-lg bg-[#8a2b25] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#76231e] sm:w-auto"
+              @click="closeExtensionUnavailableModal"
+            >
+              {{ t('common.confirm') }}
             </button>
           </div>
         </section>

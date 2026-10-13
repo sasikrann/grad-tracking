@@ -9,6 +9,7 @@ import {
   MAX_STUDY_EXTENSIONS,
   academicTermForDate,
   extensionPeriodFromDate,
+  isPastExtensionPeriod,
   isPastNormalStudyPeriod,
 } from './study-extension-policy.js'
 
@@ -108,6 +109,10 @@ const studentDetailColumns = `
   (SELECT e.ends_on FROM student_study_extensions e
     WHERE e.student_id = s.student_id AND e.status = 'Granted'
     ORDER BY e.extension_number DESC LIMIT 1) AS "studyExtensionEndsOn",
+  CURRENT_DATE > CASE
+    WHEN s.semester = '2' THEN make_date(s.enrollment_academic_year + CASE WHEN s.degree_level = 'Master' THEN 4 WHEN s.education_plan = '2.2' THEN 7 ELSE 5 END, 12, 31)
+    ELSE make_date(s.enrollment_academic_year + CASE WHEN s.degree_level = 'Master' THEN 4 WHEN s.education_plan = '2.2' THEN 7 ELSE 5 END, 5, 31)
+  END AS "normalStudyPeriodEnded",
   (
     s.student_status = 'Normal'
     AND (SELECT COUNT(*) FROM student_study_extensions e
@@ -125,10 +130,8 @@ const studentDetailColumns = `
         ON sm.student_id = s.student_id AND sm.milestone_id = mt.milestone_id
       WHERE (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
         AND mt.academic_year = s.enrollment_academic_year
-        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR (s.education_plan IS NOT NULL AND
-          CASE WHEN s.degree_level = 'Master' THEN
-            CASE s.education_plan WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
-          ELSE s.education_plan END = ANY(mt.plans)))
+        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR
+          (s.education_plan IS NOT NULL AND s.education_plan = ANY(mt.plans)))
         AND mt.is_enabled = TRUE
         AND COALESCE(sm.status NOT IN ('Completed', 'Approved'), TRUE)
     )
@@ -173,11 +176,6 @@ const studentDetailColumns = `
   s.created_at AS "createdAt",
   s.updated_at AS "updatedAt"
 `
-
-function canonicalMilestonePlan(degreeLevel, educationPlan) {
-  if (degreeLevel !== 'Master') return educationPlan
-  return { '1.1': 'A1', '1.2': 'A2', 2: 'B' }[educationPlan] ?? educationPlan
-}
 
 function normalizeComparableValue(value) {
   return value === null || value === undefined
@@ -334,10 +332,8 @@ async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
       LEFT JOIN milestone_templates mt
         ON (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
         AND mt.academic_year = s.enrollment_academic_year
-        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR (s.education_plan IS NOT NULL AND
-          CASE WHEN s.degree_level = 'Master' THEN
-            CASE s.education_plan WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
-          ELSE s.education_plan END = ANY(mt.plans)))
+        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR
+          (s.education_plan IS NOT NULL AND s.education_plan = ANY(mt.plans)))
         AND mt.is_enabled = TRUE
       LEFT JOIN student_milestones sm
         ON sm.student_id = s.student_id
@@ -483,21 +479,28 @@ export async function grantStudentStudyExtension(studentId, grantedBy = null) {
       throw error
     }
 
-    const incompleteMilestones = await client.query(
-      `SELECT 1
+    const milestoneEligibility = await client.query(
+      `SELECT
+         COUNT(*)::INT AS "configuredCount",
+         COUNT(*) FILTER (
+           WHERE COALESCE(sm.status NOT IN ('Completed', 'Approved'), TRUE)
+         )::INT AS "incompleteCount"
        FROM milestone_templates mt
        LEFT JOIN student_milestones sm
          ON sm.student_id = $1 AND sm.milestone_id = mt.milestone_id
        WHERE (mt.degree_level = $2 OR mt.degree_level = 'All')
          AND mt.academic_year = $3
          AND (mt.plans @> ARRAY['All']::VARCHAR[] OR ($4::VARCHAR IS NOT NULL AND $4 = ANY(mt.plans)))
-         AND mt.is_enabled = TRUE
-         AND COALESCE(sm.status NOT IN ('Completed', 'Approved'), TRUE)
-       LIMIT 1`,
-      [studentId, student.degreeLevel, student.enrollmentAcademicYear,
-        canonicalMilestonePlan(student.degreeLevel, student.educationPlan)],
+         AND mt.is_enabled = TRUE`,
+      [studentId, student.degreeLevel, student.enrollmentAcademicYear, student.educationPlan],
     )
-    if (!incompleteMilestones.rowCount) {
+    const { configuredCount, incompleteCount } = milestoneEligibility.rows[0]
+    if (!configuredCount) {
+      const error = new Error('No milestone set is configured for this student')
+      error.statusCode = 409
+      throw error
+    }
+    if (!incompleteCount) {
       const error = new Error('All milestones are complete; a study extension is not required')
       error.statusCode = 409
       throw error
@@ -518,7 +521,7 @@ export async function grantStudentStudyExtension(studentId, grantedBy = null) {
     }
 
     const lastExtension = extensionResult.rows.at(-1)
-    if (lastExtension && student.currentDate <= lastExtension.endsOn) {
+    if (lastExtension && !isPastExtensionPeriod(lastExtension.endsOn, student.currentDate)) {
       const error = new Error('The current study extension has not ended yet')
       error.statusCode = 409
       throw error
@@ -761,8 +764,7 @@ async function approveAllImportedGraduateMilestones(client, student) {
         )
         AND mt.is_enabled = TRUE
     `,
-    [student.enrollmentAcademicYear, student.degreeLevel,
-      canonicalMilestonePlan(student.degreeLevel, student.educationPlan)],
+    [student.enrollmentAcademicYear, student.degreeLevel, student.educationPlan],
   )
 
   for (const template of templates.rows) {
@@ -940,9 +942,7 @@ export async function appointStudentAdvisorsByUserId(
           ON mt.milestone_id = $2
           AND mt.academic_year = s.enrollment_academic_year
           AND mt.degree_level = s.degree_level::text
-          AND CASE WHEN s.degree_level = 'Master' THEN
-            CASE s.education_plan WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
-          ELSE s.education_plan END = ANY(mt.plans)
+          AND s.education_plan = ANY(mt.plans)
           AND mt.is_enabled = TRUE
           AND mt.default_template_key LIKE '%advisor-appointment'
         WHERE s.user_id = $1
@@ -1021,9 +1021,7 @@ export async function submitStudentGraduationByUserId(userId, milestoneId, semes
           ON mt.milestone_id = $2
           AND mt.academic_year = s.enrollment_academic_year
           AND mt.degree_level = s.degree_level::text
-          AND CASE WHEN s.degree_level = 'Master' THEN
-            CASE s.education_plan WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
-          ELSE s.education_plan END = ANY(mt.plans)
+          AND s.education_plan = ANY(mt.plans)
           AND mt.is_enabled = TRUE
           AND mt.default_template_key LIKE '%graduation'
         WHERE s.user_id = $1
@@ -1040,7 +1038,8 @@ export async function submitStudentGraduationByUserId(userId, milestoneId, semes
     const studentId = result.rows[0].student_id
     await client.query(
       `UPDATE students
-       SET graduation_semester = $2, graduation_academic_year = $3, updated_at = NOW()
+       SET graduation_semester = $2, graduation_academic_year = $3,
+           student_status = 'Graduate', updated_at = NOW()
        WHERE student_id = $1`,
       [studentId, normalizedSemester, normalizedYear],
     )
@@ -1149,10 +1148,8 @@ export async function findStudentsForExport({ studentIds } = {}) {
             AND sm.milestone_id = mt.milestone_id
           WHERE (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
             AND mt.academic_year = s.enrollment_academic_year
-            AND (mt.plans @> ARRAY['All']::VARCHAR[] OR (s.education_plan IS NOT NULL AND
-              CASE WHEN s.degree_level = 'Master' THEN
-                CASE s.education_plan WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
-              ELSE s.education_plan END = ANY(mt.plans)))
+            AND (mt.plans @> ARRAY['All']::VARCHAR[] OR
+              (s.education_plan IS NOT NULL AND s.education_plan = ANY(mt.plans)))
             AND mt.is_enabled = TRUE
         ),
         '[]'::json
