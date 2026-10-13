@@ -161,6 +161,7 @@ export interface StudentDetail {
   studyExtensionSemester: '1' | '2' | null
   studyExtensionStartsOn: string | null
   studyExtensionEndsOn: string | null
+  normalStudyPeriodEnded: boolean
   canExtendStudyPeriod: boolean
   studyExtensionRound1Cancellations: number
   studyExtensionRound2Cancellations: number

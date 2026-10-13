@@ -6,6 +6,10 @@ import {
   startMilestoneReminderScheduler,
   stopMilestoneReminderScheduler,
 } from "./services/milestone-reminder-scheduler.service.js";
+import {
+  startStudyExtensionScheduler,
+  stopStudyExtensionScheduler,
+} from "./services/study-extension-scheduler.service.js";
 
 process.env.TZ ||= "Asia/Bangkok";
 
@@ -14,6 +18,7 @@ const port = process.env.PORT || 3000;
 const server = app.listen(port, () => {
   console.info(`Backend is running on http://localhost:${port}`);
   startMilestoneReminderScheduler();
+  startStudyExtensionScheduler();
 });
 
 let isShuttingDown = false;
@@ -23,6 +28,7 @@ function shutdown(signal) {
   isShuttingDown = true;
   console.info(`${signal} received. Shutting down gracefully.`);
   stopMilestoneReminderScheduler();
+  stopStudyExtensionScheduler();
   server.close(async (error) => {
     try {
       await pool.end();
