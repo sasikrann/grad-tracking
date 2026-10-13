@@ -1,7 +1,7 @@
 // Controller สำหรับให้ Admin สร้าง แก้ไข เปิด-ปิด เรียงลำดับ และคัดลอก Milestone
 import { ApiError } from '../errors/api-error.js'
+import { copyMilestones } from '../services/milestone-copy.service.js'
 import {
-  copyMilestones,
   createMilestone,
   findMilestones,
   findMilestoneById,
@@ -30,13 +30,6 @@ function optionalDate(value, field) {
   const result = optionalText(value)
   if (result && Number.isNaN(Date.parse(result))) throw new ApiError(400, `${field} must be a valid date`)
   return result
-}
-
-function optionalYear(value) {
-  const year = optionalText(value)
-  if (!year || year === 'all') return null
-  if (!/^\d{4}$/.test(year)) throw new ApiError(400, 'year must be a 4 digit year')
-  return year
 }
 
 function requiredAcademicYear(value) {
@@ -165,24 +158,32 @@ export async function reorderMilestone(request, response) {
 
 // Copies a complete milestone set into another academic year.
 export async function copyMilestoneSet(request, response) {
-  const fromDegreeLevel = requiredText(request.body.fromDegreeLevel, 'fromDegreeLevel')
-  const toDegreeLevel = requiredText(request.body.toDegreeLevel, 'toDegreeLevel')
+  const degreeLevel = requiredText(request.body.degreeLevel, 'degreeLevel')
+  const educationPlan = requiredText(request.body.educationPlan, 'educationPlan')
+  const fromYear = requiredAcademicYear(request.body.fromYear)
+  const toYear = requiredAcademicYear(request.body.toYear)
   const fromSemester = optionalSemester(request.body.fromSemester)
   const toSemester = requiredSemester(request.body.toSemester ?? '1')
-  const toYear = optionalYear(request.body.toYear)
   const milestoneIds = Array.isArray(request.body.milestoneIds) ? request.body.milestoneIds : []
-  if (!degreeLevels.has(fromDegreeLevel) || !degreeLevels.has(toDegreeLevel)) {
-    throw new ApiError(400, 'degree levels must be Master or Doctoral')
+  if (!['Master', 'Doctoral'].includes(degreeLevel)) {
+    throw new ApiError(400, 'degreeLevel must be Master or Doctoral')
+  }
+  if (educationPlan === 'All' || !educationPlans.has(educationPlan)) {
+    throw new ApiError(400, 'educationPlan must identify one specific plan')
+  }
+  if (fromYear >= toYear) {
+    throw new ApiError(400, 'toYear must be later than fromYear')
   }
 
   response.status(201).json({
     data: {
       copiedRecords: await copyMilestones({
-        fromDegreeLevel,
-        toDegreeLevel,
+        degreeLevel,
+        educationPlan,
+        fromYear,
+        toYear,
         fromSemester,
         toSemester,
-        toYear,
         milestoneIds,
       }),
     },

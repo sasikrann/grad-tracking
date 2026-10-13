@@ -44,21 +44,23 @@ export function moveMilestone(milestoneId: string, direction: 'up' | 'down') {
 
 // Copies milestone templates between academic years.
 export function copyMilestones(
-  fromDegreeLevel: DegreeLevel,
-  toDegreeLevel: DegreeLevel,
+  degreeLevel: DegreeLevel,
+  educationPlan: string,
+  fromYear: string,
+  toYear: string,
   fromSemester: string,
   toSemester: string,
-  toYear: string,
   milestoneIds: string[],
 ) {
   return request<{ copiedRecords: number }>('/api/milestones/copy', {
     method: 'POST',
     body: JSON.stringify({
-      fromDegreeLevel,
-      toDegreeLevel,
+      degreeLevel,
+      educationPlan,
+      fromYear,
+      toYear,
       fromSemester,
       toSemester,
-      toYear,
       milestoneIds,
     }),
   })
