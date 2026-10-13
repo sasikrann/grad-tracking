@@ -238,10 +238,9 @@ useAutoRefresh(() => loadMilestones({ silent: true }), {
                 {{ t('student.studyExtensionUsage').replace('{count}', String(studyExtensionCount)) }}
               </span>
               <button
-                v-if="canExtendStudyPeriod"
                 type="button"
                 class="w-full rounded-lg border border-[#d9b9b6] bg-[#8a2b25] px-2 py-2 text-[10px] font-semibold text-white shadow-sm transition hover:bg-[#76231e] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-200 disabled:text-slate-500 xl:w-auto xl:px-2.5 xl:text-[11px]"
-                :disabled="isExtending"
+                :disabled="!canExtendStudyPeriod || isExtending"
                 :title="extensionUnavailableReason"
                 @click="openExtendModal"
               >

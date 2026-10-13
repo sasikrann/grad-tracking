@@ -48,13 +48,13 @@ test('copies the latest academic-year templates with blank dates', async () => {
   assert.match(inserts[0].sql, /NULL, NULL, NULL, NULL/)
 })
 
-test('keeps current-plan prerequisites inside the same plan when copying years', async () => {
+test('keeps prerequisites inside each separate plan', async () => {
   const calls = []
   const sourceTemplates = [
     {
       milestone_id: 'source-1',
       default_template_key: 'master-thesis-first',
-      degree_level: 'Master', semester: 'all', plans: ['1.1', '1.2'],
+      degree_level: 'Master', semester: 'all', plans: ['A1', 'A2'],
       prerequisite_milestone_ids: [], title: 'First', description: null,
       evidence_code: 'FIRST',
       reference_urls: [], sequence_order: 1, is_enabled: true,
@@ -62,7 +62,7 @@ test('keeps current-plan prerequisites inside the same plan when copying years',
     {
       milestone_id: 'source-2',
       default_template_key: 'master-thesis-second',
-      degree_level: 'Master', semester: 'all', plans: ['1.1', '1.2'],
+      degree_level: 'Master', semester: 'all', plans: ['A1', 'A2'],
       prerequisite_milestone_ids: ['source-1'], title: 'Second', description: null,
       evidence_code: 'SECOND',
       reference_urls: [], sequence_order: 2, is_enabled: true,

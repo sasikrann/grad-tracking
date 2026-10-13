@@ -49,7 +49,7 @@ const programOptions = computed<{ label: string; value: MilestoneProgram }[]>(()
   { label: t('common.doctoral'), value: 'Doctoral' },
 ])
 const planOptions = computed<EducationPlan[]>(() => {
-  if (form.degreeLevel === 'Master') return ['A1', 'A2', 'B', '1.1', '1.2', '2']
+  if (form.degreeLevel === 'Master') return ['A1', 'A2', 'B']
   return ['2.1', '2.2']
 })
 const prerequisiteOptions = computed(() =>

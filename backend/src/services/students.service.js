@@ -9,7 +9,6 @@ import {
   MAX_STUDY_EXTENSIONS,
   academicTermForDate,
   extensionPeriodFromDate,
-  hasExtensionEnded,
   isPastNormalStudyPeriod,
 } from './study-extension-policy.js'
 
@@ -69,23 +68,6 @@ async function ensureStudentSchema() {
     );
   `)
   await studentSchemaReady
-  await pool.query(`
-    UPDATE students s
-    SET student_status = 'Dismissed', updated_at = NOW()
-    WHERE s.student_status = 'Normal'
-      AND s.graduation_semester IS NULL
-      AND s.graduation_academic_year IS NULL
-      AND (
-        SELECT COUNT(*)
-        FROM student_study_extensions e
-        WHERE e.student_id = s.student_id AND e.status = 'Granted'
-      ) = 2
-      AND CURRENT_DATE > (
-        SELECT MAX(e.ends_on)
-        FROM student_study_extensions e
-        WHERE e.student_id = s.student_id AND e.status = 'Granted'
-      )
-  `)
 }
 
 const studentDetailColumns = `
@@ -143,8 +125,10 @@ const studentDetailColumns = `
         ON sm.student_id = s.student_id AND sm.milestone_id = mt.milestone_id
       WHERE (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
         AND mt.academic_year = s.enrollment_academic_year
-        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR
-          (s.education_plan IS NOT NULL AND s.education_plan = ANY(mt.plans)))
+        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR (s.education_plan IS NOT NULL AND
+          CASE WHEN s.degree_level = 'Master' THEN
+            CASE s.education_plan WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
+          ELSE s.education_plan END = ANY(mt.plans)))
         AND mt.is_enabled = TRUE
         AND COALESCE(sm.status NOT IN ('Completed', 'Approved'), TRUE)
     )
@@ -189,6 +173,11 @@ const studentDetailColumns = `
   s.created_at AS "createdAt",
   s.updated_at AS "updatedAt"
 `
+
+function canonicalMilestonePlan(degreeLevel, educationPlan) {
+  if (degreeLevel !== 'Master') return educationPlan
+  return { '1.1': 'A1', '1.2': 'A2', 2: 'B' }[educationPlan] ?? educationPlan
+}
 
 function normalizeComparableValue(value) {
   return value === null || value === undefined
@@ -345,8 +334,10 @@ async function findStudents({ advisorId, viewerAdvisorId, pagination } = {}) {
       LEFT JOIN milestone_templates mt
         ON (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
         AND mt.academic_year = s.enrollment_academic_year
-        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR
-          (s.education_plan IS NOT NULL AND s.education_plan = ANY(mt.plans)))
+        AND (mt.plans @> ARRAY['All']::VARCHAR[] OR (s.education_plan IS NOT NULL AND
+          CASE WHEN s.degree_level = 'Master' THEN
+            CASE s.education_plan WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
+          ELSE s.education_plan END = ANY(mt.plans)))
         AND mt.is_enabled = TRUE
       LEFT JOIN student_milestones sm
         ON sm.student_id = s.student_id
@@ -504,7 +495,7 @@ export async function grantStudentStudyExtension(studentId, grantedBy = null) {
          AND COALESCE(sm.status NOT IN ('Completed', 'Approved'), TRUE)
        LIMIT 1`,
       [studentId, student.degreeLevel, student.enrollmentAcademicYear,
-        student.educationPlan],
+        canonicalMilestonePlan(student.degreeLevel, student.educationPlan)],
     )
     if (!incompleteMilestones.rowCount) {
       const error = new Error('All milestones are complete; a study extension is not required')
@@ -527,7 +518,7 @@ export async function grantStudentStudyExtension(studentId, grantedBy = null) {
     }
 
     const lastExtension = extensionResult.rows.at(-1)
-    if (lastExtension && !hasExtensionEnded(lastExtension.endsOn, student.currentDate)) {
+    if (lastExtension && student.currentDate <= lastExtension.endsOn) {
       const error = new Error('The current study extension has not ended yet')
       error.statusCode = 409
       throw error
@@ -771,7 +762,7 @@ async function approveAllImportedGraduateMilestones(client, student) {
         AND mt.is_enabled = TRUE
     `,
     [student.enrollmentAcademicYear, student.degreeLevel,
-      student.educationPlan],
+      canonicalMilestonePlan(student.degreeLevel, student.educationPlan)],
   )
 
   for (const template of templates.rows) {
@@ -949,7 +940,9 @@ export async function appointStudentAdvisorsByUserId(
           ON mt.milestone_id = $2
           AND mt.academic_year = s.enrollment_academic_year
           AND mt.degree_level = s.degree_level::text
-          AND s.education_plan = ANY(mt.plans)
+          AND CASE WHEN s.degree_level = 'Master' THEN
+            CASE s.education_plan WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
+          ELSE s.education_plan END = ANY(mt.plans)
           AND mt.is_enabled = TRUE
           AND mt.default_template_key LIKE '%advisor-appointment'
         WHERE s.user_id = $1
@@ -1028,7 +1021,9 @@ export async function submitStudentGraduationByUserId(userId, milestoneId, semes
           ON mt.milestone_id = $2
           AND mt.academic_year = s.enrollment_academic_year
           AND mt.degree_level = s.degree_level::text
-          AND s.education_plan = ANY(mt.plans)
+          AND CASE WHEN s.degree_level = 'Master' THEN
+            CASE s.education_plan WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
+          ELSE s.education_plan END = ANY(mt.plans)
           AND mt.is_enabled = TRUE
           AND mt.default_template_key LIKE '%graduation'
         WHERE s.user_id = $1
@@ -1154,8 +1149,10 @@ export async function findStudentsForExport({ studentIds } = {}) {
             AND sm.milestone_id = mt.milestone_id
           WHERE (mt.degree_level = s.degree_level::text OR mt.degree_level = 'All')
             AND mt.academic_year = s.enrollment_academic_year
-            AND (mt.plans @> ARRAY['All']::VARCHAR[] OR
-              (s.education_plan IS NOT NULL AND s.education_plan = ANY(mt.plans)))
+            AND (mt.plans @> ARRAY['All']::VARCHAR[] OR (s.education_plan IS NOT NULL AND
+              CASE WHEN s.degree_level = 'Master' THEN
+                CASE s.education_plan WHEN '1.1' THEN 'A1' WHEN '1.2' THEN 'A2' WHEN '2' THEN 'B' ELSE s.education_plan END
+              ELSE s.education_plan END = ANY(mt.plans)))
             AND mt.is_enabled = TRUE
         ),
         '[]'::json
