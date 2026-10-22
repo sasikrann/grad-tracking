@@ -64,6 +64,49 @@ describe('Navbar', () => {
     expect(student.text()).toContain(th.nav.studentInformation)
   })
 
+  it('keeps advisor initials synchronized with the selected name language', async () => {
+    const wrapper = mount(Navbar, {
+      props: {
+        user: {
+          fullName: 'Surapong Uttama',
+          fullNameEnglish: 'Surapong Uttama',
+          fullNameThai: 'สุรพงษ์ อุตตมะ',
+          email: 'surapong@lamduan.mfu.ac.th',
+          role: 'advisor',
+        },
+      },
+      global: { stubs: { RouterLink: RouterLinkStub } },
+    })
+
+    expect(wrapper.text()).toContain('Surapong Uttama')
+    expect(wrapper.text()).toContain('SU')
+    expect(wrapper.text()).not.toContain('สอ')
+
+    const thaiButton = wrapper.findAll('button').find((button) => button.text() === 'TH')
+    await thaiButton?.trigger('click')
+
+    expect(wrapper.text()).toContain('สุรพงษ์ อุตตมะ')
+    expect(wrapper.text()).toContain('สอ')
+  })
+
+  it('falls back to the available advisor name for both the label and initials', () => {
+    const wrapper = mount(Navbar, {
+      props: {
+        user: {
+          fullName: 'Dr. Somsri Jaidee',
+          fullNameEnglish: null,
+          fullNameThai: null,
+          email: 'somsri@lamduan.mfu.ac.th',
+          role: 'advisor',
+        },
+      },
+      global: { stubs: { RouterLink: RouterLinkStub } },
+    })
+
+    expect(wrapper.text()).toContain('Somsri Jaidee')
+    expect(wrapper.text()).toContain('SJ')
+  })
+
   it('changes and remembers the mobile font size', async () => {
     const wrapper = mount(Navbar, {
       props: { user: { fullName: 'Student User', email: 'student@example.com', role: 'student' } },
