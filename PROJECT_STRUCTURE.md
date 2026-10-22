@@ -1,6 +1,6 @@
 # โครงสร้างโปรเจกต์ Graduate Tracking System
 
-**ตรวจสอบกับ Source Code ล่าสุด:** 21 ตุลาคม 2026
+**ตรวจสอบกับ Source Code ล่าสุด:** 22 ตุลาคม 2026
 
 เอกสารนี้อธิบายว่าโฟลเดอร์และไฟล์ในโปรเจกต์มีไว้ทำอะไร เพื่อให้ผู้อ่านเห็นภาพรวมของระบบและค้นหาส่วนที่ต้องการได้โดยไม่จำเป็นต้องรู้โครงสร้างโค้ดมาก่อน
 
@@ -68,6 +68,11 @@ senior/
 ├── deploy/                          ไฟล์ประกอบการนำระบบขึ้นใช้งาน
 │   ├── gateway/Dockerfile           Build Frontend และบรรจุไว้ใน Nginx
 │   └── nginx/default.conf           ส่งหน้าเว็บและส่งต่อคำขอไป Backend
+├── docs/                            คู่มือตั้งค่าบริการที่ระบบต้องใช้
+│   ├── AUTHENTICATION_SETUP.md      ตั้งค่า Google Sign-In
+│   ├── DATABASE_SETUP.md            เตรียมและตรวจ PostgreSQL
+│   ├── NOTIFICATION_SETUP.md        ตั้งค่าการส่ง Email ผ่าน SMTP
+│   └── SECURITY.md                  ผลตรวจ Secret และความปลอดภัยฐานข้อมูล
 ├── frontend/                        หน้าเว็บของระบบ
 │   ├── e2e/                         การทดสอบระบบผ่านเว็บเบราว์เซอร์
 │   │   ├── auth/
@@ -134,6 +139,10 @@ senior/
 | `README.md` | หน้าหลักของโปรเจกต์ ใช้อธิบายภาพรวม วิธีติดตั้ง ตั้งค่า และเปิดระบบ |
 | `PROJECT_STRUCTURE.md` | อธิบายตำแหน่งและหน้าที่ของโฟลเดอร์กับไฟล์ในโปรเจกต์ |
 | `DEPLOYMENT.md` | ขั้นตอนตรวจสอบและนำระบบขึ้นใช้งานด้วย Docker |
+| `docs/AUTHENTICATION_SETUP.md` | ขั้นตอนสร้าง Google OAuth Client และนำ Client ID มาใช้กับระบบ |
+| `docs/DATABASE_SETUP.md` | ขั้นตอนเตรียม PostgreSQL นำเข้า Schema และตรวจการเชื่อมต่อ |
+| `docs/NOTIFICATION_SETUP.md` | ขั้นตอนตั้งค่า SMTP ทดสอบ และเปิดการส่ง Email จริง |
+| `docs/SECURITY.md` | ผลตรวจ Secret ข้อจำกัดปัจจุบัน และแนวทางตั้งค่า PostgreSQL ที่ปลอดภัยขึ้น |
 | `package.json` | รวมคำสั่งกลาง เช่น Build, Test และเริ่ม Frontend หรือ Backend โดยส่งคำสั่งต่อไปยังแต่ละโฟลเดอร์ |
 | `.env.docker.example` | ตัวอย่างค่าที่ Docker Compose ต้องใช้ เช่น Database, Google Sign-In และ Email ห้ามใส่รหัสลับจริงในไฟล์ตัวอย่าง |
 | `docker-compose.yml` | เปิดระบบหลัก 3 ส่วน ได้แก่ PostgreSQL, Backend และ Gateway |
