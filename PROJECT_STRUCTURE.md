@@ -1,422 +1,437 @@
-# Project Structure and Handover Guide
+# โครงสร้างโปรเจกต์ Graduate Tracking System
 
-**โครงการ:** Graduate Tracking System  
-**ปรับปรุงล่าสุด:** 13 ตุลาคม 2026  
-**วัตถุประสงค์:** อธิบายโครงสร้างโปรเจกต์ เส้นทางข้อมูล และความรับผิดชอบของแต่ละส่วน เพื่อให้ผู้พัฒนาคนถัดไปรับช่วงงานได้อย่างปลอดภัย
+**ตรวจสอบกับ Source Code ล่าสุด:** 22 ตุลาคม 2026
 
-> ขอบเขตของรายการโฟลเดอร์ในเอกสารนี้ครอบคลุม source code, configuration, deployment, tests, uploads และเอกสารที่อยู่ใน repository โดยไม่นับ `.git`, `node_modules` และไฟล์ build ใน `frontend/dist` เพราะเป็นข้อมูลที่สร้างขึ้นอัตโนมัติ
+เอกสารนี้อธิบายว่าโฟลเดอร์และไฟล์ในโปรเจกต์มีไว้ทำอะไร เพื่อให้ผู้อ่านเห็นภาพรวมของระบบและค้นหาส่วนที่ต้องการได้โดยไม่จำเป็นต้องรู้โครงสร้างโค้ดมาก่อน
 
-## 1. ภาพรวมสถาปัตยกรรม
+เอกสารนี้กล่าวถึงเฉพาะโครงสร้างของโปรเจกต์ ส่วนวิธีติดตั้ง การตั้งค่า และคำสั่งรันระบบจะอธิบายใน `README.md`
 
-ระบบเป็น web application แบบแยก frontend และ backend:
+## 1. ภาพรวมแบบสั้น
 
-```text
-Browser
-  -> Vue View / Component
-  -> Frontend Service
-  -> HTTP /api/...
-  -> Express Route
-  -> Middleware
-  -> Controller
-  -> Backend Service
-  -> PostgreSQL / Upload Storage / Email
-```
+Graduate Tracking System เป็นเว็บสำหรับติดตามความก้าวหน้าของนักศึกษาระดับบัณฑิตศึกษา ระบบแบ่งออกเป็นส่วนหลักดังนี้
 
-- **Frontend:** Vue 3, TypeScript, Vue Router, Vite และ Tailwind CSS
-- **Backend:** Node.js, Express และ PostgreSQL
-- **Authentication:** Google credential หรือ development login แล้วเก็บ session ใน HTTP-only cookie
-- **Authorization:** ตรวจ role ที่ router และตรวจ ownership/สิทธิ์เฉพาะรายการใน controller หรือ service
-- **Storage:** PostgreSQL เก็บข้อมูลธุรกิจ; `backend/uploads` เก็บหลักฐาน milestone และไฟล์แนบ notification
-- **Background work:** scheduler แจ้งเตือน milestone และ scheduler เปลี่ยนสถานะหลังหมดสิทธิ์ขยายเวลา
-- **Deployment:** Docker Compose, Nginx gateway และ container แยก frontend/backend/database
+- `frontend/` คือหน้าจอที่เปิดผ่านเว็บเบราว์เซอร์
+- `backend/` คือส่วนที่รับคำขอจากหน้าจอ ตรวจสิทธิ์ ประมวลผล และติดต่อฐานข้อมูล
+- PostgreSQL เก็บข้อมูลผู้ใช้ นักศึกษา อาจารย์ Milestone และการแจ้งเตือน โดยโครงสร้างฐานข้อมูลอยู่ใน `backend/database/`
+- `deploy/` เก็บไฟล์สำหรับนำระบบขึ้นใช้งานผ่าน Docker และ Nginx
+- `docker-compose.yml` นำ Database, Backend และ Gateway มาทำงานร่วมกัน
 
-## 2. โครงสร้างโฟลเดอร์ทั้งหมด
-
-| โฟลเดอร์ | หน้าที่ |
-|---|---|
-| `.vscode/` | การตั้งค่า editor สำหรับผู้พัฒนาใน repository |
-| `backend/` | Express API, business logic, database access, migrations, tests และไฟล์อัปโหลด |
-| `backend/database/` | schema เริ่มต้นและ SQL migration |
-| `backend/src/` | source code หลักของ backend |
-| `backend/src/config/` | การเชื่อมต่อฐานข้อมูลและค่าความปลอดภัย เช่น allowed origins |
-| `backend/src/controllers/` | รับ request, ตรวจ input ระดับ HTTP, เรียก service และจัด response |
-| `backend/src/data/` | ข้อมูลตั้งต้น เช่น default milestone templates |
-| `backend/src/errors/` | error class กลางของ API |
-| `backend/src/middleware/` | authentication, authorization, trusted-origin และ error handling |
-| `backend/src/routes/` | ประกาศ method/path และผูก middleware กับ controller |
-| `backend/src/scripts/` | งาน command line เช่น bootstrap admin, migration และ audit ฐานข้อมูล |
-| `backend/src/services/` | business rules, query ฐานข้อมูล, import/export, scheduler, email และไฟล์ |
-| `backend/test/` | integration-oriented tests ของ import, bootstrap และ entrypoint |
-| `backend/test/e2e/` | seed data สำหรับ end-to-end tests |
-| `backend/uploads/` | root ของไฟล์ที่ผู้ใช้อัปโหลด ห้ามลบโดยไม่ตรวจ reference ในฐานข้อมูล |
-| `backend/uploads/evidence/` | หลักฐาน milestone ของนักศึกษา |
-| `backend/uploads/notifications/` | ไฟล์แนบ notification |
-| `deploy/` | image และ configuration สำหรับ gateway/deployment |
-| `deploy/gateway/` | Dockerfile สำหรับ gateway/frontend production image |
-| `deploy/nginx/` | Nginx reverse proxy และ protected-media configuration |
-| `frontend/` | Vue single-page application, tests และ browser E2E tests |
-| `frontend/e2e/` | Playwright tests และ test-only Docker image |
-| `frontend/e2e/auth/` | E2E สำหรับ login |
-| `frontend/e2e/fixtures/` | ข้อมูลทดสอบที่ใช้โดย Playwright |
-| `frontend/e2e/fixtures/imports/` | CSV/XLSX fixtures สำหรับ import |
-| `frontend/e2e/import/` | E2E สำหรับ student/advisor import |
-| `frontend/e2e/management/` | E2E สำหรับงานจัดการ เช่น disable แทน delete |
-| `frontend/e2e/notifications/` | E2E สำหรับ notification จาก admin ถึง student |
-| `frontend/e2e/smoke/` | smoke tests ของหน้าหลัก |
-| `frontend/e2e/support/` | mock และ helper สำหรับ E2E |
-| `frontend/public/` | static assets ที่ Vite copy ตรงไปยัง build output |
-| `frontend/src/` | source code หลักของ frontend |
-| `frontend/src/assets/` | CSS, fonts และรูปภาพที่ import ผ่าน Vite |
-| `frontend/src/components/` | reusable Vue components |
-| `frontend/src/components/__tests__/` | unit tests ของ component |
-| `frontend/src/components/admin/` | component สำหรับ dashboard, import/export และ advisor table |
-| `frontend/src/components/common/` | component กลาง เช่น pagination |
-| `frontend/src/components/milestone/` | form และ table สำหรับจัดการ milestone template |
-| `frontend/src/components/milestone/form/` | input/dropdown ย่อยของ milestone form |
-| `frontend/src/components/navigation/` | Navbar และ language switch |
-| `frontend/src/components/student/` | student table, filter, overview และข้อมูล profile |
-| `frontend/src/components/student-milestone/` | card, progress, status และ evidence upload ของ milestone |
-| `frontend/src/composables/` | stateful Vue logic ที่ใช้ซ้ำ เช่น language, auto-refresh และ student overview |
-| `frontend/src/composables/__tests__/` | unit tests ของ composable |
-| `frontend/src/lang/` | dictionary ภาษาไทยและอังกฤษ |
-| `frontend/src/router/` | route ของ SPA และ role guard |
-| `frontend/src/services/` | HTTP client และ API wrappers ของ frontend |
-| `frontend/src/services/__tests__/` | unit tests ของ frontend services |
-| `frontend/src/types/` | TypeScript types ของ domain objects |
-| `frontend/src/utils/` | pure utilities สำหรับชื่ออาจารย์ สถานะ milestone และ notification |
-| `frontend/src/utils/__tests__/` | unit tests ของ utilities |
-| `frontend/src/views/` | page-level components ที่ผูกกับ Vue Router |
-| `frontend/src/views/admin/` | หน้าสำหรับ administrator |
-| `frontend/src/views/advisor/` | หน้าสำหรับ advisor |
-| `frontend/src/views/student/` | หน้าสำหรับ student |
-| `output/` | artifacts ที่สร้างเพื่อส่งมอบ |
-| `output/pdf/` | PDF ฉบับส่งมอบ |
-
-## 3. ไฟล์ระดับ root และ deployment ที่สำคัญ
-
-| ไฟล์ | หน้าที่ |
-|---|---|
-| `README.md` | วิธีเริ่มต้นใช้งานและภาพรวม repository |
-| `DEPLOYMENT.md` | ขั้นตอน deploy และ environment ที่เกี่ยวข้อง |
-| `.env.docker.example` | ตัวอย่าง environment variables สำหรับ Docker Compose |
-| `docker-compose.yml` | stack หลักสำหรับ development/deployment |
-| `docker-compose.e2e.yml` | stack แยกสำหรับ Playwright E2E |
-| `package.json` | metadata ระดับ root; package จริงอยู่ใน frontend/backend |
-| `deploy/nginx/default.conf` | reverse proxy `/api`, SPA fallback และ protected uploads |
-| `backend/docker-entrypoint.sh` | รอฐานข้อมูล, migrate/bootstrap และเริ่ม API container |
-| `backend/database/schema.sql` | schema สำหรับ provision ฐานข้อมูลใหม่ |
-| `backend/database/protective-foreign-keys.sql` | migration เพิ่มข้อจำกัดและป้องกัน orphan records |
-| `backend/database/recalculate-study-extension-end-dates.sql` | migration ปรับรอบขยายเดิมเป็นวันเริ่ม + 4 เดือนปฏิทิน |
-
-## 4. Frontend structure
-
-### 4.1 Entry point และ navigation
-
-| ไฟล์ | หน้าที่ |
-|---|---|
-| `frontend/src/main.ts` | สร้าง Vue app, ติดตั้ง router และโหลด global CSS |
-| `frontend/src/App.vue` | application shell และ Navbar |
-| `frontend/src/router/index.ts` | URL-to-view mapping, authentication initialization และ role guard |
-| `frontend/src/services/auth.ts` | session state, login/logout, `/api/auth/me` และ authenticated fetch |
-| `frontend/src/services/api-client.ts` | สร้าง API URL, JSON request, file download และ error handling กลาง |
-
-### 4.2 หน้าที่ของ Vue views
-
-| View | Route | หน้าที่หลัก |
-|---|---|---|
-| `Login.vue` | `/login` | Google login และ development login |
-| `AccessUnavailableView.vue` | `/unavailable` | แจ้งเมื่อบัญชีไม่มีพื้นที่ใช้งานที่เหมาะสม |
-| `admin/StudentDashboardView.vue` | `/admin/student-dashboard` | รายการนักศึกษา, filter, สถิติ, import/export และเปลี่ยนสถานะออกจากระบบ |
-| `admin/AdminStudentMilestoneView.vue` | `/admin/students/:studentId/milestones` | ดู milestone รายคนและจัดการรอบขยายเวลา |
-| `admin/AdvisorDashboardView.vue` | `/admin/advisor-dashboard` | รายการอาจารย์, import/export และเปิด/ปิดสถานะ |
-| `admin/MilestoneManagementView.vue` | `/milestones` | สร้าง แก้ เปิด/ปิด เรียง และคัดลอก milestone template |
-| `admin/NotificationManagementView.vue` | `/admin/notifications` | สร้าง notification, แนบไฟล์, ส่ง email และดูประวัติ |
-| `advisor/AdvisorStudentOverallView.vue` | `/advisor/student-overall` | ภาพรวมนักศึกษาในความดูแลและ filter |
-| `advisor/AdvisorMilestoneSummaryView.vue` | `/advisor/summary` | สรุป milestone ตามระดับ แผน และปีเข้า |
-| `advisor/AdvisorStudentMilestoneView.vue` | `/advisor/students/:studentId/milestones` | ดู อนุมัติ หรือปฏิเสธ milestone ของนักศึกษา |
-| `student/StudentInformationView.vue` | `/student/information` | profile, แผนการศึกษา และทีมอาจารย์ที่ปรึกษา |
-| `student/StudentMilestoneView.vue` | `/student/milestones` | milestone workflow, แต่งตั้ง advisor, upload หลักฐาน และบันทึกจบ |
-| `student/StudentNotificationView.vue` | `/notifications` | notification inbox, read state และไฟล์แนบ |
-
-### 4.3 View -> frontend service
-
-| View | Frontend service/function ที่เรียก |
-|---|---|
-| `Login.vue` | `auth.loginWithGoogleCredential`, `auth.loginForDevelopment` |
-| `StudentDashboardView.vue` | `students.getStudentsPage`, `importStudents`, `exportStudents`, `downloadStudentTemplate`, `updateStudentExitStatus` |
-| `AdminStudentMilestoneView.vue` | `students.getStudent`, `getStudentMilestones`, `extendStudentStudyPeriod`, `cancelStudentStudyExtension` |
-| `AdvisorDashboardView.vue` | `advisors.getAdvisorsPage`, `importAdvisors`, `exportAdvisors`, `downloadAdvisorTemplate`, `updateAdvisorStatus` |
-| `MilestoneManagementView.vue` | `milestones.getMilestones`, `createMilestone`, `updateMilestone`, `setMilestoneEnabled`, `moveMilestone`; ใช้ `students.getStudents` เพื่อสร้างตัวเลือกปี/ระดับ/แผน |
-| `NotificationManagementView.vue` | `notifications.getNotifications`, `createNotification`, `uploadNotificationAttachment`, `resolveNotificationAttachmentUrl`; ใช้ `students.getStudents` เพื่อ preview กลุ่มเป้าหมาย |
-| `AdvisorStudentOverallView.vue` | `students.getAdvisorStudentOverview`; อ่าน `auth.currentUser` |
-| `AdvisorMilestoneSummaryView.vue` | `advisor-milestone-summary.getAdvisorMilestoneSummary`; อ่าน `auth.currentUser` |
-| `AdvisorStudentMilestoneView.vue` | `advisor-milestones.getAdvisorStudentMilestones`, `reviewAdvisorMilestone` |
-| `StudentInformationView.vue` | `student-profile.getMyStudentProfile` |
-| `StudentMilestoneView.vue` | `student-milestones.getMyStudentMilestones`, `uploadMyMilestoneEvidence`, `removeMyMilestoneEvidence`, `createEvidencePreviewUrl`; `student-profile.getMyStudentProfile`, `appointMyStudentAdvisors`, `submitMyGraduation`; `advisors.getAdvisors` |
-| `StudentNotificationView.vue` | `notifications.getMyNotifications`, `getUnreadNotificationCount`, `markNotificationAsRead`, `markAllNotificationsAsRead`, `resolveNotificationAttachmentUrl` |
-| `AccessUnavailableView.vue` | ไม่มี API call โดยตรง |
-
-> `frontend/src/services/students.api.ts` เป็น facade ที่ re-export query/action/transfer functions จาก `student-query.api.ts`, `student-actions.api.ts` และ `student-transfer.api.ts` เพื่อให้ views ใช้ import เดียว
-
-## 5. Backend layers ต่างกันอย่างไร
-
-| Layer | คำถามที่ layer นี้ตอบ | สิ่งที่ควรอยู่ | สิ่งที่ไม่ควรอยู่ |
-|---|---|---|---|
-| **Route** | Request นี้เข้าฟังก์ชันไหน และผ่าน middleware ใด | HTTP method, path, upload middleware, role middleware | SQL และ business rules |
-| **Middleware** | Request ผ่านเงื่อนไขร่วมไหม | authentication, role, origin, error normalization | feature-specific database workflow |
-| **Controller** | แปลง HTTP request/response อย่างไร | อ่าน params/query/body, HTTP validation, status code, response shape | query ซับซ้อนหรือ transaction ยาว |
-| **Service** | กฎธุรกิจและข้อมูลทำงานอย่างไร | business rules, transaction, SQL, file/email generation, scheduler | Express response object และ UI state |
-
-ตัวอย่างการขยายเวลาศึกษา:
+ภาพรวมการเดินทางของข้อมูล:
 
 ```text
-PATCH /api/students/:studentId/study-extension
-  -> students.routes.js
-  -> requireAuth + requireRole('admin') in app.js
-  -> students.controller.extendStudentStudyPeriod
-  -> students.service.grantStudentStudyExtension
-  -> study-extension-policy.js
-  -> students + milestone_templates + student_milestones + student_study_extensions
+ผู้ใช้เปิดเว็บไซต์
+    │
+    ▼
+Frontend (Vue) - แสดงหน้าจอและส่งคำขอ
+    │
+    ▼
+Backend (Express) - ตรวจผู้ใช้และประมวลผล
+    │
+    ├── PostgreSQL       เก็บข้อมูลของระบบ
+    ├── Upload Storage   เก็บหลักฐานและไฟล์แนบ
+    └── SMTP Server      ส่งอีเมลแจ้งเตือน
 ```
 
-## 6. Backend files ที่สำคัญ
+## 2. Tree Structure ที่ตรวจสอบแล้ว
 
-### 6.1 Application, configuration และ middleware
+Tree ด้านล่างแสดงโฟลเดอร์และไฟล์ที่เป็นส่วนหนึ่งของโปรเจกต์จริง โดยย่อรายการไฟล์ทดสอบและไฟล์รูปภาพบางส่วนเพื่อให้อ่านง่าย รายละเอียดของแต่ละส่วนอยู่ในหัวข้อถัดไป
 
-| ไฟล์ | หน้าที่ |
-|---|---|
-| `backend/src/index.js` | เริ่ม HTTP server, ตั้ง timezone, เปิด/ปิด schedulers และ graceful shutdown |
-| `backend/src/app.js` | ประกอบ Express middleware, mount routers และ health endpoint |
-| `backend/src/config/database.js` | PostgreSQL connection pool |
-| `backend/src/config/allowed-origins.js` | origin allowlist สำหรับ CORS/trusted-origin |
-| `backend/src/errors/api-error.js` | error ที่มี HTTP status และ client message |
-| `backend/src/middleware/auth.middleware.js` | อ่าน session token, โหลด user ปัจจุบัน และตรวจ role |
-| `backend/src/middleware/origin.middleware.js` | ป้องกัน state-changing request จาก origin ที่ไม่เชื่อถือ |
-| `backend/src/middleware/error.middleware.js` | แปลง error เป็น JSON response และจัดการ 404 |
-
-### 6.2 Controllers
-
-| Controller | หน้าที่ |
-|---|---|
-| `auth.controller.js` | Google/dev login, logout และ current user |
-| `students.controller.js` | student list/detail/CRUD, import/export, milestone overview, extension และ exit status |
-| `advisors.controller.js` | advisor CRUD/status/import/export, advised students และ milestone review/summary |
-| `milestones.controller.js` | validate และจัดการ milestone templates |
-| `student-profile.controller.js` | self-service ของนักศึกษา: profile, advisor, evidence และ graduation |
-| `notifications.controller.js` | notification CRUD-like workflow, attachments และ read state |
-| `evidence.controller.js` | authorize และ stream หลักฐาน milestone |
-| `users.controller.js` | admin user management |
-
-### 6.3 Services
-
-| Service | หน้าที่หลัก | ตาราง/ระบบที่เกี่ยวข้อง |
-|---|---|---|
-| `students.service.js` | student query/CRUD/import, advisor assignment, graduation, extension workflow | `students`, `users`, `advisors`, `student_co_advisors`, `student_study_extensions`, `milestone_templates`, `student_milestones`, `import_logs` |
-| `student-files.service.js` | อ่าน/ตรวจ CSV/XLSX, normalize แผน, สร้าง template/export | ExcelJS, student data |
-| `advisors.service.js` | advisor CRUD/import, pagination และ milestone summary | `advisors`, `users`, `students`, `student_co_advisors`, milestone tables, `import_logs` |
-| `advisor-files.service.js` | parse/validate/import template/export ของ advisor | ExcelJS |
-| `milestones.service.js` | schema upkeep และ CRUD/order/copy ของ template | `milestone_templates`, `student_milestones`, `students` |
-| `academic-year-milestones.service.js` | คัดลอก milestone set ล่าสุดไปปีใหม่โดยรักษาแผนและ prerequisite | `milestone_templates` |
-| `milestone-copy.service.js` | คัดลอก milestone ข้ามปีตาม degree/plan ที่ผู้ดูแลเลือก | `milestone_templates` |
-| `milestone-student.service.js` | milestone list, lock และ prerequisite สำหรับ student/admin | `students`, `milestone_templates`, `student_milestones` |
-| `milestone-advisor.service.js` | submission queue, student milestone detail และ review | `advisors`, `students`, `milestone_templates`, `student_milestones` |
-| `milestone-evidence.service.js` | upload/remove evidence state และ revision limit | `students`, `milestone_templates`, `student_milestones` |
-| `evidence.service.js` | ตรวจสิทธิ์ผู้เปิดไฟล์หลักฐาน | student/advisor ownership และ upload path |
-| `evidence-code.js` | normalize/generate evidence code สั้น ๆ | pure utility |
-| `study-extension-policy.js` | ระยะปกติ, boundary date และ 4 เดือนปฏิทิน | pure domain policy |
-| `study-extension-scheduler.service.js` | เปลี่ยน `Normal` เป็น `Dismissed` หลังรอบ 2 สิ้นสุด | `students`, `student_study_extensions` |
-| `notifications.service.js` | notification list/create/read/attachment authorization | `notifications`, `notification_reads`, `students`, `users` |
-| `notification-recipient.service.js` | เลือก recipients ตาม target audience | `students`, `users` |
-| `milestone-notification.service.js` | สร้าง notification เมื่อ milestone เปลี่ยน | `notifications`, milestone data |
-| `milestone-reminder.service.js` | หา milestone ที่ถึง reminder date และสร้างข้อความ | `milestone_templates`, `notifications` |
-| `milestone-reminder-scheduler.service.js` | เรียก reminder check เป็นช่วงเวลา | reminder service |
-| `email.service.js` | ส่ง email notification/attachment ตาม configuration | SMTP/API configuration |
-| `auth.service.js` | verify Google identity, session token และ user/advisor lookup | `users`, `advisors` |
-| `users.service.js` | user CRUD และ sync advisor profile | `users`, `advisors` |
-| `bootstrap-admin.service.js` | สร้างหรืออัปเดต admin เริ่มต้นอย่าง idempotent | `users` |
-
-## 7. Frontend service -> route -> controller -> backend service
-
-### 7.1 Authentication
-
-| Frontend call | HTTP route | Controller | Backend service | Tables |
-|---|---|---|---|---|
-| `loginWithGoogleCredential` | `POST /api/auth/google` | `loginWithGoogle` | `auth.service` | `users`, `advisors` |
-| `loginForDevelopment` | `POST /api/auth/dev-login` | `loginForDevelopment` | `auth.service` | `users`, `advisors` |
-| `initializeAuth` / `refreshCurrentUser` | `GET /api/auth/me` | `getCurrentUser` | auth middleware/service | `users`, `advisors` |
-| `logout` | `POST /api/auth/logout` | `logout` | cookie/session handling | - |
-
-### 7.2 Students and study extensions
-
-| Frontend call | HTTP route | Controller | Backend service | Tables |
-|---|---|---|---|---|
-| `getStudents`, `getStudentsPage` | `GET /api/students` | `getStudents` | `findAllStudents` / `findStudentsPage` | student, advisor, milestone และ extension tables |
-| `getStudent` | `GET /api/students/:studentId` | `getStudent` | `findStudentById` | `students`, `users`, `advisors`, `student_co_advisors`, `student_study_extensions` |
-| `getStudentMilestones` | `GET /api/students/:studentId/milestones` | `getStudentMilestones` | `findStudentMilestonesByStudentId` | `students`, `milestone_templates`, `student_milestones` |
-| `importStudents` | `POST /api/students/import` | `importStudentFile` | file service + `importStudents` | `students`, `users`, `advisors`, `import_logs`, milestone tables |
-| `exportStudents` | `POST /api/students/export` | `exportStudents` | `findStudentsForExport` + file service | student/advisor/milestone tables |
-| `downloadStudentTemplate` | `GET /api/students/template` | `downloadStudentTemplate` | file service | - |
-| `extendStudentStudyPeriod` | `PATCH /api/students/:studentId/study-extension` | `extendStudentStudyPeriod` | `grantStudentStudyExtension` + extension policy | `students`, `student_study_extensions`, milestone tables |
-| `cancelStudentStudyExtension` | `DELETE /api/students/:studentId/study-extension` | `cancelStudentStudyExtension` | `cancelLatestStudentStudyExtension` | `students`, `student_study_extensions` |
-| `updateStudentExitStatus` | `PATCH /api/students/:studentId/exit-status` | `updateStudentExitStatus` | `setStudentExitStatus` | `students` |
-
-### 7.3 Advisors and reviews
-
-| Frontend call | HTTP route | Controller | Backend service | Tables |
-|---|---|---|---|---|
-| `getAdvisors`, `getAdvisorsPage` | `GET /api/advisors` | `getAdvisors` | advisor query services | `advisors`, `users` |
-| `importAdvisors` | `POST /api/advisors/import` | `importAdvisorFile` | advisor file service + `importAdvisors` | `advisors`, `users`, `import_logs` |
-| `exportAdvisors` | `GET /api/advisors/export` | `exportAdvisors` | advisor file service | `advisors` |
-| `downloadAdvisorTemplate` | `GET /api/advisors/template` | `downloadAdvisorTemplate` | advisor file service | - |
-| `updateAdvisorStatus` | `PATCH /api/advisors/:advisorId/status` | `patchAdvisorStatus` | `updateAdvisorStatus` | `advisors` |
-| `getAdvisorStudentOverview` | `GET /api/advisors/:advisorId/students` | `getAdvisorStudents` | `findStudentsByAdvisorId` | student/advisor/milestone tables |
-| `getAdvisorMilestoneSummary` | `GET /api/advisors/:advisorId/milestone-summary` | `getAdvisorMilestoneSummaryReport` | `getAdvisorMilestoneSummary` | student/advisor/milestone tables |
-| `getAdvisorStudentMilestones` | `GET /api/advisors/students/:studentId/milestones` | `getAdvisorStudentMilestones` | `findAdvisorStudentMilestones` | advisor/student/milestone tables |
-| `reviewAdvisorMilestone` | `PATCH /api/advisors/students/:studentId/milestones/:milestoneId/review` | `reviewAdvisorStudentMilestone` | `reviewStudentMilestone` | `student_milestones`, `advisors` |
-
-### 7.4 Milestone template management
-
-| Frontend call | HTTP route | Controller | Backend service | Tables |
-|---|---|---|---|---|
-| `getMilestones` | `GET /api/milestones` | `getMilestones` | `findMilestones` | `milestone_templates` |
-| `createMilestone` | `POST /api/milestones` | `addMilestone` | `createMilestone` | `milestone_templates`, `notifications` |
-| `updateMilestone` | `PUT /api/milestones/:milestoneId` | `editMilestone` | `updateMilestone` / `updateMilestoneForPlan` | `milestone_templates`, `student_milestones` |
-| `setMilestoneEnabled` | `PATCH /api/milestones/:milestoneId/enabled` | `toggleMilestone` | `setMilestoneEnabled` | `milestone_templates` |
-| `moveMilestone` | `PATCH /api/milestones/:milestoneId/order` | `reorderMilestone` | `moveMilestone` | `milestone_templates` |
-| `copyMilestones` | `POST /api/milestones/copy` | `copyMilestoneSet` | `milestone-copy.copyMilestones` | `milestone_templates` |
-
-### 7.5 Student self-service and evidence
-
-| Frontend call | HTTP route | Controller | Backend service | Tables/files |
-|---|---|---|---|---|
-| `getMyStudentProfile` | `GET /api/student-profile/me` | `getMyStudentProfile` | `findStudentByUserId` | student/advisor/extension tables |
-| `getMyStudentMilestones` | `GET /api/student-profile/me/milestones` | `getMyStudentMilestones` | `findStudentMilestonesByUserId` | milestone tables |
-| `appointMyStudentAdvisors` | `PUT /api/student-profile/me/milestones/:id/advisors` | `appointMyAdvisors` | prerequisite check + `appointStudentAdvisorsByUserId` | `students`, `student_co_advisors`, milestone tables, evidence file |
-| `submitMyGraduation` | `PUT /api/student-profile/me/milestones/:id/graduation` | `submitMyGraduation` | prerequisite check + `submitStudentGraduationByUserId` | `students`, `student_milestones` |
-| `uploadMyMilestoneEvidence` | `PUT /api/student-profile/me/milestones/:id/evidence` | `uploadMyMilestoneEvidence` | submission access + evidence service | `student_milestones`, evidence file |
-| `removeMyMilestoneEvidence` | `DELETE /api/student-profile/me/milestones/:id/evidence` | `removeMyMilestoneEvidence` | `clearStudentMilestoneEvidence` | `student_milestones`, evidence file |
-| `createEvidencePreviewUrl` | `GET /api/evidence?path=...` | `viewEvidence` | evidence authorization service | upload file + ownership tables |
-
-### 7.6 Notifications
-
-| Frontend call | HTTP route | Controller | Backend service | Tables/files |
-|---|---|---|---|---|
-| `getNotifications` / `getMyNotifications` | `GET /api/notifications` | `getNotifications` | admin/student notification queries | `notifications`, `notification_reads`, `students`, `users` |
-| `createNotification` | `POST /api/notifications` | `addNotification` | `createNotification` + email/recipient services | `notifications`, recipient tables |
-| `uploadNotificationAttachment` | `POST /api/notifications/attachments` | `uploadNotificationAttachment` | upload middleware | notification file |
-| `resolveNotificationAttachmentUrl` | `GET /api/notifications/attachments/:fileName` | `getNotificationAttachment` | attachment authorization | `notifications` + file |
-| `getUnreadNotificationCount` | `GET /api/notifications/unread-count` | `getUnreadNotificationCount` | unread count service | `notifications`, `notification_reads` |
-| `markNotificationAsRead` | `PATCH /api/notifications/:id/read` | `readNotification` | `markNotificationAsRead` | `notification_reads` |
-| `markAllNotificationsAsRead` | `PATCH /api/notifications/read-all` | `readAllNotifications` | `markAllNotificationsAsRead` | `notification_reads` |
-
-## 8. Database tables by feature
-
-| Feature | ตารางหลัก | ความสัมพันธ์สำคัญ |
-|---|---|---|
-| Authentication/roles | `users`, `advisors`, `students` | `advisors.user_id` และ `students.user_id` ผูกกับ identity |
-| Student management | `students`, `users`, `advisors`, `student_co_advisors`, `import_logs` | student มี primary advisor หนึ่งคนและ co-advisor สูงสุดสองคน |
-| Advisor management | `advisors`, `users`, `students`, `student_co_advisors`, `import_logs` | ห้ามลบ profile ที่ยังถูกอ้างอิง; ใช้ inactive แทน |
-| Milestone templates | `milestone_templates` | scope ด้วยปีเข้า ระดับปริญญา และชื่อแผนตรงตัว |
-| Student progress | `student_milestones`, `milestone_templates`, `students` | unique ต่อ `(student_id, milestone_id)` |
-| Evidence/review | `student_milestones`, `advisors` | เก็บ URL, comment, reviewer, timestamps และ rejection count |
-| Study extension | `student_study_extensions`, `students`, milestone tables | สูงสุดสองรอบ; eligibility ต้องมี milestone ที่ยังไม่เสร็จ |
-| Notifications | `notifications`, `notification_reads`, `users`, `students`, `milestone_templates` | reminder อ้าง milestone; read receipt ต่อ user |
-| Import audit | `import_logs`, `users` | บันทึกชนิดไฟล์ จำนวนสำเร็จ/ล้มเหลว และผู้ import |
-
-### ตารางแต่ละตัว
-
-- **`users`** - identity, email, display name และ role กลาง
-- **`advisors`** - profile อาจารย์และสถานะ active/inactive
-- **`students`** - profile การศึกษา แผน ปีเข้า สถานะจบ/ลาออก/พ้นสภาพ และ advisor หลัก
-- **`student_co_advisors`** - co-advisor ลำดับ 1-2
-- **`milestone_templates`** - คำนิยาม milestone ต่อปี/ระดับ/แผน พร้อม prerequisite และกำหนดเวลา
-- **`student_milestones`** - progress ของนักศึกษาแต่ละคนต่อ template
-- **`student_study_extensions`** - รอบขยาย 1-2 วันเริ่ม/สิ้นสุด ผู้อนุมัติ และการยกเลิก
-- **`notifications`** - ข้อความ กลุ่มเป้าหมาย ไฟล์แนบ และ automatic reminder metadata
-- **`notification_reads`** - read receipt ของผู้ใช้
-- **`import_logs`** - audit ของ student/advisor import
-
-## 9. Business rules ที่ต้องระวังเมื่อรับช่วง
-
-### 9.1 ชื่อแผนเก่าและใหม่
-
-- ข้อมูลปริญญาโทเก่าใช้ `A1`, `A2`, `B`; ข้อมูลใหม่อาจใช้ `1.1`, `1.2`, `2`
-- เก็บและแสดงค่าที่บันทึกจริง ห้าม migrate ชื่อแผนเก่าย้อนหลัง
-- filter สามารถรวมกลุ่ม `A1/1.1`, `A2/1.2`, `B/2`
-- milestone matching ต้องใช้ชื่อแผนตรงตัว ห้ามดึง milestone ของ `A1` มาใช้กับ `1.1` อัตโนมัติ
-- เมื่อเริ่มใช้แผนใหม่ Admin ต้องสร้าง milestone set ของแผนใหม่นั้นก่อน ปีถัดไปจึงคัดลอกต่อจาก set ชื่อเดียวกัน
-
-### 9.2 ระยะเวลาศึกษาและการขยาย
-
-- ปริญญาโททุกแผน: 4 ปี
-- ปริญญาเอก `1.1`/`2.1`: 5 ปี; `2.2`: 7 ปี
-- วันสิ้นสุดระยะปกติยังไม่อนุญาตให้ขยาย; เริ่มได้วันถัดไป
-- ขยายได้สูงสุดสองรอบ รอบละ 4 เดือนปฏิทิน
-- วันสิ้นสุดรอบยังอยู่ในรอบเดิม; รอบต่อไปเริ่มได้วันถัดไป
-- `Completed` และ `Approved` ถือว่า milestone เสร็จ; สถานะอื่นหรือไม่มี progress record ถือว่ายังไม่เสร็จ
-- ถ้าไม่มี milestone template ที่ตรงกับปีเข้า/ระดับ/แผน ให้ห้ามขยายและแจ้งว่าไม่ได้ตั้งค่า milestone
-- scheduler ทำงานหลังเที่ยงคืนเวลาไทยเพื่อเปลี่ยนเป็น `Dismissed` เมื่อรอบ 2 สิ้นสุดและยังไม่จบ
-- graduation workflow ต้องตั้ง `student_status = 'Graduate'` เพื่อไม่ให้ scheduler เปลี่ยนเป็นพ้นสภาพ
-
-## 10. การเพิ่ม feature ใหม่ควรเริ่มตรงไหน
-
-1. เพิ่มหรือแก้ type ใน `frontend/src/types` หาก response shape เปลี่ยน
-2. เพิ่ม frontend API wrapper ใน `frontend/src/services` ไม่เรียก `fetch` ตรงจาก view เว้นแต่เป็น auth bootstrap ที่ออกแบบไว้แล้ว
-3. ผูก UI ใน view/component และเพิ่ม translation ทั้ง `lang/th.ts` กับ `lang/en.ts`
-4. เพิ่ม route ที่ `backend/src/routes`
-5. ทำ HTTP validation/response ที่ controller
-6. ทำ business rule, transaction และ SQL ที่ service
-7. หาก schema เปลี่ยน ให้แก้ทั้ง `database/schema.sql` สำหรับฐานใหม่และเพิ่ม migration สำหรับฐานเดิม
-8. เพิ่ม unit/integration/E2E test ตามระดับความเสี่ยง
-9. รัน backend tests, frontend type-check, build, lint และ migration ใน environment ทดสอบ
-
-## 11. Commands สำหรับพัฒนาและตรวจสอบ
-
-```bash
-# Backend
-cd backend
-npm run dev
-npm test
-npm run db:migrate
-npm run db:audit
-
-# Frontend
-cd frontend
-npm run dev
-npm run type-check
-npm run test:unit
-npm run build
-npm run lint
-npm run test:e2e
-
-# Full stack
-docker compose up --build
+```text
+senior/
+├── .vscode/                         การตั้งค่าแนะนำสำหรับ VS Code
+├── backend/                         API และการประมวลผลของระบบ
+│   ├── database/                    โครงสร้างและไฟล์ปรับปรุงฐานข้อมูล
+│   │   ├── schema.sql
+│   │   ├── protective-foreign-keys.sql
+│   │   └── recalculate-study-extension-end-dates.sql
+│   ├── src/
+│   │   ├── config/                  การเชื่อมต่อฐานข้อมูลและรายการเว็บไซต์ที่อนุญาต
+│   │   ├── controllers/             รับข้อมูลจาก API และส่งผลลัพธ์กลับ
+│   │   ├── data/                    ข้อมูลตั้งต้นของระบบ
+│   │   ├── errors/                  รูปแบบ Error กลาง
+│   │   ├── middleware/              ตรวจผู้ใช้ ต้นทาง และจัดการ Error
+│   │   ├── routes/                  กำหนด URL ของ Backend API
+│   │   ├── scripts/                 คำสั่งดูแลฐานข้อมูลและบัญชีเริ่มต้น
+│   │   ├── services/                การประมวลผลหลักและการอ่านเขียนข้อมูล
+│   │   ├── app.js                   ประกอบส่วนต่าง ๆ ของ Express
+│   │   └── index.js                 เริ่มทำงาน Backend
+│   ├── test/                        การทดสอบ Backend เพิ่มเติม
+│   │   └── e2e/                     เตรียมข้อมูลสำหรับทดสอบทั้งระบบ
+│   ├── uploads/                     ไฟล์ที่ผู้ใช้อัปโหลดขณะระบบทำงาน
+│   │   ├── evidence/                หลักฐานประกอบ Milestone
+│   │   └── notifications/           ไฟล์แนบของการแจ้งเตือน
+│   ├── .env.example                 ตัวอย่างค่าตั้งค่า Backend
+│   ├── Dockerfile                   สร้าง Backend สำหรับใช้งานจริง
+│   ├── Dockerfile.dev               สร้าง Backend สำหรับสภาพแวดล้อมทดสอบ
+│   ├── docker-entrypoint.sh          เตรียมระบบก่อนเปิด Backend ใน Container
+│   └── package.json                 Dependencies และคำสั่งของ Backend
+├── deploy/                          ไฟล์ประกอบการนำระบบขึ้นใช้งาน
+│   ├── gateway/Dockerfile           Build Frontend และบรรจุไว้ใน Nginx
+│   └── nginx/default.conf           ส่งหน้าเว็บและส่งต่อคำขอไป Backend
+├── docs/                            คู่มือตั้งค่าบริการที่ระบบต้องใช้
+│   ├── AUTHENTICATION_SETUP.md      ตั้งค่า Google Sign-In
+│   ├── DATABASE_SETUP.md            เตรียมและตรวจ PostgreSQL
+│   ├── NOTIFICATION_SETUP.md        ตั้งค่าการส่ง Email ผ่าน SMTP
+│   └── SECURITY.md                  ผลตรวจ Secret และความปลอดภัยฐานข้อมูล
+├── frontend/                        หน้าเว็บของระบบ
+│   ├── e2e/                         การทดสอบระบบผ่านเว็บเบราว์เซอร์
+│   │   ├── auth/
+│   │   ├── fixtures/imports/
+│   │   ├── import/
+│   │   ├── management/
+│   │   ├── notifications/
+│   │   ├── smoke/
+│   │   └── support/
+│   ├── public/                      ไฟล์สาธารณะที่คัดลอกไปกับหน้าเว็บ
+│   ├── src/
+│   │   ├── assets/                  รูปภาพและ CSS
+│   │   ├── components/              ส่วนย่อยของหน้าจอที่นำกลับมาใช้ได้
+│   │   │   ├── __tests__/
+│   │   │   ├── admin/
+│   │   │   ├── common/
+│   │   │   ├── milestone/form/
+│   │   │   ├── navigation/
+│   │   │   ├── student/
+│   │   │   └── student-milestone/
+│   │   ├── composables/             ชุดการทำงานของ Vue ที่เรียกใช้ซ้ำ
+│   │   │   └── __tests__/
+│   │   ├── lang/                    ข้อความภาษาไทยและอังกฤษ
+│   │   ├── router/                  เส้นทางของแต่ละหน้าและการตรวจสิทธิ์
+│   │   ├── services/                ติดต่อ Backend API
+│   │   │   └── __tests__/
+│   │   ├── types/                   รูปแบบข้อมูลที่ Frontend ใช้
+│   │   ├── utils/                   ฟังก์ชันช่วยแปลงและแสดงผลข้อมูล
+│   │   │   └── __tests__/
+│   │   ├── views/                   หน้าหลักที่ผู้ใช้เปิดผ่าน URL
+│   │   │   ├── admin/
+│   │   │   ├── advisor/
+│   │   │   └── student/
+│   │   ├── App.vue                  โครงหน้าหลักของเว็บไซต์
+│   │   └── main.ts                  จุดเริ่มต้นของ Frontend
+│   ├── .env.example                 ตัวอย่างค่าตั้งค่า Frontend
+│   ├── index.html                   หน้า HTML ตั้งต้น
+│   ├── package.json                 Dependencies และคำสั่งของ Frontend
+│   ├── playwright.config.ts         ตั้งค่าการทดสอบผ่านเบราว์เซอร์
+│   ├── vite.config.ts               ตั้งค่าการ Build และ Development Server
+│   └── vitest.config.ts             ตั้งค่าการทดสอบระดับ Unit
+├── .env.docker.example              ตัวอย่างค่าตั้งค่าสำหรับ Docker Compose
+├── DEPLOYMENT.md                    คู่มือนำระบบขึ้นใช้งาน
+├── docker-compose.yml               ระบบหลักสำหรับใช้งานจริง
+├── docker-compose.e2e.yml           ระบบแยกสำหรับการทดสอบ E2E
+├── package.json                     รวมคำสั่งที่เรียก Frontend และ Backend
+├── PROJECT_STRUCTURE.md             เอกสารฉบับนี้
+└── README.md                         ภาพรวมและคู่มือเริ่มต้นใช้งาน
 ```
 
-## 12. Checklist ก่อนส่งมอบหรือ deploy
+### โฟลเดอร์ที่ไม่แสดงใน Tree
 
-- ตรวจ `.env` และ origin/domain โดยไม่ commit secret
-- รัน migrations ก่อนเปิด backend เวอร์ชันใหม่
-- ตรวจว่า Nginx protected upload routes ตรงกับ URL ที่บันทึกในฐานข้อมูล
-- ตรวจ role guard ทั้ง frontend และ backend; frontend guard ไม่ใช่ security boundary
-- ทดสอบ import ด้วยไฟล์จริงทั้งชื่อแผนเก่าและใหม่
-- ทดสอบ milestone set ของทุกปีเข้า/ระดับ/แผนที่มีนักศึกษา
-- ทดสอบวันก่อน/ตรง/หลัง boundary ของระยะปกติและรอบขยาย
-- ตรวจ scheduler log หลัง restart/deploy
-- สำรองฐานข้อมูลและ upload directories ก่อน migration ที่แก้ข้อมูลย้อนหลัง
-- ห้ามลบ advisor, milestone หรือ upload ที่ยังถูก foreign key/record อ้างอิง
+- `.git/` เป็นข้อมูลประวัติของ Git ไม่ใช่ Source Code ของระบบ
+- `.agents/` เป็นข้อมูลของเครื่องมือช่วยทำงานในเครื่องนี้ ไม่ใช่ส่วนของระบบ
+- `node_modules/` เป็น Dependencies ที่ติดตั้งใหม่ได้จาก `package-lock.json`
+- `frontend/dist/`, `playwright-report/` และ `test-results/` เป็นผลลัพธ์ที่เครื่องมือสร้างขึ้นใหม่ได้
 
-## 13. จุดเริ่มอ่านโค้ดสำหรับผู้รับช่วง
+โฟลเดอร์ `backend/uploads/` มีอยู่จริง แต่ไฟล์ภายในเป็นข้อมูลที่เกิดจากการใช้งาน จึงไม่ถูกเก็บไว้ใน Git ส่วน Production จะเก็บข้อมูลนี้ใน Docker volume แทนโฟลเดอร์บนเครื่องโดยตรง
 
-ลำดับที่แนะนำ:
+## 3. ไฟล์ระดับบนสุดของโปรเจกต์
 
-1. `README.md` และ `DEPLOYMENT.md`
-2. `frontend/src/router/index.ts` เพื่อเข้าใจหน้าทั้งหมด
-3. view ที่ต้องแก้ แล้วตาม import ไป frontend service
-4. route ชื่อเดียวกันใน `backend/src/routes`
-5. controller ที่ route ผูกไว้
-6. service functions ที่ controller import
-7. `backend/database/schema.sql` และ migration ที่เกี่ยวข้อง
-8. tests ของ feature นั้นก่อนแก้ behavior
+| ไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `README.md` | หน้าหลักของโปรเจกต์ ใช้อธิบายภาพรวม วิธีติดตั้ง ตั้งค่า และเปิดระบบ |
+| `PROJECT_STRUCTURE.md` | อธิบายตำแหน่งและหน้าที่ของโฟลเดอร์กับไฟล์ในโปรเจกต์ |
+| `DEPLOYMENT.md` | ขั้นตอนตรวจสอบและนำระบบขึ้นใช้งานด้วย Docker |
+| `docs/AUTHENTICATION_SETUP.md` | ขั้นตอนสร้าง Google OAuth Client และนำ Client ID มาใช้กับระบบ |
+| `docs/DATABASE_SETUP.md` | ขั้นตอนเตรียม PostgreSQL นำเข้า Schema และตรวจการเชื่อมต่อ |
+| `docs/NOTIFICATION_SETUP.md` | ขั้นตอนตั้งค่า SMTP ทดสอบ และเปิดการส่ง Email จริง |
+| `docs/SECURITY.md` | ผลตรวจ Secret ข้อจำกัดปัจจุบัน และแนวทางตั้งค่า PostgreSQL ที่ปลอดภัยขึ้น |
+| `package.json` | รวมคำสั่งกลาง เช่น Build, Test และเริ่ม Frontend หรือ Backend โดยส่งคำสั่งต่อไปยังแต่ละโฟลเดอร์ |
+| `.env.docker.example` | ตัวอย่างค่าที่ Docker Compose ต้องใช้ เช่น Database, Google Sign-In และ Email ห้ามใส่รหัสลับจริงในไฟล์ตัวอย่าง |
+| `docker-compose.yml` | เปิดระบบหลัก 3 ส่วน ได้แก่ PostgreSQL, Backend และ Gateway |
+| `docker-compose.e2e.yml` | เปิดระบบทดสอบที่แยกจากข้อมูลจริงสำหรับ Playwright |
+| `.dockerignore` | ระบุไฟล์ที่ไม่ต้องส่งเข้า Docker build context |
+| `.editorconfig` | กำหนดรูปแบบพื้นฐานของไฟล์ให้ Editor ต่าง ๆ ใช้ตรงกัน |
+| `.gitattributes` | กำหนดวิธีที่ Git จัดการไฟล์ใน repository |
+| `.gitignore` | ระบุ Secret, Dependencies, Upload และผลลัพธ์ที่ไม่ควรบันทึกลง Git |
 
-เอกสารนี้อ้างอิงโครงสร้างจริง ณ วันที่ระบุด้านบน หากเพิ่ม route, service, table หรือเปลี่ยน workflow ควรปรับทั้งตาราง mapping และ checklist ในเอกสารนี้พร้อมกับ pull request เดียวกัน
+## 4. Frontend - หน้าจอของระบบ
+
+Frontend พัฒนาด้วย Vue และ TypeScript ทำหน้าที่แสดงข้อมูล รับการกระทำจากผู้ใช้ และติดต่อ Backend ผ่าน HTTP API
+
+### 4.1 จุดเริ่มต้นและการเปิดแต่ละหน้า
+
+| ไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `frontend/index.html` | HTML ตั้งต้นที่ Vite ใช้วาง Vue application |
+| `frontend/src/main.ts` | สร้าง Vue application เชื่อม Router และโหลด CSS หลัก |
+| `frontend/src/App.vue` | โครงหน้ากลางของเว็บไซต์ แสดง Navbar เมื่อผู้ใช้เข้าสู่ระบบแล้ว และแสดงหน้าที่ Router เลือก |
+| `frontend/src/router/index.ts` | จับคู่ URL กับหน้า Vue ตรวจว่าผู้ใช้เข้าสู่ระบบหรือยัง และป้องกันการเปิดหน้าที่ไม่ตรงกับสิทธิ์ |
+| `frontend/src/views/Login.vue` | แสดงปุ่ม Google Sign-In รับผลการยืนยันตัวตนจาก Google และมีทางเข้าสำหรับ Development เมื่อเปิดใช้งานไว้ |
+| `frontend/src/views/AccessUnavailableView.vue` | แจ้งว่าบัญชีเข้าสู่ระบบได้ แต่ยังไม่มีหน้าที่ระบบอนุญาตให้ใช้งาน |
+
+### 4.2 หน้าสำหรับจัดการข้อมูลระบบ
+
+| ไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `views/admin/StudentDashboardView.vue` | แสดงรายชื่อนักศึกษา ค้นหา กรอง นำเข้า ส่งออก และเปลี่ยนสถานะการออกจากการศึกษา |
+| `views/admin/AdminStudentMilestoneView.vue` | แสดง Milestone ของนักศึกษารายคน และจัดการการขยายระยะเวลาศึกษา |
+| `views/admin/AdvisorDashboardView.vue` | แสดงรายชื่ออาจารย์ นำเข้า ส่งออก และเปิดหรือปิดสถานะบัญชีอาจารย์ |
+| `views/admin/MilestoneManagementView.vue` | สร้าง แก้ไข เปิด ปิด เรียงลำดับ และคัดลอกแบบแผน Milestone |
+| `views/admin/NotificationManagementView.vue` | สร้างการแจ้งเตือน เลือกกลุ่มผู้รับ แนบไฟล์ ส่งอีเมล และดูรายการที่เคยส่ง |
+
+### 4.3 หน้าสำหรับอาจารย์
+
+| ไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `views/advisor/AdvisorStudentOverallView.vue` | แสดงภาพรวมและค้นหานักศึกษาในความดูแล |
+| `views/advisor/AdvisorMilestoneSummaryView.vue` | สรุปสถานะ Milestone ของนักศึกษา แยกตามระดับการศึกษา แผน และปีที่เข้าเรียน |
+| `views/advisor/AdvisorStudentMilestoneView.vue` | เปิด Milestone ของนักศึกษารายคน เพื่อดูหลักฐาน อนุมัติ หรือส่งกลับให้แก้ไข |
+
+### 4.4 หน้าสำหรับนักศึกษา
+
+| ไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `views/student/StudentInformationView.vue` | แสดงข้อมูลนักศึกษา แผนการศึกษา และรายชื่ออาจารย์ที่ปรึกษา |
+| `views/student/StudentMilestoneView.vue` | แสดงความคืบหน้า Milestone แต่งตั้งอาจารย์ที่ปรึกษา อัปโหลดหลักฐาน และส่งข้อมูลการสำเร็จการศึกษา |
+| `views/student/StudentNotificationView.vue` | แสดงกล่องข้อความแจ้งเตือน เปิดไฟล์แนบ และบันทึกสถานะว่าอ่านแล้ว |
+
+### 4.5 Components - ส่วนประกอบย่อยของหน้าจอ
+
+Component คือส่วนของหน้าจอที่แยกออกมาเพื่ออ่านง่ายและนำกลับมาใช้ได้ ไม่ใช่หน้า URL โดยตรง
+
+| โฟลเดอร์หรือไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `components/admin/AdvisorTable.vue` | ตารางแสดงข้อมูลอาจารย์และปุ่มจัดการแต่ละรายการ |
+| `components/admin/DashboardActionCard.vue` | การ์ดปุ่มลัดสำหรับงานบน Dashboard |
+| `components/admin/ExportConfirmModal.vue` | หน้าต่างยืนยันก่อนส่งออกข้อมูล |
+| `components/admin/ImportFileModal.vue` | หน้าต่างเลือกไฟล์และแสดงผลการนำเข้าข้อมูล |
+| `components/common/PaginationControls.vue` | ปุ่มเปลี่ยนหน้าและเลือกจำนวนรายการต่อหน้า |
+| `components/milestone/MilestoneFormModal.vue` | แบบฟอร์มเพิ่มหรือแก้ไข Milestone |
+| `components/milestone/MilestoneTable.vue` | ตารางแสดงและจัดลำดับแบบแผน Milestone |
+| `components/milestone/form/` | ช่องวันที่และ Dropdown ที่ใช้ภายในแบบฟอร์ม Milestone |
+| `components/navigation/Navbar.vue` | แถบนำทางหลัก ชื่อผู้ใช้ เมนู และปุ่มออกจากระบบ |
+| `components/navigation/LanguageSwitch.vue` | ปุ่มสลับข้อความภาษาไทยและอังกฤษ |
+| `components/student/StudentExitStatusModal.vue` | หน้าต่างเปลี่ยนสถานะจบ ลาออก หรือพ้นสภาพของนักศึกษา |
+| `components/student/StudentFilters.vue` | ตัวกรองรายชื่อนักศึกษา |
+| `components/student/StudentInformationAdvisor.vue` | แสดงอาจารย์ที่ปรึกษาหลัก |
+| `components/student/StudentInformationCoAdvisor.vue` | แสดงอาจารย์ที่ปรึกษาร่วม |
+| `components/student/StudentInformationStudyPlan.vue` | แสดงรายละเอียดแผนและสถานะการศึกษา |
+| `components/student/StudentOverview.vue` | รวมข้อมูลภาพรวมของนักศึกษา |
+| `components/student/StudentTable.vue` | ตารางรายชื่อนักศึกษาและการเลือกเปิดรายละเอียด |
+| `components/student/SummaryCard.vue` | การ์ดตัวเลขสรุปบน Dashboard |
+| `components/student-milestone/EvidenceUploadControl.vue` | เลือก อัปโหลด เปิดดู และนำไฟล์หลักฐานออก |
+| `components/student-milestone/MilestoneStatusOverview.vue` | สรุปจำนวน Milestone ตามสถานะ |
+| `components/student-milestone/StudentMilestoneCard.vue` | การ์ดรายละเอียด Milestone แต่ละรายการ |
+| `components/student-milestone/StudentMilestoneProgress.vue` | แสดงภาพรวมความคืบหน้าของ Milestone |
+
+### 4.6 Services - การติดต่อ Backend
+
+ไฟล์กลุ่มนี้รวม URL, ข้อมูลที่ต้องส่ง และรูปแบบผลลัพธ์จาก Backend เพื่อไม่ให้หน้า Vue ต้องจัดการรายละเอียดการเชื่อมต่อเอง
+
+| ไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `services/api-client.ts` | ฟังก์ชันกลางสำหรับสร้าง URL ส่งคำขอ รับ JSON ดาวน์โหลดไฟล์ และแปลง Error ให้อยู่ในรูปเดียวกัน |
+| `services/auth.ts` | เก็บสถานะผู้ใช้ปัจจุบัน ส่งข้อมูล Google Sign-In ตรวจ Session และออกจากระบบ |
+| `services/students.api.ts` | จุดรวมสำหรับเรียกใช้ฟังก์ชันเกี่ยวกับนักศึกษาจากไฟล์ย่อย |
+| `services/student-query.api.ts` | อ่านรายการ รายละเอียด และภาพรวมนักศึกษา |
+| `services/student-actions.api.ts` | เปลี่ยนสถานะนักศึกษาและจัดการการขยายเวลาศึกษา |
+| `services/student-transfer.api.ts` | นำเข้า ส่งออก และดาวน์โหลดไฟล์ตัวอย่างของนักศึกษา |
+| `services/student-api.types.ts` | รูปแบบข้อมูลที่ใช้เฉพาะการติดต่อ API นักศึกษา |
+| `services/student-mapper.ts` | แปลงข้อมูลนักศึกษาจาก Backend ให้อยู่ในรูปที่หน้าจอใช้สะดวก |
+| `services/advisors.api.ts` | อ่าน นำเข้า ส่งออก และเปลี่ยนสถานะอาจารย์ |
+| `services/advisor-import-messages.ts` | แปลงรหัสผลการนำเข้ารายชื่ออาจารย์เป็นข้อความที่แสดงต่อผู้ใช้ |
+| `services/advisor-milestones.api.ts` | อ่าน Milestone ของนักศึกษาในความดูแลและส่งผลการตรวจ |
+| `services/advisor-milestone-summary.api.ts` | อ่านข้อมูลสรุป Milestone สำหรับอาจารย์ |
+| `services/milestones.api.ts` | อ่านและจัดการแบบแผน Milestone |
+| `services/student-profile.api.ts` | อ่านข้อมูลของนักศึกษาที่เข้าสู่ระบบ แต่งตั้งอาจารย์ และส่งข้อมูลจบการศึกษา |
+| `services/student-milestones.api.ts` | อ่าน Milestone ของนักศึกษาที่เข้าสู่ระบบและจัดการหลักฐาน |
+| `services/notifications.api.ts` | อ่าน สร้าง และเปลี่ยนสถานะการแจ้งเตือน รวมถึงไฟล์แนบ |
+
+### 4.7 โฟลเดอร์สนับสนุน Frontend
+
+| โฟลเดอร์ | เกี่ยวกับอะไร |
+|---|---|
+| `src/assets/` | CSS หลัก โลโก้มหาวิทยาลัย และรูปไอคอนของเว็บไซต์ |
+| `src/composables/` | การทำงานที่หลายหน้าต้องใช้ร่วมกัน ได้แก่ภาษา การ Refresh อัตโนมัติ และข้อมูลภาพรวมนักศึกษา |
+| `src/lang/` | ข้อความของหน้าจอภาษาไทยและอังกฤษ พร้อมฟังก์ชันเลือกภาษา |
+| `src/types/` | รูปแบบข้อมูลของอาจารย์ นักศึกษา ผู้ใช้ Milestone และ Notification |
+| `src/utils/` | ฟังก์ชันขนาดเล็กสำหรับจัดรูปชื่ออาจารย์ สถานะ Milestone และข้อความ Notification |
+| `src/**/__tests__/` | Unit tests ของ Component, Composable, Service และ Utility ที่อยู่ใกล้กัน |
+| `public/` | ไฟล์ที่ Vite คัดลอกไปยังเว็บไซต์โดยไม่แก้ไข ปัจจุบันมี Favicon |
+
+### 4.8 ไฟล์ตั้งค่า Frontend
+
+| ไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `frontend/.env.example` | ตัวอย่าง Backend URL, Google Client ID และสวิตช์ Development Login |
+| `frontend/package.json` | รายชื่อ Dependencies และคำสั่ง Dev, Build, Test, Lint และ Format |
+| `frontend/vite.config.ts` | ตั้งค่า Vue, Path alias, Tailwind CSS และ Development Server |
+| `frontend/vitest.config.ts` | ตั้งค่าสภาพแวดล้อมสำหรับ Unit tests |
+| `frontend/playwright.config.ts` | ตั้งค่า Browser, Base URL, Report และวิธีเปิดระบบก่อน E2E tests |
+| `frontend/tsconfig*.json` | กฎการตรวจ TypeScript สำหรับ Application, Node และ Tests |
+| `frontend/eslint.config.ts` | กฎตรวจรูปแบบและข้อผิดพลาดใน Source Code |
+| `frontend/env.d.ts` | ประกาศ Type ที่ Frontend และ Vite เพิ่มให้กับ TypeScript |
+
+## 5. Backend - การประมวลผลและข้อมูล
+
+Backend พัฒนาด้วย Node.js และ Express รับคำขอจาก Frontend ตรวจสิทธิ์ ทำงานตามคำขอ และอ่านหรือบันทึกข้อมูลใน PostgreSQL
+
+### 5.1 จุดเริ่มต้นและการตั้งค่า
+
+| ไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `backend/src/index.js` | โหลดค่าจาก `.env` เปิด HTTP server เริ่มงานตามเวลา และปิดการเชื่อมต่ออย่างเรียบร้อยเมื่อระบบหยุด |
+| `backend/src/app.js` | สร้าง Express application เปิด CORS อ่าน Cookie และ JSON เชื่อม Route ทุกกลุ่ม และมี `/health` สำหรับตรวจสถานะ |
+| `backend/src/config/database.js` | สร้าง Connection Pool ของ PostgreSQL จาก `DATABASE_URL` |
+| `backend/src/config/allowed-origins.js` | รวมรายการเว็บไซต์ที่อนุญาตให้เรียก Backend |
+| `backend/src/errors/api-error.js` | รูปแบบ Error ที่ระบุ HTTP status และข้อความที่ส่งกลับไปยัง Frontend ได้ |
+
+### 5.2 Middleware - จุดตรวจร่วมก่อนถึงงานหลัก
+
+| ไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `middleware/auth.middleware.js` | อ่าน JWT จาก Cookie ตรวจความถูกต้อง โหลดข้อมูลผู้ใช้ และตรวจว่าบัญชีมีสิทธิ์ตามบทบาทที่ Route ต้องการ |
+| `middleware/origin.middleware.js` | ป้องกันคำขอที่เปลี่ยนข้อมูลหากส่งมาจากเว็บไซต์ที่ระบบไม่ได้อนุญาต |
+| `middleware/error.middleware.js` | เปลี่ยน Error เป็น JSON รูปแบบกลาง และตอบ 404 เมื่อไม่มี API ตาม URL ที่เรียก |
+
+### 5.3 Routes - รายการทางเข้าของ Backend
+
+Route ระบุ URL และ HTTP method แล้วส่งคำขอไปยัง Controller ที่เกี่ยวข้อง การตรวจว่าผู้ใช้เป็นผู้ดูแล อาจารย์ หรือนักศึกษาจะทำก่อนเข้าถึงบาง Route
+
+| ไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `routes/auth.routes.js` | ทางเข้า Google Sign-In, Development Login, ตรวจผู้ใช้ปัจจุบัน และออกจากระบบ |
+| `routes/students.routes.js` | ทางเข้าอ่านและจัดการนักศึกษา การนำเข้า ส่งออก สถานะ และการขยายเวลาศึกษา |
+| `routes/advisors.routes.js` | ทางเข้าอ่านและจัดการอาจารย์ รวมถึงข้อมูลนักศึกษาและ Milestone ในความดูแล |
+| `routes/milestones.routes.js` | ทางเข้าอ่าน สร้าง แก้ไข เปิดปิด เรียง และคัดลอกแบบแผน Milestone |
+| `routes/student-profile.routes.js` | ทางเข้าสำหรับนักศึกษาที่ต้องการดูหรือแก้ข้อมูลของตนเอง |
+| `routes/evidence.routes.js` | ทางเข้าเปิดไฟล์หลักฐานหลังตรวจสิทธิ์ผู้ขอ |
+| `routes/notifications.routes.js` | ทางเข้าอ่าน สร้าง และเปลี่ยนสถานะ Notification รวมถึงไฟล์แนบ |
+| `routes/users.routes.js` | ทางเข้าอ่านและจัดการบัญชีผู้ใช้ |
+
+### 5.4 Controllers - รับคำขอและเตรียมคำตอบ
+
+Controller อ่านข้อมูลจาก URL, Query, Body หรือไฟล์อัปโหลด ตรวจรูปแบบเบื้องต้น เรียก Service ที่เกี่ยวข้อง แล้วกำหนด HTTP status และข้อมูลตอบกลับ
+
+| ไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `controllers/auth.controller.js` | รับ Google credential ตรวจว่าเป็นบัญชี `lamduan.mfu.ac.th` ตรวจว่ามีผู้ใช้อยู่ในระบบ แล้วสร้าง Login Cookie นอกจากนี้ยังดูแล Development Login และ Logout |
+| `controllers/students.controller.js` | รับคำขอเกี่ยวกับรายชื่อ รายละเอียด การนำเข้า ส่งออก สถานะการศึกษา Milestone และการขยายเวลา |
+| `controllers/advisors.controller.js` | รับคำขอเกี่ยวกับรายชื่อ สถานะ การนำเข้า ส่งออก นักศึกษาในความดูแล และผลสรุป Milestone |
+| `controllers/milestones.controller.js` | ตรวจข้อมูลที่ส่งมาและรับคำขอจัดการแบบแผน Milestone |
+| `controllers/student-profile.controller.js` | รับคำขอที่นักศึกษาทำกับข้อมูลของตนเอง เช่น ดู Profile แต่งตั้งอาจารย์ ส่งหลักฐาน และแจ้งสำเร็จการศึกษา |
+| `controllers/evidence.controller.js` | ตรวจสิทธิ์ก่อนเปิดไฟล์หลักฐาน และส่งไฟล์โดยตรงหรือส่งต่อให้งาน Nginx |
+| `controllers/notifications.controller.js` | รับคำขอสร้างและอ่าน Notification อัปโหลดหรือเปิดไฟล์แนบ และบันทึกสถานะการอ่าน |
+| `controllers/users.controller.js` | รับคำขอจัดการบัญชีผู้ใช้จากผู้ดูแลระบบ |
+
+### 5.5 Services - งานหลักของระบบ
+
+Service เป็นส่วนที่ประมวลผลข้อมูล ติดต่อ PostgreSQL จัดการไฟล์ หรือส่งอีเมล Controller จะเรียก Service แทนการทำงานเหล่านี้โดยตรง
+
+#### ผู้ใช้ นักศึกษา และอาจารย์
+
+| ไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `services/auth.service.js` | ค้นหาผู้ใช้ที่ได้รับอนุญาตจาก Email หรือ User ID และรวมข้อมูลชื่อกับบทบาทจากตารางที่เกี่ยวข้อง |
+| `services/users.service.js` | อ่าน สร้าง แก้ไข และลบบัญชีผู้ใช้ พร้อมปรับข้อมูลอาจารย์ที่ผูกกับบัญชีเมื่อจำเป็น |
+| `services/students.service.js` | อ่านและปรับข้อมูลนักศึกษา จัดการสถานะ ที่ปรึกษา การขยายเวลา และข้อมูลที่ใช้ใน Dashboard |
+| `services/student-files.service.js` | อ่านและตรวจไฟล์ CSV/XLSX ของนักศึกษา รวมทั้งสร้างไฟล์ตัวอย่างและไฟล์ส่งออก |
+| `services/advisors.service.js` | อ่านและปรับข้อมูลอาจารย์ นำเข้ารายชื่อ และสร้างข้อมูลนักศึกษาในความดูแลกับรายงานสรุป |
+| `services/advisor-files.service.js` | อ่านและตรวจไฟล์รายชื่ออาจารย์ รวมทั้งสร้างไฟล์ตัวอย่างและไฟล์ส่งออก |
+| `services/bootstrap-admin.service.js` | สร้างหรือปรับบัญชีผู้ดูแลระบบเริ่มต้นโดยไม่สร้างข้อมูลซ้ำ |
+
+#### Milestone และหลักฐาน
+
+| ไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `services/milestones.service.js` | อ่าน สร้าง แก้ไข เปิดปิด และเรียงลำดับแบบแผน Milestone |
+| `services/academic-year-milestones.service.js` | เตรียมชุด Milestone ของปีการศึกษาใหม่จากชุดล่าสุดที่ตรงกัน |
+| `services/milestone-copy.service.js` | คัดลอกชุด Milestone ตามปี ระดับการศึกษา และแผนที่เลือก |
+| `services/milestone-student.service.js` | สร้างรายการ Milestone ที่นักศึกษาแต่ละคนควรเห็น พร้อมสถานะและเงื่อนไขการเปิดใช้งาน |
+| `services/milestone-advisor.service.js` | เตรียมรายการสำหรับอาจารย์ ตรวจหลักฐาน และบันทึกผลอนุมัติหรือส่งกลับ |
+| `services/milestone-evidence.service.js` | บันทึกหรือนำหลักฐานออก และควบคุมสถานะของการส่งหลักฐาน |
+| `services/evidence.service.js` | ตรวจว่าผู้ขอมีความเกี่ยวข้องกับหลักฐานก่อนอนุญาตให้เปิดไฟล์ |
+| `services/evidence-code.js` | สร้างและจัดรูปแบบรหัสสั้นที่ใช้ระบุหลักฐาน |
+| `services/milestone.constants.js` | รวมชื่อสถานะและค่าคงที่ของ Milestone ที่หลาย Service ใช้ร่วมกัน |
+
+#### การขยายเวลา การแจ้งเตือน และงานตามเวลา
+
+| ไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `services/study-extension-policy.js` | คำนวณช่วงเวลาศึกษาปกติ วันที่เริ่มขยาย และวันสิ้นสุดของแต่ละรอบ |
+| `services/study-extension-scheduler.service.js` | ตรวจนักศึกษาที่หมดระยะขยายและปรับสถานะเมื่อถึงเวลา |
+| `services/notifications.service.js` | อ่านและสร้าง Notification บันทึกการอ่าน และตรวจสิทธิ์เปิดไฟล์แนบ |
+| `services/notification-recipient.service.js` | คัดเลือกรายชื่อผู้รับจากกลุ่มเป้าหมายที่ผู้ส่งเลือก |
+| `services/milestone-notification.service.js` | สร้าง Notification ที่เกิดจากการเปลี่ยนแปลงของ Milestone |
+| `services/milestone-reminder.service.js` | ค้นหา Milestone ที่ถึงกำหนดเตือนและเตรียมข้อความแจ้งเตือน |
+| `services/milestone-reminder-scheduler.service.js` | เรียกตรวจ Reminder ตามช่วงเวลาที่กำหนด |
+| `services/email.service.js` | สร้างเนื้อหา Email และไฟล์แนบ แล้วส่งตรงผ่าน SMTP |
+
+### 5.6 ข้อมูลตั้งต้น Script และการทดสอบ
+
+| โฟลเดอร์หรือไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `src/data/default-milestone-templates.js` | ชุด Milestone ตั้งต้นที่ Migration สามารถนำไปใช้เมื่อยังไม่มีข้อมูล |
+| `src/scripts/migrate-database.js` | ตรวจและปรับโครงสร้างฐานข้อมูลเดิมให้รองรับ Source Code ปัจจุบัน |
+| `src/scripts/audit-database.js` | ตรวจว่าตาราง คอลัมน์ Index และ Constraint สำคัญมีอยู่ครบ |
+| `src/scripts/bootstrap-admin.js` | เรียก Service เพื่อสร้างหรือปรับบัญชีผู้ดูแลเริ่มต้นจาก Environment Variables |
+| `src/**/*.test.js` | Unit tests ที่วางใกล้ไฟล์ Source Code ที่กำลังทดสอบ |
+| `test/*.test.js` | การทดสอบการนำเข้าไฟล์ การเตรียม Container และการทำงานที่เชื่อมหลายส่วน |
+| `test/e2e/seed-e2e.js` | ล้างและสร้างข้อมูลเฉพาะสำหรับ E2E test โดยต้องเปิดอนุญาตอย่างชัดเจนก่อน |
+
+### 5.7 ไฟล์ตั้งค่า Backend
+
+| ไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `backend/.env.example` | ตัวอย่างค่าการเชื่อมต่อ Database, Authentication, Frontend origin, Email และบัญชีผู้ดูแลเริ่มต้น |
+| `backend/package.json` | Dependencies และคำสั่ง Start, Dev, Test, Migration, Audit และ Bootstrap Admin |
+| `backend/Dockerfile` | สร้าง Image ขนาดเล็กสำหรับ Backend ที่ใช้งานจริง |
+| `backend/Dockerfile.dev` | สร้าง Image สำหรับ Backend ในระบบ E2E test |
+| `backend/docker-entrypoint.sh` | รอ PostgreSQL เรียก Migration สร้าง Admin เริ่มต้น แล้วจึงเปิด Backend |
+
+## 6. Database - โครงสร้างข้อมูล
+
+| ไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `backend/database/schema.sql` | สร้างตาราง ความสัมพันธ์ Index และข้อมูลตั้งต้นสำหรับฐานข้อมูลใหม่ |
+| `backend/database/protective-foreign-keys.sql` | เพิ่ม Foreign Key และข้อจำกัดเพื่อป้องกันข้อมูลที่อ้างถึงรายการซึ่งไม่มีอยู่แล้ว |
+| `backend/database/recalculate-study-extension-end-dates.sql` | ปรับวันสิ้นสุดการขยายเวลาของข้อมูลเดิมให้คำนวณเป็นสี่เดือนปฏิทิน |
+
+ไฟล์ SQL อยู่ใน `backend/database/` เพราะ Backend เป็นส่วนที่อ่านและแก้ไขข้อมูลใน PostgreSQL โดยตรง เมื่อเปิดระบบใหม่ผ่าน Docker ไฟล์ `schema.sql` จะถูกใช้สร้างฐานข้อมูลครั้งแรก ส่วนฐานข้อมูลเดิมจะได้รับการตรวจและปรับเพิ่มเติมจาก Migration script ของ Backend
+
+## 7. Deploy - การประกอบระบบสำหรับใช้งานจริง
+
+โฟลเดอร์ `deploy/` อยู่ที่ระดับบนสุดของโปรเจกต์ ซึ่งเป็นตำแหน่งที่ถูกต้อง เพราะ Docker Compose ต้องใช้ไฟล์ในโฟลเดอร์นี้ร่วมกับทั้ง Frontend และ Backend
+
+| ไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `deploy/gateway/Dockerfile` | ใช้ Node.js Build Vue ให้เป็นไฟล์หน้าเว็บ แล้วคัดลอกผลลัพธ์ไปไว้ใน Nginx Image เดียวกัน |
+| `deploy/nginx/default.conf` | ส่งหน้าเว็บจาก Nginx ส่งคำขอ `/api` ต่อไปยัง Backend และส่งไฟล์ Upload หลัง Backend ตรวจสิทธิ์ |
+| `docker-compose.yml` | ประกอบ `db`, `backend` และ `gateway` เข้าด้วยกัน พร้อม Volume สำหรับ Database และ Upload |
+| `docker-compose.e2e.yml` | ประกอบระบบทดสอบที่ใช้ Database และข้อมูลแยกจากระบบหลัก |
+
+Production มี Container หลัก 3 ตัว:
+
+```text
+gateway   = Nginx + ไฟล์ Frontend ที่ Build แล้ว
+backend   = Node.js API
+db        = PostgreSQL
+```
+
+ดังนั้น Production ไม่มี Frontend Container แยกอีกหนึ่งตัว เพราะ Frontend ที่ Build แล้วอยู่ใน `gateway`
+
+## 8. End-to-End Tests - การทดสอบผ่านเบราว์เซอร์
+
+| โฟลเดอร์หรือไฟล์ | เกี่ยวกับอะไร |
+|---|---|
+| `frontend/e2e/auth/` | ทดสอบหน้าล็อกอิน ทั้ง Development Login และหน้าปุ่ม Google Sign-In |
+| `frontend/e2e/import/` | ทดสอบการนำเข้ารายชื่อนักศึกษาและอาจารย์ |
+| `frontend/e2e/management/` | ทดสอบงานจัดการข้อมูล เช่น การปิดสถานะแทนการลบ |
+| `frontend/e2e/notifications/` | ทดสอบการสร้าง Notification และการมองเห็นจากบัญชีนักศึกษา |
+| `frontend/e2e/smoke/` | ทดสอบอย่างรวดเร็วว่าหน้าหลักเปิดได้ |
+| `frontend/e2e/fixtures/imports/` | ไฟล์ตัวอย่างที่ใช้เป็นข้อมูลนำเข้าระหว่างทดสอบ |
+| `frontend/e2e/support/` | เครื่องมือช่วยจำลอง Google Identity ในสภาพแวดล้อมทดสอบ |
+| `frontend/e2e/Dockerfile` | สร้าง Frontend Development Server ที่ระบบ E2E เปิดใช้ใน Container |
+| `frontend/e2e/README.md` | คำอธิบายวิธีใช้ชุดทดสอบ E2E |
+
+---
+
+เอกสารนี้ตรวจชื่อและตำแหน่งของโฟลเดอร์กับไฟล์จาก Source Code ที่มีอยู่จริง ณ วันที่ระบุด้านบน หากโครงสร้างโปรเจกต์เปลี่ยน ควรแก้ Markdown ฉบับนี้ก่อน แล้วสร้าง PDF ใหม่จากเนื้อหาเดียวกันเพื่อให้ทั้งสองฉบับตรงกัน

@@ -104,7 +104,10 @@ function menuLabel(item: MenuItem) {
 
 const userInitials = computed(() => {
   if (props.user.role === 'advisor') {
-    return advisorSidebarInitials(props.user.fullNameThai?.trim() || props.user.fullName)
+    // Generate initials from the same localized name that is shown beside the avatar.
+    // This keeps EN names/initials and TH names/initials in sync while preserving
+    // sidebarName's fallback behavior when one localized name is unavailable.
+    return advisorSidebarInitials(sidebarName.value)
   }
 
   const normalizedName = sidebarName.value
